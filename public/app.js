@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildPiece } from '/pieces.js';
 import { t, table, getLang, setLang, applyStatic, onLangChange } from '/i18n.js';
-import { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseSquare, PIECE_NAMES } from '/engine.js';
+import { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseSquare, PIECE_NAMES, Game } from '/engine.js';
 
 // --- world mapping -------------------------------------------------------------
 const H = 2.0; // vertical spacing per level unit
@@ -317,7 +317,7 @@ function toast(msg) {
   toast._t = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-const isHumanTurn = () => state && state.status === 'playing' && state.players[state.turn] === 'human';
+const isHumanTurn = () => state && !state.replay && state.status === 'playing' && state.players[state.turn] === 'human';
 
 function setSquareGlow() {
   for (const [k, m] of squareMeshes) m.material.emissive.setHex(0x000000);
@@ -394,10 +394,12 @@ function renderPieces(prev) {
 function renderPanel() {
   const s = state;
   let status;
-  if (s.status === 'checkmate') status = t('status.mate', { c: IT[s.winner] });
+  if (s.replay) status = t('replay.status', { i: s.replay.i, n: s.replay.n });
+  else if (s.status === 'checkmate') status = t('status.mate', { c: IT[s.winner] });
   else if (s.status === 'stalemate') status = t('status.stalemate');
   else if (s.status === 'draw') status = t('status.draw', { r: DRAW_IT[s.drawReason || 'fifty'] });
   else if (s.status === 'resigned') status = t('status.resigned', { c: IT[s.winner] });
+  else if (s.status === 'timeout') status = t('status.timeout', { c: IT[s.winner] });
   else if (s.check) status = t(s.legalMoves.length === 1 ? 'status.check1' : 'status.check', { c: IT[s.turn], n: s.legalMoves.length });
   else if (s.players[s.turn] === 'computer') status = t('status.computer', { c: IT[s.turn] });
   else if (s.players[s.turn] === 'remote') status = t('status.remote', { c: IT[s.turn] });
@@ -425,17 +427,113 @@ function renderPanel() {
 function applyState(s) {
   const prev = state;
   state = s;
-  if (!prev || prev.id !== s.id) { $('selW').value = s.players.white; $('selB').value = s.players.black; if (s.computer) for (const [c, k] of [['white', 'W'], ['black', 'B']]) { $('lvl' + k).value = String(s.computer[c].level); $('sty' + k).value = s.computer[c].style; } }
+  if (!s.replay && (!prev || prev.id !== s.id)) { $('selW').value = s.players.white; $('selB').value = s.players.black; if (s.computer) for (const [c, k] of [['white', 'W'], ['black', 'B']]) { $('lvl' + k).value = String(s.computer[c].level); $('sty' + k).value = s.computer[c].style; } }
   if (selected && ((!isPin(selected) && !s.pieces[selected]) || (isPin(selected) && !s.boards[selected]) || !isHumanTurn())) selected = null;
   syncBoards();
   renderPieces(prev);
   renderMarkers();
   setSquareGlow();
   renderPanel();
+  const canReplay = !s.replay && s.status !== 'playing' && s.history.length > 0;
+  $('btnReplay').hidden = !canReplay;
+  $('vReplay').hidden = !canReplay;
+  if (s.replay) { if (victory) stopVictory(); return; }
   for (const f of window.TriD?.listeners || []) { try { f(s, prev); } catch (err) { console.error(err); } }
   const over = s.status !== 'playing';
-  if (over && (!prev || prev.id !== s.id || prev.status === 'playing')) startVictory();
+  if (over && !quietVictory && (!prev || prev.id !== s.id || prev.status === 'playing')) startVictory();
+  quietVictory = false;
   if (!over && victory) stopVictory();
+}
+
+// --- live state vs replay -------------------------------------------------------------
+// Live states come from the server (or the local game in the web build). While a replay is
+// open they are kept but not shown; the replay renders positions rebuilt with the engine.
+let live = null;
+let replay = null;        // { moves, i }
+let quietVictory = false;
+let replayFromUrl = null;
+function onLive(s) {
+  live = s;
+  if (!replay) applyState(s);
+  if (replayFromUrl) { const m = replayFromUrl; replayFromUrl = null; startReplay(m); }
+}
+const PUBLIC_DEMO = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
+const MOVE_RE = /^([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])-([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])(?:=([QRBN]))?$/;
+const b64url = (s) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64url = (s) => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
+function encodeGame(moves) { return b64url(moves.map((m) => `${m.from}-${m.to}${m.promotion ? '=' + m.promotion : ''}`).join('.')); }
+function decodeGame(code) {
+  try {
+    if (!code || code.length > 30000) return null;
+    const parts = unb64url(code).split('.').filter(Boolean);
+    if (!parts.length || parts.length > 2000) return null;
+    const moves = parts.map((p) => { const m = MOVE_RE.exec(p); return m && { from: m[1], to: m[2], promotion: m[3] || null }; });
+    return moves.every(Boolean) ? moves : null;
+  } catch { return null; }
+}
+function replayState(moves, i) {
+  const g = new Game({ white: 'human', black: 'human' });
+  g.id = 'replay';
+  let k = 0;
+  for (; k < i; k++) { try { g.move(moves[k].from, moves[k].to, moves[k].promotion); } catch { break; } }
+  return { ...g.snapshot(), legalMoves: [], replay: { i: k, n: moves.length } };
+}
+function startReplay(moves) {
+  if (!moves?.length) return;
+  hideVictory();
+  selected = null;
+  replay = { moves, i: moves.length };
+  // validate the whole list once: stop at the first illegal move
+  const full = replayState(moves, moves.length);
+  replay.moves = moves.slice(0, full.replay.i);
+  replay.i = replay.moves.length;
+  if (!replay.i) { replay = null; toast(t('replay.bad')); return; }
+  $('replayBar').hidden = false;
+  showReplay();
+}
+function showReplay() {
+  applyState(replayState(replay.moves, replay.i));
+  $('rpPos').textContent = `${replay.i} / ${replay.moves.length}`;
+  $('rpFirst').disabled = $('rpPrev').disabled = replay.i === 0;
+  $('rpNext').disabled = $('rpLast').disabled = replay.i === replay.moves.length;
+}
+function stepReplay(to) {
+  if (!replay) return;
+  replay.i = Math.max(0, Math.min(replay.moves.length, to));
+  showReplay();
+}
+function closeReplay() {
+  if (!replay) return;
+  replay = null;
+  $('replayBar').hidden = true;
+  try { const u = new URL(location.href); if (u.searchParams.has('replay')) { u.searchParams.delete('replay'); history.replaceState(null, '', u); } } catch {}
+  quietVictory = true;
+  if (live) applyState(live);
+}
+const movesOfState = (s) => s.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || null }));
+$('btnReplay').onclick = () => live && startReplay(movesOfState(live));
+$('vReplay').onclick = () => live && startReplay(movesOfState(live));
+$('rpFirst').onclick = () => stepReplay(0);
+$('rpPrev').onclick = () => stepReplay(replay.i - 1);
+$('rpNext').onclick = () => stepReplay(replay.i + 1);
+$('rpLast').onclick = () => stepReplay(Infinity);
+$('rpClose').onclick = closeReplay;
+$('rpShare').onclick = () => {
+  if (!replay) return;
+  const url = `${PUBLIC_DEMO}?replay=${encodeGame(replay.moves)}`;
+  navigator.clipboard?.writeText(url).then(() => toast(t('replay.copied')), () => {});
+};
+window.addEventListener('keydown', (e) => {
+  if (!replay || e.target?.closest?.('input, textarea, select')) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); stepReplay(replay.i - 1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); stepReplay(replay.i + 1); }
+  else if (e.key === 'Home') stepReplay(0);
+  else if (e.key === 'End') stepReplay(Infinity);
+  else if (e.key === 'Escape') closeReplay();
+});
+{
+  const code = new URLSearchParams(location.search).get('replay');
+  if (code) { const m = decodeGame(code); if (m) replayFromUrl = m; else setTimeout(() => toast(t('replay.bad')), 500); }
 }
 
 // --- victory celebration -------------------------------------------------------------
@@ -468,7 +566,7 @@ function victoryText(s) {
     const w = s.winner, st = statsFor(s, w);
     $('vEyebrow').textContent = t('victory.glory', { c: IT[w] });
     $('vTitle').textContent = t('victory.win');
-    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? 'victory.byMate' : 'victory.byResign'), n });
+    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? 'victory.byMate' : s.status === 'timeout' ? 'victory.byTime' : 'victory.byResign'), n });
     $('vMeta').textContent = t('victory.meta', { caps: st.caps.length, checks: st.checks, mat: st.material });
   }
 }
@@ -575,7 +673,7 @@ $('vClose').onclick = hideVictory;
 $('vNew').onclick = () => { stopVictory(); selected = null; post('/api/new', newGameBody()); };
 
 const es = new EventSource('/api/events');
-es.onmessage = (e) => applyState(JSON.parse(e.data));
+es.onmessage = (e) => onLive(JSON.parse(e.data));
 es.onerror = () => { $('status').textContent = t('status.lost'); };
 
 async function post(url, body) {
@@ -706,7 +804,7 @@ renderer.setAnimationLoop(() => {
 });
 
 // --- hooks for optional modules (network play, net.js) ---------------------------------
-window.TriD = Object.assign(window.TriD || {}, { getState: () => state, post, toast, t, onLangChange, listeners: window.TriD?.listeners || [] });
+window.TriD = Object.assign(window.TriD || {}, { getState: () => live || state, post, toast, t, onLangChange, listeners: window.TriD?.listeners || [] });
 
 // --- language (IT / EN) -------------------------------------------------------------------
 function refreshLanguage() {

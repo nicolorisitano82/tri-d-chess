@@ -25,6 +25,13 @@
 <meta name="twitter:image:alt" content="Tri-D Chess: a three-dimensional chessboard with three main levels and four attack boards in space">
 <link rel="canonical" href="https://nicolorisitano82.github.io/tri-d-chess/play/">
 <link rel="icon" href="../assets/icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#000006">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tri-D Chess">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
 <body>
 <style>
@@ -127,6 +134,26 @@
     .sharelinks a { font-size: 12px; font-weight: 700; text-decoration: none; color: var(--text); background: #1a1428; border: 1px solid #443a5a; border-radius: 12px; padding: 4px 10px; }
     .sharelinks a:hover, .sharelinks a:focus-visible { border-color: var(--orange); color: #fff; }
     .shareact { display: flex; gap: 6px; }
+    /* --- clock --- */
+    #netClock { position: fixed; top: max(12px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 9; display: flex; gap: 8px; pointer-events: none; }
+    #netClock[hidden] { display: none; }
+    #netClock .ck { display: flex; align-items: baseline; gap: 8px; background: rgba(10,8,20,.88); border: 1px solid #443a5a; border-radius: 14px; padding: 6px 14px; backdrop-filter: blur(6px); }
+    #netClock .cn { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+    #netClock .ct { font: 700 20px ui-monospace, Menlo, monospace; color: var(--text); font-variant-numeric: tabular-nums; min-width: 4.2ch; text-align: right; }
+    #netClock .ck.active { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange) inset; }
+    #netClock .ck.active .ct { color: var(--peach); }
+    #netClock .ck.low .ct { color: var(--red); }
+    body.has-clock #stats { top: 64px; }
+    /* --- rematch --- */
+    .rematch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--peach); }
+    .rematch[hidden], #rematchOffer[hidden] { display: none; }
+    #victory .rematch { justify-content: center; margin-top: 10px; pointer-events: auto; }
+    /* --- replay --- */
+    #replayBar { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 12; display: flex; align-items: center; gap: 6px; background: rgba(10,8,20,.94); border: 1px solid #443a5a; border-left: 10px solid var(--sky); border-radius: 0 16px 16px 0; padding: 8px 10px; backdrop-filter: blur(6px); max-width: calc(100vw - 24px); }
+    #replayBar[hidden] { display: none; }
+    #replayBar button:not(.lilac) { background: #1a1428; color: var(--text); border: 1px solid #443a5a; padding: 6px 10px; font-size: 14px; border-radius: 10px; }
+    #replayBar button:disabled { opacity: .35; cursor: default; }
+    #rpPos { font: 700 14px ui-monospace, Menlo, monospace; min-width: 7ch; text-align: center; color: var(--peach); font-variant-numeric: tabular-nums; }
     /* --- lobby --- */
     .netpub { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; }
     .netpub input { accent-color: var(--orange); }
@@ -185,6 +212,7 @@
     @keyframes reactSpark { 0% { transform: translate(-50%, 0) scale(.4); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), var(--dy)) scale(.9); opacity: 0; } }
     @media (prefers-reduced-motion: reduce) { .react-pop, .react-spark { animation-duration: .01s; } }
     @media (max-height: 500px) { #chat { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: min(320px, 46vw); } #chatLog { height: 26vh; height: 26dvh; } #emojiPicker { grid-template-columns: repeat(10, 1fr); } }
+    @media (max-width: 700px) { #netClock .ck { padding: 4px 10px; } #netClock .ct { font-size: 17px; } #netClock .cn { display: none; } body.has-clock #stats { top: 52px; } #replayBar { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); gap: 4px; padding: 6px 8px; } #replayBar button:not(.lilac) { padding: 6px 8px; } #rpPos { min-width: 6ch; font-size: 13px; } }
     @media (max-width: 700px) { #chat { left: 8px; right: 8px; width: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); } #chatLog { height: 22vh; height: 22dvh; } }
     /* --- promotion picker --- */
     #promo { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(0,0,6,.55); }
@@ -313,6 +341,8 @@
         <button class="blue" id="btnCam" data-i18n="ui.view">Vista</button>
         <button class="lilac" id="btnStats" data-i18n="ui.stats">Statistiche</button>
         <button class="peach" id="btnMore" style="background:var(--peach)" data-i18n="ui.options">Opzioni</button>
+        <button class="blue" id="btnReplay" type="button" hidden data-i18n="replay.btn">Rivedi partita</button>
+        <button class="peach" id="btnInstall" type="button" hidden style="background:var(--peach)" data-i18n="pwa.install">Installa app</button>
       </div>
     </div>
     <div class="block blue" id="netblock">
@@ -321,6 +351,8 @@
         <div class="grid2">
           <label for="netColor" data-i18n="net.iPlay">Io gioco</label>
           <select id="netColor"><option value="white" data-i18n="name.white">Bianco</option><option value="black" data-i18n="name.black">Nero</option><option value="random" data-i18n="net.random">Casuale</option></select>
+          <label for="netTime" data-i18n="clock.label">Orologio</label>
+          <select id="netTime"><option value="0" data-i18n="clock.none">Nessuno</option><option value="300+0">5 min</option><option value="600+0">10 min</option><option value="900+0">15 min</option><option value="300+3">5 min + 3 s</option><option value="600+5">10 min + 5 s</option></select>
         </div>
         <label class="netpub"><input type="checkbox" id="netPublic" checked> <span data-i18n="lobby.public">Mostra nella lobby pubblica</span></label>
         <input id="netName" class="netname" maxlength="24" autocomplete="nickname" data-i18n-placeholder="lobby.name" data-i18n-aria="lobby.name" placeholder="Il tuo nome (facoltativo)">
@@ -352,6 +384,12 @@
             <button class="blue mini" id="shNative" type="button" hidden data-i18n="share.native">Condividi…</button>
           </div>
         </div>
+        <div id="rematchBox" class="rematch" hidden>
+          <button class="orange" id="netRematch" type="button" data-i18n="rematch.btn">Rivincita</button>
+          <span id="rematchOffer" hidden><span data-i18n="rematch.offer">L'avversario propone la rivincita</span>
+            <button class="orange mini" id="rmAccept" type="button" data-i18n="rematch.accept">Accetta</button>
+            <button class="red mini" id="rmDecline" type="button" data-i18n="rematch.decline">Rifiuta</button></span>
+        </div>
         <div class="btns"><button class="red" id="netLeave" data-i18n="net.leave">Esci dalla stanza</button></div>
       </div>
     </div>
@@ -379,7 +417,12 @@
       <div class="btns">
         <button class="orange" id="vNew" data-i18n="ui.newGame">Nuova partita</button>
         <button class="blue" id="vClose" data-i18n="victory.watch">Guarda la scacchiera</button>
+        <button class="lilac" id="vReplay" type="button" hidden data-i18n="replay.btn">Rivedi partita</button>
+        <button class="orange" id="vRematch" type="button" hidden data-i18n="rematch.btn">Rivincita</button>
       </div>
+      <div id="vRematchOffer" class="rematch" hidden><span data-i18n="rematch.offer">L'avversario propone la rivincita</span>
+        <button class="orange mini" id="vRmAccept" type="button" data-i18n="rematch.accept">Accetta</button>
+        <button class="red mini" id="vRmDecline" type="button" data-i18n="rematch.decline">Rifiuta</button></div>
     </div>
   </div>
 
@@ -395,6 +438,21 @@
       </div>
       <button class="blue" id="promoCancel" data-i18n="promo.cancel">Annulla</button>
     </div>
+  </div>
+
+  <div id="netClock" hidden aria-live="off">
+    <span class="ck" data-c="white"><span class="cn">Bianco</span><span class="ct">5:00</span></span>
+    <span class="ck" data-c="black"><span class="cn">Nero</span><span class="ct">5:00</span></span>
+  </div>
+
+  <div id="replayBar" hidden role="toolbar" data-i18n-aria="replay.btn">
+    <button id="rpFirst" type="button" data-i18n-title="replay.first" data-i18n-aria="replay.first">⏮</button>
+    <button id="rpPrev" type="button" data-i18n-title="replay.prev" data-i18n-aria="replay.prev">◀</button>
+    <span id="rpPos">0 / 0</span>
+    <button id="rpNext" type="button" data-i18n-title="replay.next" data-i18n-aria="replay.next">▶</button>
+    <button id="rpLast" type="button" data-i18n-title="replay.last" data-i18n-aria="replay.last">⏭</button>
+    <button id="rpShare" class="lilac" type="button" data-i18n="replay.share">Copia link</button>
+    <button id="rpClose" type="button" data-i18n-title="replay.close" data-i18n-aria="replay.close">×</button>
   </div>
 
   <div id="lobbyModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="lobbyTitle">
@@ -873,8 +931,8 @@ class Game {
     this.turn = 'white';
     this.players = { white, black };
     this.history = [];
-    this.status = 'playing'; // playing | checkmate | stalemate | draw | resigned
-    this.drawReason = null;  // fifty | repetition | material
+    this.status = 'playing'; // playing | checkmate | stalemate | draw | resigned | timeout
+    this.drawReason = null;  // fifty | repetition | material | time-material
     this.winner = null;
     this.halfmoveClock = 0;
     this.repetitions = { [positionKey(this.pos, 'white')]: 1 };
@@ -963,6 +1021,16 @@ class Game {
     this.history.push(record);
     this.version++;
     return record;
+  }
+
+  // `color` ran out of time. A draw instead when the opponent could never mate (FIDE 6.9).
+  flag(color) {
+    if (this.status !== 'playing') throw new Error('Game is already over.');
+    const opp = other(color);
+    const oppOnly = { pieces: Object.fromEntries(Object.entries(this.pieces).filter(([, p]) => p.color === opp || p.type === 'K')), boards: this.boards };
+    if (deadPosition(oppOnly)) { this.status = 'draw'; this.drawReason = 'time-material'; }
+    else { this.status = 'timeout'; this.winner = opp; }
+    this.version++;
   }
 
   resign(color) {
@@ -1059,7 +1127,7 @@ PIECES in text render: uppercase = white, lowercase = black. K king, Q queen, R 
 
 return { FILES, MAIN_LEVELS, PINS, LEVELS, LEVEL_NAMES, PIECE_NAMES, PROMOTION_PIECES, isPin, pinNeighbours, levelHas, activeLevels, levelsAt, sqKey, parseSquare, squaresOf, allSquares, initialBoards, initialPieces, promotionRank, piecesOnBoard, boardController, applyMove, findKing, isAttacked, inCheck, legalMoves, deadPosition, Game, RULES_TEXT };
 })();
-const { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseSquare, PIECE_NAMES } = ENG;
+const { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseSquare, PIECE_NAMES, Game } = ENG;
 const { buildPiece } = (() => {
 
 // Faction-styled piece sets.
@@ -1247,12 +1315,12 @@ const STRINGS = {
     'opt.ai': 'AI (MCP)',
     'level.1': 'Principiante', 'level.2': 'Facile', 'level.3': 'Medio', 'level.4': 'Esperto', 'level.5': 'Maestro',
     'style.balanced': 'Equilibrato', 'style.aggressive': 'Aggressivo', 'style.cautious': 'Prudente',
-    'draw.fifty': 'regola delle 50 mosse', 'draw.repetition': 'triplice ripetizione', 'draw.material': 'materiale insufficiente',
+    'draw.fifty': 'regola delle 50 mosse', 'draw.repetition': 'triplice ripetizione', 'draw.material': 'materiale insufficiente', 'draw.time-material': 'tempo scaduto senza materiale per vincere',
     'piece.K': 'Re', 'piece.Q': 'Regina', 'piece.R': 'Torre', 'piece.B': 'Alfiere', 'piece.N': 'Cavallo', 'piece.P': 'Pedone',
 
     'status.connecting': 'Connessione…', 'status.lost': 'Connessione persa, riprovo…',
     'status.mate': 'Scacco matto — vince {c}', 'status.stalemate': 'Stallo — patta', 'status.draw': 'Patta ({r})',
-    'status.resigned': 'Abbandono — vince {c}',
+    'status.resigned': 'Abbandono — vince {c}', 'status.timeout': 'Tempo scaduto — vince {c}',
     'status.check': 'Scacco al {c}! {n} mosse per uscirne', 'status.check1': 'Scacco al {c}! 1 mossa per uscirne',
     'status.computer': 'Il computer pensa ({c})…', 'status.remote': "Mossa dell'avversario in rete ({c})…",
     'status.ai': "In attesa dell'AI ({c})…", 'status.you': 'Tocca a te ({c}) · {n} mosse',
@@ -1274,7 +1342,7 @@ const STRINGS = {
     'victory.triumph': 'Trionfo', 'victory.gameOver': 'Fine partita', 'victory.draw': 'Patta',
     'victory.stalemate': 'Stallo: nessuna mossa legale', 'victory.drawBy': 'Patta per {r}', 'victory.plies': '{n} semimosse giocate',
     'victory.glory': 'Gloria al {c}', 'victory.win': 'Vittoria', 'victory.sub': 'Il {c} ({who}) trionfa {how} alla mossa {n}',
-    'victory.byMate': 'per scacco matto', 'victory.byResign': 'per abbandono',
+    'victory.byMate': 'per scacco matto', 'victory.byResign': 'per abbandono', 'victory.byTime': 'per tempo',
     'victory.meta': '{caps} pezzi catturati · {checks} scacchi dati · materiale {mat}', 'victory.watch': 'Guarda la scacchiera',
 
     'promo.eyebrow': 'Promozione', 'promo.title': 'Scegli il nuovo pezzo', 'promo.cancel': 'Annulla',
@@ -1303,6 +1371,12 @@ const STRINGS = {
     'lobby.title': 'Stanze aperte', 'lobby.public': 'Mostra nella lobby pubblica', 'lobby.name': 'Il tuo nome (facoltativo)',
     'lobby.empty': 'Nessuna stanza in attesa: creane una!', 'lobby.searching': 'Collegamento alla lobby…', 'lobby.anon': 'Giocatore anonimo',
     'lobby.youPlay': 'Giochi col {c}', 'lobby.now': 'adesso', 'lobby.min': 'da {n} min', 'lobby.relays': '{n} relay', 'lobby.join': 'Entra nella stanza', 'lobby.noAnswer': 'La stanza non risponde: forse è già piena o chiusa', 'lobby.search': 'Cerca per nome, codice, lingua, colore…', 'lobby.noMatch': 'Nessuna stanza corrisponde alla ricerca',
+    'pwa.install': 'Installa app', 'pwa.ios': 'Per installarla: tocca Condividi ⬆︎ e poi “Aggiungi alla schermata Home”', 'pwa.offline': 'Sei offline: puoi giocare contro il computer',
+    'clock.label': 'Orologio', 'clock.none': 'Nessuno',
+    'rematch.btn': 'Rivincita', 'rematch.sent': 'Rivincita proposta: in attesa di risposta', 'rematch.offer': "L'avversario propone la rivincita",
+    'rematch.accept': 'Accetta', 'rematch.decline': 'Rifiuta', 'rematch.declined': "L'avversario ha rifiutato la rivincita", 'rematch.started': 'Rivincita: ora giochi col {c}',
+    'replay.btn': 'Rivedi partita', 'replay.status': 'Replay · mossa {i} di {n}', 'replay.share': 'Copia link', 'replay.copied': 'Link della partita copiato',
+    'replay.close': 'Chiudi il replay', 'replay.bad': 'Link della partita non valido', 'replay.first': 'Inizio', 'replay.prev': 'Mossa precedente', 'replay.next': 'Mossa successiva', 'replay.last': 'Fine',
     'share.title': 'Invita un avversario', 'share.copy': 'Copia link', 'share.copied': 'Link della stanza copiato', 'share.native': 'Condividi…',
     'share.text': 'Sfidami a Tri-D Chess ♟️ scacchi tridimensionali su 7 livelli! Io gioco col {c}, tu col {o}. Entra nella mia stanza {code} 👇',
     'chat.title': 'Chat', 'chat.send': 'Invia', 'chat.placeholder': 'Scrivi un messaggio…', 'chat.emoji': 'Emoticon',
@@ -1317,12 +1391,12 @@ const STRINGS = {
     'opt.ai': 'AI (MCP)',
     'level.1': 'Beginner', 'level.2': 'Easy', 'level.3': 'Medium', 'level.4': 'Expert', 'level.5': 'Master',
     'style.balanced': 'Balanced', 'style.aggressive': 'Aggressive', 'style.cautious': 'Cautious',
-    'draw.fifty': 'the 50-move rule', 'draw.repetition': 'threefold repetition', 'draw.material': 'insufficient material',
+    'draw.fifty': 'the 50-move rule', 'draw.repetition': 'threefold repetition', 'draw.material': 'insufficient material', 'draw.time-material': 'time out with no mating material',
     'piece.K': 'King', 'piece.Q': 'Queen', 'piece.R': 'Rook', 'piece.B': 'Bishop', 'piece.N': 'Knight', 'piece.P': 'Pawn',
 
     'status.connecting': 'Connecting…', 'status.lost': 'Connection lost, retrying…',
     'status.mate': 'Checkmate — {c} wins', 'status.stalemate': 'Stalemate — draw', 'status.draw': 'Draw ({r})',
-    'status.resigned': 'Resignation — {c} wins',
+    'status.resigned': 'Resignation — {c} wins', 'status.timeout': 'Out of time — {c} wins',
     'status.check': '{c} in check! {n} moves to escape', 'status.check1': '{c} in check! 1 move to escape',
     'status.computer': 'Computer thinking ({c})…', 'status.remote': 'Waiting for the online opponent ({c})…',
     'status.ai': 'Waiting for the AI ({c})…', 'status.you': 'Your move ({c}) · {n} moves',
@@ -1344,7 +1418,7 @@ const STRINGS = {
     'victory.triumph': 'Triumph', 'victory.gameOver': 'Game over', 'victory.draw': 'Draw',
     'victory.stalemate': 'Stalemate: no legal moves', 'victory.drawBy': 'Draw by {r}', 'victory.plies': '{n} plies played',
     'victory.glory': 'Glory to {c}', 'victory.win': 'Victory', 'victory.sub': '{c} ({who}) wins {how} on move {n}',
-    'victory.byMate': 'by checkmate', 'victory.byResign': 'by resignation',
+    'victory.byMate': 'by checkmate', 'victory.byResign': 'by resignation', 'victory.byTime': 'on time',
     'victory.meta': '{caps} pieces captured · {checks} checks · material {mat}', 'victory.watch': 'View the board',
 
     'promo.eyebrow': 'Promotion', 'promo.title': 'Choose the new piece', 'promo.cancel': 'Cancel',
@@ -1373,6 +1447,12 @@ const STRINGS = {
     'lobby.title': 'Open rooms', 'lobby.public': 'List in the public lobby', 'lobby.name': 'Your name (optional)',
     'lobby.empty': 'No rooms waiting: create one!', 'lobby.searching': 'Connecting to the lobby…', 'lobby.anon': 'Anonymous player',
     'lobby.youPlay': 'You play {c}', 'lobby.now': 'just now', 'lobby.min': '{n} min', 'lobby.relays': '{n} relays', 'lobby.join': 'Join this room', 'lobby.noAnswer': 'The room does not answer: it may be full or closed', 'lobby.search': 'Search by name, code, language, colour…', 'lobby.noMatch': 'No rooms match your search',
+    'pwa.install': 'Install app', 'pwa.ios': 'To install: tap Share ⬆︎, then “Add to Home Screen”', 'pwa.offline': 'You are offline: you can play the computer',
+    'clock.label': 'Clock', 'clock.none': 'None',
+    'rematch.btn': 'Rematch', 'rematch.sent': 'Rematch offered: waiting for an answer', 'rematch.offer': 'Your opponent offers a rematch',
+    'rematch.accept': 'Accept', 'rematch.decline': 'Decline', 'rematch.declined': 'Your opponent declined the rematch', 'rematch.started': 'Rematch: you now play {c}',
+    'replay.btn': 'Replay game', 'replay.status': 'Replay · move {i} of {n}', 'replay.share': 'Copy link', 'replay.copied': 'Game link copied',
+    'replay.close': 'Close replay', 'replay.bad': 'Invalid game link', 'replay.first': 'Start', 'replay.prev': 'Previous move', 'replay.next': 'Next move', 'replay.last': 'End',
     'share.title': 'Invite an opponent', 'share.copy': 'Copy link', 'share.copied': 'Room link copied', 'share.native': 'Share…',
     'share.text': 'Challenge me at Tri-D Chess ♟️ 3D chess on seven levels! I play {c}, you play {o}. Join my room {code} 👇',
     'chat.title': 'Chat', 'chat.send': 'Send', 'chat.placeholder': 'Write a message…', 'chat.emoji': 'Emoji',
@@ -1749,7 +1829,7 @@ function toast(msg) {
   toast._t = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-const isHumanTurn = () => state && state.status === 'playing' && state.players[state.turn] === 'human';
+const isHumanTurn = () => state && !state.replay && state.status === 'playing' && state.players[state.turn] === 'human';
 
 function setSquareGlow() {
   for (const [k, m] of squareMeshes) m.material.emissive.setHex(0x000000);
@@ -1826,10 +1906,12 @@ function renderPieces(prev) {
 function renderPanel() {
   const s = state;
   let status;
-  if (s.status === 'checkmate') status = t('status.mate', { c: IT[s.winner] });
+  if (s.replay) status = t('replay.status', { i: s.replay.i, n: s.replay.n });
+  else if (s.status === 'checkmate') status = t('status.mate', { c: IT[s.winner] });
   else if (s.status === 'stalemate') status = t('status.stalemate');
   else if (s.status === 'draw') status = t('status.draw', { r: DRAW_IT[s.drawReason || 'fifty'] });
   else if (s.status === 'resigned') status = t('status.resigned', { c: IT[s.winner] });
+  else if (s.status === 'timeout') status = t('status.timeout', { c: IT[s.winner] });
   else if (s.check) status = t(s.legalMoves.length === 1 ? 'status.check1' : 'status.check', { c: IT[s.turn], n: s.legalMoves.length });
   else if (s.players[s.turn] === 'computer') status = t('status.computer', { c: IT[s.turn] });
   else if (s.players[s.turn] === 'remote') status = t('status.remote', { c: IT[s.turn] });
@@ -1857,17 +1939,113 @@ function renderPanel() {
 function applyState(s) {
   const prev = state;
   state = s;
-  if (!prev || prev.id !== s.id) { $('selW').value = s.players.white; $('selB').value = s.players.black; if (s.computer) for (const [c, k] of [['white', 'W'], ['black', 'B']]) { $('lvl' + k).value = String(s.computer[c].level); $('sty' + k).value = s.computer[c].style; } }
+  if (!s.replay && (!prev || prev.id !== s.id)) { $('selW').value = s.players.white; $('selB').value = s.players.black; if (s.computer) for (const [c, k] of [['white', 'W'], ['black', 'B']]) { $('lvl' + k).value = String(s.computer[c].level); $('sty' + k).value = s.computer[c].style; } }
   if (selected && ((!isPin(selected) && !s.pieces[selected]) || (isPin(selected) && !s.boards[selected]) || !isHumanTurn())) selected = null;
   syncBoards();
   renderPieces(prev);
   renderMarkers();
   setSquareGlow();
   renderPanel();
+  const canReplay = !s.replay && s.status !== 'playing' && s.history.length > 0;
+  $('btnReplay').hidden = !canReplay;
+  $('vReplay').hidden = !canReplay;
+  if (s.replay) { if (victory) stopVictory(); return; }
   for (const f of window.TriD?.listeners || []) { try { f(s, prev); } catch (err) { console.error(err); } }
   const over = s.status !== 'playing';
-  if (over && (!prev || prev.id !== s.id || prev.status === 'playing')) startVictory();
+  if (over && !quietVictory && (!prev || prev.id !== s.id || prev.status === 'playing')) startVictory();
+  quietVictory = false;
   if (!over && victory) stopVictory();
+}
+
+// --- live state vs replay -------------------------------------------------------------
+// Live states come from the server (or the local game in the web build). While a replay is
+// open they are kept but not shown; the replay renders positions rebuilt with the engine.
+let live = null;
+let replay = null;        // { moves, i }
+let quietVictory = false;
+let replayFromUrl = null;
+function onLive(s) {
+  live = s;
+  if (!replay) applyState(s);
+  if (replayFromUrl) { const m = replayFromUrl; replayFromUrl = null; startReplay(m); }
+}
+const PUBLIC_DEMO = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
+const MOVE_RE = /^([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])-([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])(?:=([QRBN]))?$/;
+const b64url = (s) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64url = (s) => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
+function encodeGame(moves) { return b64url(moves.map((m) => `${m.from}-${m.to}${m.promotion ? '=' + m.promotion : ''}`).join('.')); }
+function decodeGame(code) {
+  try {
+    if (!code || code.length > 30000) return null;
+    const parts = unb64url(code).split('.').filter(Boolean);
+    if (!parts.length || parts.length > 2000) return null;
+    const moves = parts.map((p) => { const m = MOVE_RE.exec(p); return m && { from: m[1], to: m[2], promotion: m[3] || null }; });
+    return moves.every(Boolean) ? moves : null;
+  } catch { return null; }
+}
+function replayState(moves, i) {
+  const g = new Game({ white: 'human', black: 'human' });
+  g.id = 'replay';
+  let k = 0;
+  for (; k < i; k++) { try { g.move(moves[k].from, moves[k].to, moves[k].promotion); } catch { break; } }
+  return { ...g.snapshot(), legalMoves: [], replay: { i: k, n: moves.length } };
+}
+function startReplay(moves) {
+  if (!moves?.length) return;
+  hideVictory();
+  selected = null;
+  replay = { moves, i: moves.length };
+  // validate the whole list once: stop at the first illegal move
+  const full = replayState(moves, moves.length);
+  replay.moves = moves.slice(0, full.replay.i);
+  replay.i = replay.moves.length;
+  if (!replay.i) { replay = null; toast(t('replay.bad')); return; }
+  $('replayBar').hidden = false;
+  showReplay();
+}
+function showReplay() {
+  applyState(replayState(replay.moves, replay.i));
+  $('rpPos').textContent = `${replay.i} / ${replay.moves.length}`;
+  $('rpFirst').disabled = $('rpPrev').disabled = replay.i === 0;
+  $('rpNext').disabled = $('rpLast').disabled = replay.i === replay.moves.length;
+}
+function stepReplay(to) {
+  if (!replay) return;
+  replay.i = Math.max(0, Math.min(replay.moves.length, to));
+  showReplay();
+}
+function closeReplay() {
+  if (!replay) return;
+  replay = null;
+  $('replayBar').hidden = true;
+  try { const u = new URL(location.href); if (u.searchParams.has('replay')) { u.searchParams.delete('replay'); history.replaceState(null, '', u); } } catch {}
+  quietVictory = true;
+  if (live) applyState(live);
+}
+const movesOfState = (s) => s.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || null }));
+$('btnReplay').onclick = () => live && startReplay(movesOfState(live));
+$('vReplay').onclick = () => live && startReplay(movesOfState(live));
+$('rpFirst').onclick = () => stepReplay(0);
+$('rpPrev').onclick = () => stepReplay(replay.i - 1);
+$('rpNext').onclick = () => stepReplay(replay.i + 1);
+$('rpLast').onclick = () => stepReplay(Infinity);
+$('rpClose').onclick = closeReplay;
+$('rpShare').onclick = () => {
+  if (!replay) return;
+  const url = `${PUBLIC_DEMO}?replay=${encodeGame(replay.moves)}`;
+  navigator.clipboard?.writeText(url).then(() => toast(t('replay.copied')), () => {});
+};
+window.addEventListener('keydown', (e) => {
+  if (!replay || e.target?.closest?.('input, textarea, select')) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); stepReplay(replay.i - 1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); stepReplay(replay.i + 1); }
+  else if (e.key === 'Home') stepReplay(0);
+  else if (e.key === 'End') stepReplay(Infinity);
+  else if (e.key === 'Escape') closeReplay();
+});
+{
+  const code = new URLSearchParams(location.search).get('replay');
+  if (code) { const m = decodeGame(code); if (m) replayFromUrl = m; else setTimeout(() => toast(t('replay.bad')), 500); }
 }
 
 // --- victory celebration -------------------------------------------------------------
@@ -1900,7 +2078,7 @@ function victoryText(s) {
     const w = s.winner, st = statsFor(s, w);
     $('vEyebrow').textContent = t('victory.glory', { c: IT[w] });
     $('vTitle').textContent = t('victory.win');
-    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? 'victory.byMate' : 'victory.byResign'), n });
+    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? 'victory.byMate' : s.status === 'timeout' ? 'victory.byTime' : 'victory.byResign'), n });
     $('vMeta').textContent = t('victory.meta', { caps: st.caps.length, checks: st.checks, mat: st.material });
   }
 }
@@ -2013,7 +2191,7 @@ const game = new ENG.Game({ white: 'human', black: 'computer', computer: { black
 const recentMoves = { white: [], black: [] };
 const serialize = () => ({ id: game.id, pieces: game.pieces, boards: game.boards, turn: game.turn, players: game.players, history: game.history, status: game.status,
   winner: game.winner, drawReason: game.drawReason, ep: game.ep, repetitions: game.repetitions, halfmoveClock: game.halfmoveClock, version: game.version, startedAt: game.startedAt, computer: game.computer });
-const worker = new Worker(URL.createObjectURL(new Blob(["\nconst ENG = (() => {\n\n// Tri-dimensional chess engine following Jens Meder's tournament rules\n// (https://meder.spacechess.org/3dschach/chess3d.htm), with movable attack boards.\n//\n// Geometry: every square is identified by file + rank + level, e.g. \"a1W\", \"z0QL1\".\n//   files  z a b c d e   -> x 0..5\n//   ranks  0..9          -> y 0..9\n//   main levels (fixed): W (white), N (neutral), B (black)\n//   attack-board pins:   QL1..QL6 (queen side, files z-a) and KL1..KL6 (king side, files d-e).\n//     An attack board is a 2x2 board sitting on one pin; its squares are named after the pin\n//     it currently occupies. Four attack boards exist; when one moves, the pieces on it ride along.\n//\n// A position is { pieces, boards, ep } where boards maps an occupied pin to the board's owner\n// and ep describes a pawn that has just made a double step (en passant target) or is null.\n//\n// Piece movement is evaluated on the 2D projection (x, y). A move whose projection is legal\n// may land on ANY existing level square at the target projection (empty or enemy).\n// A piece blocks movement through its file+rank on every level (Meder 3.1c).\n\nconst FILES = ['z', 'a', 'b', 'c', 'd', 'e'];\n\nconst MAIN_LEVELS = {\n  W: { x: [1, 4], y: [1, 4], height: 0 },\n  N: { x: [1, 4], y: [3, 6], height: 1 },\n  B: { x: [1, 4], y: [5, 8], height: 2 },\n};\n\n// Pin n on each side: [main level it hangs from, first rank, height]\nconst PIN_SPECS = {\n  1: ['W', 0, 0.5], 2: ['W', 4, 0.5],\n  3: ['N', 2, 1.5], 4: ['N', 6, 1.5],\n  5: ['B', 4, 2.5], 6: ['B', 8, 2.5],\n};\nconst PINS = {};\nfor (const [n, [main, y0, height]] of Object.entries(PIN_SPECS)) {\n  PINS[`QL${n}`] = { x: [0, 1], y: [y0, y0 + 1], height, main, side: 'Q', n: Number(n) };\n  PINS[`KL${n}`] = { x: [4, 5], y: [y0, y0 + 1], height, main, side: 'K', n: Number(n) };\n}\n// Pins linked along one side: the next pins of the same or the next main board (Meder 3.6).\n// With the sideways link QLn <-> KLn this gives 3/4/5/5/4/3 reachable pins for levels 1..6.\nconst PIN_LINKS = [[1, 2], [1, 3], [2, 3], [2, 4], [3, 4], [3, 5], [4, 5], [4, 6], [5, 6]];\n\nconst LEVELS = { ...MAIN_LEVELS, ...PINS };\nconst LEVEL_NAMES = Object.keys(LEVELS);\nconst PIECE_NAMES = { K: 'king', Q: 'queen', R: 'rook', B: 'bishop', N: 'knight', P: 'pawn' };\nconst PROMOTION_PIECES = ['Q', 'R', 'B', 'N'];\n\nconst isPin = (name) => Object.prototype.hasOwnProperty.call(PINS, name);\n\nfunction pinNeighbours(pin) {\n  const { side, n } = PINS[pin];\n  const out = [];\n  for (const [a, b] of PIN_LINKS) {\n    if (a === n) out.push(`${side}L${b}`);\n    if (b === n) out.push(`${side}L${a}`);\n  }\n  out.push(`${side === 'Q' ? 'K' : 'Q'}L${n}`); // sideways\n  return out;\n}\n\nfunction levelHas(level, x, y) {\n  const l = LEVELS[level];\n  return !!l && x >= l.x[0] && x <= l.x[1] && y >= l.y[0] && y <= l.y[1];\n}\n\nfunction activeLevels(boards) {\n  return ['W', 'N', 'B', ...Object.keys(boards)];\n}\n\nfunction levelsAt(x, y, boards) {\n  return activeLevels(boards).filter((lv) => levelHas(lv, x, y));\n}\n\nfunction sqKey(x, y, level) {\n  return `${FILES[x]}${y}${level}`;\n}\n\n// Parses a square name against the static geometry (whether that level is in play is checked separately).\nfunction parseSquare(str) {\n  if (typeof str !== 'string') return null;\n  const m = /^([zabcde])([0-9])(W|N|B|[QK]L[1-6])$/i.exec(str.trim());\n  if (!m) return null;\n  const x = FILES.indexOf(m[1].toLowerCase());\n  const y = Number(m[2]);\n  const level = m[3].toUpperCase();\n  if (!levelHas(level, x, y)) return null;\n  return { x, y, level, key: sqKey(x, y, level) };\n}\n\nfunction squaresOf(level) {\n  const l = LEVELS[level], out = [];\n  for (let x = l.x[0]; x <= l.x[1]; x++)\n    for (let y = l.y[0]; y <= l.y[1]; y++) out.push({ x, y, level, key: sqKey(x, y, level) });\n  return out;\n}\n\n// Every square of the given boards configuration (or of the whole geometry when omitted).\nfunction allSquares(boards = null) {\n  return (boards ? activeLevels(boards) : LEVEL_NAMES).flatMap(squaresOf);\n}\n\nconst other = (c) => (c === 'white' ? 'black' : 'white');\n\nfunction initialBoards() {\n  return { QL1: 'white', KL1: 'white', QL6: 'black', KL6: 'black' };\n}\n\nfunction initialPieces() {\n  const p = {};\n  const put = (sq, type, color) => { p[sq] = { type, color, moved: false }; };\n  // White\n  put('z0QL1', 'R', 'white'); put('a0QL1', 'Q', 'white');\n  put('z1QL1', 'P', 'white'); put('a1QL1', 'P', 'white');\n  put('d0KL1', 'K', 'white'); put('e0KL1', 'R', 'white');\n  put('d1KL1', 'P', 'white'); put('e1KL1', 'P', 'white');\n  put('a1W', 'N', 'white'); put('b1W', 'B', 'white'); put('c1W', 'B', 'white'); put('d1W', 'N', 'white');\n  for (const f of 'abcd') put(`${f}2W`, 'P', 'white');\n  // Black\n  put('z9QL6', 'R', 'black'); put('a9QL6', 'Q', 'black');\n  put('z8QL6', 'P', 'black'); put('a8QL6', 'P', 'black');\n  put('d9KL6', 'K', 'black'); put('e9KL6', 'R', 'black');\n  put('d8KL6', 'P', 'black'); put('e8KL6', 'P', 'black');\n  put('a8B', 'N', 'black'); put('b8B', 'B', 'black'); put('c8B', 'B', 'black'); put('d8B', 'N', 'black');\n  for (const f of 'abcd') put(`${f}7B`, 'P', 'black');\n  return p;\n}\n\n// --- low level helpers -------------------------------------------------------\n\nfunction columnOccupied(pos, x, y) {\n  for (const lv of levelsAt(x, y, pos.boards)) if (pos.pieces[sqKey(x, y, lv)]) return true;\n  return false;\n}\n\nfunction inGrid(x, y) {\n  return x >= 0 && x <= 5 && y >= 0 && y <= 9;\n}\n\nconst ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];\nconst DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];\nconst KNIGHT = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];\n\n// Destinations at projection (tx,ty): empty or enemy squares on any level in play.\nfunction landings(pos, color, tx, ty, { captureOnly = false, quietOnly = false } = {}) {\n  const out = [];\n  for (const lv of levelsAt(tx, ty, pos.boards)) {\n    const k = sqKey(tx, ty, lv);\n    const occ = pos.pieces[k];\n    if (!occ && !captureOnly) out.push(k);\n    else if (occ && occ.color !== color && !quietOnly) out.push(k);\n  }\n  return out;\n}\n\n// Furthest rank a pawn of `color` can reach on file x (Meder 3.4e).\nfunction promotionRank(pos, color, x) {\n  if (x === 2 || x === 3) return color === 'white' ? 8 : 1;          // files b, c\n  if (x === 0 || x === 5) return color === 'white' ? 9 : 0;          // files z, e\n  // files a, d: the far corner counts only while an attack board overhangs it\n  const pin = color === 'white' ? (x === 1 ? 'QL6' : 'KL6') : (x === 1 ? 'QL1' : 'KL1');\n  const overhang = !!pos.boards[pin];\n  return color === 'white' ? (overhang ? 9 : 8) : (overhang ? 0 : 1);\n}\n\n// Piece moves (no castling). Each move is { from, to } plus { ep: victimKey } for en passant.\nfunction pieceMovesFrom(pos, fromKey) {\n  const piece = pos.pieces[fromKey];\n  if (!piece) return [];\n  const { x, y } = parseSquare(fromKey);\n  const color = piece.color;\n  const targets = [];\n  const extra = [];\n\n  const slide = (dirs, maxSteps) => {\n    for (const [dx, dy] of dirs) {\n      let cx = x, cy = y;\n      for (let s = 1; s <= maxSteps; s++) {\n        cx += dx; cy += dy;\n        if (!inGrid(cx, cy)) break;\n        targets.push(...landings(pos, color, cx, cy));\n        if (columnOccupied(pos, cx, cy)) break;\n      }\n    }\n  };\n\n  switch (piece.type) {\n    case 'R': slide(ORTHO, 10); break;\n    case 'B': slide(DIAG, 10); break;\n    case 'Q': slide([...ORTHO, ...DIAG], 10); break;\n    case 'K': slide([...ORTHO, ...DIAG], 1); break;\n    case 'N':\n      for (const [dx, dy] of KNIGHT) {\n        const tx = x + dx, ty = y + dy;\n        if (inGrid(tx, ty)) targets.push(...landings(pos, color, tx, ty));\n      }\n      break;\n    case 'P': {\n      const dir = color === 'white' ? 1 : -1;\n      const y1 = y + dir;\n      if (inGrid(x, y1)) {\n        targets.push(...landings(pos, color, x, y1, { quietOnly: true }));\n        const y2 = y + 2 * dir;\n        if (!piece.moved && !columnOccupied(pos, x, y1) && inGrid(x, y2))\n          targets.push(...landings(pos, color, x, y2, { quietOnly: true }));\n        for (const dx of [-1, 1])\n          if (inGrid(x + dx, y1)) targets.push(...landings(pos, color, x + dx, y1, { captureOnly: true }));\n        // en passant: capture the pawn that just double-stepped past (ep.x, ep.y), landing on any level\n        const ep = pos.ep;\n        if (ep && ep.color !== color && Math.abs(ep.x - x) === 1 && ep.y === y1 && pos.pieces[ep.victim])\n          for (const k of landings(pos, color, ep.x, ep.y, { quietOnly: true })) extra.push({ from: fromKey, to: k, ep: ep.victim });\n      }\n      break;\n    }\n  }\n  return [...targets.filter((t) => t !== fromKey).map((to) => ({ from: fromKey, to })), ...extra];\n}\n\n// Castling (Meder 3.5a): king and rook unmoved on the same rank, nothing between them.\n// King side: king and rook exchange places. Queen side: the king goes next to the rook\n// and the rook goes to the square the king left.\nfunction castlingMoves(pos, color) {\n  const kingKey = findKing(pos.pieces, color);\n  if (!kingKey) return [];\n  const king = pos.pieces[kingKey];\n  if (king.moved) return [];\n  const k = parseSquare(kingKey);\n  const out = [];\n  for (const [rKey, rook] of Object.entries(pos.pieces)) {\n    if (rook.type !== 'R' || rook.color !== color || rook.moved) continue;\n    const r = parseSquare(rKey);\n    if (r.y !== k.y) continue;\n    const step = Math.sign(r.x - k.x);\n    let clear = true;\n    for (let x = k.x + step; x !== r.x; x += step) if (columnOccupied(pos, x, k.y)) { clear = false; break; }\n    if (!clear) continue;\n    if (step > 0) {\n      out.push({ from: kingKey, to: rKey, castle: 'K', rookFrom: rKey, rookTo: kingKey });\n    } else {\n      const lvls = levelsAt(r.x + 1, r.y, pos.boards);\n      const lv = lvls.includes(r.level) ? r.level : lvls[0];\n      if (!lv) continue;\n      const kingTo = sqKey(r.x + 1, r.y, lv);\n      if (kingTo === kingKey || pos.pieces[kingTo]) continue;\n      out.push({ from: kingKey, to: kingTo, castle: 'Q', rookFrom: rKey, rookTo: kingKey });\n    }\n  }\n  return out;\n}\n\n// Pieces standing on the attack board at `pin`.\nfunction piecesOnBoard(pos, pin) {\n  return squaresOf(pin).map((s) => s.key).filter((k) => pos.pieces[k]);\n}\n\n// Who may move the board on `pin`: its owner when empty, the owner of the single piece on it otherwise.\nfunction boardController(pos, pin) {\n  const on = piecesOnBoard(pos, pin);\n  if (on.length === 0) return pos.boards[pin];\n  if (on.length === 1) return pos.pieces[on[0]].color;\n  return null;\n}\n\n// Board moves (Meder 3.6): to a linked empty pin; an occupied board only forward or sideways,\n// an empty board also backwards (\"inverted\").\nfunction boardMovesFor(pos, color) {\n  const out = [];\n  for (const pin of Object.keys(pos.boards)) {\n    if (boardController(pos, pin) !== color) continue;\n    const occupied = piecesOnBoard(pos, pin).length > 0;\n    for (const to of pinNeighbours(pin)) {\n      if (pos.boards[to]) continue;\n      const dy = PINS[to].y[0] - PINS[pin].y[0];\n      const backward = color === 'white' ? dy < 0 : dy > 0;\n      if (occupied && backward) continue;\n      out.push({ from: pin, to, board: true });\n    }\n  }\n  return out;\n}\n\n// Pawns that stand on their furthest rank (e.g. after an overhanging board left) are promoted\n// before the next move (Meder 3.4e-iii); here automatically to a queen.\nfunction promoteStranded(pos) {\n  for (const [k, pc] of Object.entries(pos.pieces)) {\n    if (pc.type !== 'P') continue;\n    const s = parseSquare(k);\n    if (s.y === promotionRank(pos, pc.color, s.x)) pos.pieces[k] = { ...pc, type: 'Q', moved: true };\n  }\n}\n\nfunction applyMove(pos, move) {\n  const r = applyMoveInner(pos, move);\n  const mover = move.board ? boardController(pos, move.from) : pos.pieces[move.from].color;\n  r.pos.firstMove = { ...(pos.firstMove || {}), [mover]: false };\n  return r;\n}\n\nfunction applyMoveInner(pos, move) {\n  if (move.board) {\n    const boards = { ...pos.boards };\n    boards[move.to] = boards[move.from];\n    delete boards[move.from];\n    const pieces = { ...pos.pieces };\n    const dx = PINS[move.to].x[0] - PINS[move.from].x[0];\n    const dy = PINS[move.to].y[0] - PINS[move.from].y[0];\n    for (const s of squaresOf(move.from)) {\n      const pc = pos.pieces[s.key];\n      if (!pc) continue;\n      delete pieces[s.key];\n      // a pawn moved by an attack board loses its double step (Meder 3.4b)\n      pieces[sqKey(s.x + dx, s.y + dy, move.to)] = pc.type === 'P' ? { ...pc, moved: true } : pc;\n    }\n    const next = { pieces, boards, ep: null };\n    promoteStranded(next);\n    return { pos: next, captured: null };\n  }\n  const pieces = { ...pos.pieces };\n  const piece = pieces[move.from];\n  if (move.castle) {\n    const rook = pieces[move.rookFrom];\n    delete pieces[move.from];\n    delete pieces[move.rookFrom];\n    pieces[move.to] = { ...piece, moved: true };\n    pieces[move.rookTo] = { ...rook, moved: true };\n    return { pos: { pieces, boards: pos.boards, ep: null }, captured: null };\n  }\n  let captured = pieces[move.to] || null;\n  if (move.ep) { captured = pieces[move.ep]; delete pieces[move.ep]; }\n  delete pieces[move.from];\n  const moved = { ...piece, moved: true };\n  if (move.promotion) moved.type = move.promotion;\n  pieces[move.to] = moved;\n  let ep = null;\n  if (piece.type === 'P') {\n    const f = parseSquare(move.from), t = parseSquare(move.to);\n    if (Math.abs(t.y - f.y) === 2) ep = { x: f.x, y: (f.y + t.y) / 2, victim: move.to, color: piece.color };\n  }\n  return { pos: { pieces, boards: pos.boards, ep }, captured };\n}\n\nfunction findKing(pieces, color) {\n  return Object.keys(pieces).find((k) => pieces[k].type === 'K' && pieces[k].color === color);\n}\n\nfunction isAttacked(pos, targetKey, byColor) {\n  for (const k of Object.keys(pos.pieces)) {\n    if (pos.pieces[k].color !== byColor) continue;\n    if (pieceMovesFrom(pos, k).some((m) => m.to === targetKey)) return true;\n  }\n  return false;\n}\n\nfunction inCheck(pos, color) {\n  const king = findKing(pos.pieces, color);\n  return king ? isAttacked(pos, king, other(color)) : false;\n}\n\n// Legal moves for `color`. `from` may be a square (piece moves) or a pin (board moves).\nfunction legalMoves(pos, color, from = null) {\n  const candidates = [];\n  const pinFrom = from && isPin(from);\n  if (!pinFrom) {\n    const keys = from ? [from] : Object.keys(pos.pieces);\n    for (const k of keys) {\n      const p = pos.pieces[k];\n      if (!p || p.color !== color) continue;\n      for (const m of pieceMovesFrom(pos, k)) {\n        // promotion: one move per piece the pawn may become\n        const t = p.type === 'P' && parseSquare(m.to);\n        if (t && t.y === promotionRank(pos, color, t.x)) for (const pr of PROMOTION_PIECES) candidates.push({ ...m, promotion: pr });\n        else candidates.push(m);\n      }\n    }\n    const kingKey = findKing(pos.pieces, color);\n    // Meder 3.5a: castling is not allowed as a player's first move\n    if ((!from || from === kingKey) && !pos.firstMove?.[color] && !inCheck(pos, color)) candidates.push(...castlingMoves(pos, color));\n  }\n  if (!from || pinFrom) candidates.push(...boardMovesFor(pos, color).filter((m) => !from || m.from === from));\n  const out = [];\n  for (const m of candidates) {\n    const { pos: after } = applyMove(pos, m);\n    if (inCheck(after, color)) continue;\n    if (m.board) out.push({ ...m, piece: null, capture: null, promotion: null });\n    else {\n      const p = pos.pieces[m.from];\n      const capt = m.ep ? 'P' : !m.castle && pos.pieces[m.to] ? pos.pieces[m.to].type : null;\n      out.push({ ...m, piece: p.type, capture: capt, promotion: m.promotion || null });\n    }\n  }\n  return out;\n}\n\n// No sequence of legal moves can mate (Meder 1.3): bare kings, or only one minor piece,\n// or only bishops all on squares of one colour.\nfunction deadPosition(pos) {\n  const minors = [];\n  for (const [k, pc] of Object.entries(pos.pieces)) {\n    if (pc.type === 'K') continue;\n    if (pc.type !== 'B' && pc.type !== 'N') return false;\n    minors.push({ type: pc.type, sq: parseSquare(k) });\n  }\n  if (minors.length <= 1) return true;\n  if (minors.every((m) => m.type === 'B')) {\n    const colours = new Set(minors.map((m) => (m.sq.x + m.sq.y) % 2));\n    return colours.size === 1;\n  }\n  return false;\n}\n\n// Key identifying a position for repetition: pieces with castling/double-step rights,\n// boards, side to move and en passant target (Meder 9.2).\nfunction positionKey(pos, turn) {\n  const pcs = Object.keys(pos.pieces).sort().map((k) => {\n    const p = pos.pieces[k];\n    return `${k}${p.color[0]}${p.type}${p.moved ? '' : '*'}`;\n  }).join(',');\n  const boards = Object.keys(pos.boards).sort().map((p) => `${p}${pos.boards[p][0]}`).join(',');\n  return `${turn}|${pcs}|${boards}|${pos.ep ? pos.ep.victim : '-'}`;\n}\n\n// --- game object -------------------------------------------------------------\n\nclass Game {\n  constructor(opts = {}) {\n    this.reset(opts);\n  }\n\n  // computer: per-color settings for the built-in engine, e.g. { white: { level: 4, style: 'aggressive' } }\n  reset({ white = 'human', black = 'ai', computer = {} } = {}) {\n    const cfg = (c) => ({ level: computer[c]?.level ?? 3, style: computer[c]?.style ?? 'balanced' });\n    this.computer = { white: cfg('white'), black: cfg('black') };\n    this.id = Math.random().toString(36).slice(2, 10);\n    this.pieces = initialPieces();\n    this.boards = initialBoards();\n    this.ep = null;\n    this.turn = 'white';\n    this.players = { white, black };\n    this.history = [];\n    this.status = 'playing'; // playing | checkmate | stalemate | draw | resigned\n    this.drawReason = null;  // fifty | repetition | material\n    this.winner = null;\n    this.halfmoveClock = 0;\n    this.repetitions = { [positionKey(this.pos, 'white')]: 1 };\n    this.version = 0;\n    this.startedAt = Date.now();\n  }\n\n  get pos() {\n    const moved = (c) => this.history.some((h) => h.color === c);\n    return { pieces: this.pieces, boards: this.boards, ep: this.ep, firstMove: { white: !moved('white'), black: !moved('black') } };\n  }\n\n  legal(from = null) {\n    if (this.status !== 'playing') return [];\n    return legalMoves(this.pos, this.turn, from);\n  }\n\n  // from/to: squares, pins (attack-board move) or \"0-0\" / \"0-0-0\" (castling).\n  // promotion: Q, R, B or N when a pawn reaches its furthest rank (default Q).\n  move(fromStr, toStr, promotion = null) {\n    if (this.status !== 'playing') throw new Error(`Game is over (${this.status}).`);\n    const f = String(fromStr || '').trim().toUpperCase().replace(/O/g, '0');\n    const castleSide = f === '0-0' ? 'K' : f === '0-0-0' ? 'Q' : null;\n    let mv;\n    if (castleSide) {\n      mv = this.legal().find((m) => m.castle === castleSide);\n      if (!mv) throw new Error(`Castling ${castleSide === 'K' ? 'king' : 'queen'}-side is not legal now.`);\n    } else {\n      const boardMove = isPin(f);\n      let from, to;\n      if (boardMove) {\n        from = f; to = String(toStr || '').trim().toUpperCase();\n        if (!this.boards[from]) throw new Error(`No attack board on pin ${from}.`);\n        if (!isPin(to)) throw new Error(`Invalid pin \"${toStr}\". Pins are QL1..QL6 and KL1..KL6.`);\n      } else {\n        const fs = parseSquare(String(fromStr)), ts = parseSquare(String(toStr));\n        if (!fs) throw new Error(`Invalid square \"${fromStr}\". Format: file+rank+level, e.g. a2W, d0KL1 — a pin (e.g. QL1) to move an attack board, or 0-0 / 0-0-0 to castle.`);\n        if (!ts) throw new Error(`Invalid square \"${toStr}\". Format: file+rank+level, e.g. a3N, z1QL1.`);\n        from = fs.key; to = ts.key;\n        const piece = this.pieces[from];\n        if (!piece) throw new Error(`No piece on ${from}.`);\n        if (piece.color !== this.turn) throw new Error(`Piece on ${from} is ${piece.color}, but it is ${this.turn}'s turn.`);\n      }\n      const cands = legalMoves(this.pos, this.turn, from).filter((m) => m.to === to);\n      if (!cands.length) throw new Error(`Illegal move ${from} -> ${to}.`);\n      if (cands.some((m) => m.promotion)) {\n        const pr = String(promotion || 'Q').toUpperCase();\n        mv = cands.find((m) => m.promotion === pr);\n        if (!mv) throw new Error(`Invalid promotion \"${promotion}\". Choose Q, R, B or N.`);\n      } else mv = cands[0];\n    }\n\n    const boardMove = !!mv.board;\n    const piece = boardMove ? null : this.pieces[mv.from];\n    const carried = boardMove ? piecesOnBoard(this.pos, mv.from).map((k) => this.pieces[k].type) : [];\n    const { pos, captured } = applyMove(this.pos, mv);\n    this.pieces = pos.pieces;\n    this.boards = pos.boards;\n    this.ep = pos.ep;\n    this.halfmoveClock = captured || piece?.type === 'P' ? 0 : this.halfmoveClock + 1;\n    const mover = this.turn;\n    this.turn = other(this.turn);\n    const check = inCheck(this.pos, this.turn);\n    const replies = legalMoves(this.pos, this.turn);\n    let notation;\n    if (mv.castle) notation = mv.castle === 'K' ? '0-0' : '0-0-0';\n    else if (boardMove) notation = `${mv.from}→${mv.to}${carried.length ? ` (${carried.join('')})` : ''}`;\n    else notation = `${piece.type === 'P' ? '' : piece.type}${mv.from}${captured ? 'x' : '-'}${mv.to}${mv.promotion ? `=${mv.promotion}` : ''}${mv.ep ? ' e.p.' : ''}`;\n    const key = positionKey(this.pos, this.turn);\n    this.repetitions[key] = (this.repetitions[key] || 0) + 1;\n    if (replies.length === 0) {\n      if (check) { this.status = 'checkmate'; this.winner = mover; notation += '#'; }\n      else this.status = 'stalemate';\n    } else {\n      if (check) notation += '+';\n      if (deadPosition(this.pos)) { this.status = 'draw'; this.drawReason = 'material'; }\n      else if (this.repetitions[key] >= 3) { this.status = 'draw'; this.drawReason = 'repetition'; }\n      else if (this.halfmoveClock >= 100) { this.status = 'draw'; this.drawReason = 'fifty'; }\n    }\n    const record = {\n      n: this.history.length + 1, color: mover, from: mv.from, to: mv.to, board: boardMove || undefined,\n      castle: mv.castle || undefined, rookFrom: mv.rookFrom, rookTo: mv.rookTo, ep: mv.ep ? true : undefined,\n      piece: piece ? piece.type : null, captured: captured ? captured.type : null,\n      promotion: mv.promotion || null, check, notation, at: Date.now(),\n    };\n    this.history.push(record);\n    this.version++;\n    return record;\n  }\n\n  resign(color) {\n    if (this.status !== 'playing') throw new Error('Game is already over.');\n    this.status = 'resigned';\n    this.winner = other(color);\n    this.version++;\n  }\n\n  snapshot() {\n    return {\n      id: this.id,\n      version: this.version,\n      turn: this.turn,\n      players: this.players,\n      startedAt: this.startedAt,\n      computer: this.computer,\n      status: this.status,\n      drawReason: this.drawReason,\n      winner: this.winner,\n      check: this.status === 'playing' && inCheck(this.pos, this.turn),\n      pieces: this.pieces,\n      boards: this.boards,\n      history: this.history,\n      lastMove: this.history[this.history.length - 1] || null,\n      legalMoves: this.legal().map(({ from, to, capture, promotion, board, castle, ep }) => ({\n        from, to, capture, promotion,\n        ...(board ? { board: true } : {}), ...(castle ? { castle } : {}), ...(ep ? { ep: true } : {}),\n      })),\n    };\n  }\n\n  // Text rendering for AI clients: one grid per level in play, from top to bottom.\n  render() {\n    const order = activeLevels(this.boards).sort((a, b) => LEVELS[b].height - LEVELS[a].height || LEVELS[b].y[0] - LEVELS[a].y[0]);\n    const sym = (p) => (p ? (p.color === 'white' ? p.type : p.type.toLowerCase()) : '.');\n    const lines = [];\n    for (const lv of order) {\n      const L = LEVELS[lv];\n      const tag = isPin(lv) ? ` — attack board owned by ${this.boards[lv]}, movable by ${boardController(this.pos, lv) || 'nobody (2+ pieces)'}` : '';\n      lines.push(`Level ${lv} (files ${FILES[L.x[0]]}-${FILES[L.x[1]]}, ranks ${L.y[0]}-${L.y[1]})${tag}:`);\n      for (let y = L.y[1]; y >= L.y[0]; y--) {\n        let row = `  ${y} `;\n        for (let x = L.x[0]; x <= L.x[1]; x++) row += ' ' + sym(this.pieces[sqKey(x, y, lv)]);\n        lines.push(row);\n      }\n      let foot = '    ';\n      for (let x = L.x[0]; x <= L.x[1]; x++) foot += ' ' + FILES[x];\n      lines.push(foot);\n    }\n    const free = Object.keys(PINS).filter((p) => !this.boards[p]);\n    lines.push(`Empty pins: ${free.join(' ')}`);\n    if (this.ep) lines.push(`En passant possible on file ${FILES[this.ep.x]} rank ${this.ep.y} (pawn ${this.ep.victim})`);\n    return lines.join('\\n');\n  }\n}\n\nconst RULES_TEXT = `TRI-D CHESS (Jens Meder's tournament rules)\n\nBOARD: 3 fixed main boards + 4 movable attack boards.\n  Main boards (4x4, files a-d): W = white (ranks 1-4, lowest), N = neutral (ranks 3-6), B = black (ranks 5-8, highest).\n  Attack boards (2x2) sit on pins. There are 12 pins:\n    queen side (files z-a): QL1..QL6, king side (files d-e): KL1..KL6\n    pin 1: ranks 0-1 (by W)   pin 2: ranks 4-5 (by W)   pin 3: ranks 2-3 (by N)\n    pin 4: ranks 6-7 (by N)   pin 5: ranks 4-5 (by B)   pin 6: ranks 8-9 (by B)\n  Start: white boards on QL1 and KL1, black boards on QL6 and KL6. Squares of an attack board are named after its current pin.\n  Files from left to right: z a b c d e. Ranks 0 (white side) .. 9 (black side).\n\nSQUARE NAMES: file + rank + level, e.g. \"a2W\", \"c5N\", \"d0KL1\", \"z9QL6\". The same file+rank can exist on several levels.\n\nPIECE MOVES: project the board flat onto a 6x10 grid. A move is legal if it is a legal chess move on that projection;\n  the piece may then land on ANY level in play that has a square at the target file+rank (empty or enemy).\n  A piece blocks movement through its file+rank on every level. Knights jump. Purely vertical moves are not allowed.\n  Pawns: forward one (two on their first move, path empty), capture diagonally forward. White moves towards rank 9.\n  En passant: a pawn that has just made a double step may be captured by an adjacent pawn as if it had moved one square,\n    on the very next move only; the capturing pawn may land on either level.\n  A pawn carried by an attack board loses its double step.\n  Promotion (to Q, R, B or N, pass promotion in make_move): on the furthest rank of the file —\n    files b,c: rank 8 (white) / 1 (black); files z,e: 9 / 0; files a,d: 9 / 0 if an attack board overhangs that corner, else 8 / 1.\n    A pawn left on its furthest rank when an overhanging board moves away is promoted to a queen.\n\nCASTLING (not as a player's first move; king and rook unmoved, same rank, nothing between them, king not in check and not landing in check):\n  king side \"0-0\": king and rook exchange places. Queen side \"0-0-0\": the king goes next to the rook, the rook to the king's square.\n  make_move with from \"0-0\" or \"0-0-0\" (to is ignored), or move the king onto its castling square.\n\nATTACK BOARD MOVES (a whole turn): make_move with from = current pin, to = target pin (e.g. from \"QL1\" to \"QL3\").\n  Linked pins on the same side: 1-2, 1-3, 2-3, 2-4, 3-4, 3-5, 4-5, 4-6, 5-6; plus sideways QLn <-> KLn.\n  The target pin must be empty. The board carries the pieces on it.\n  It may be moved when empty (by its owner) or carrying exactly ONE piece (by that piece's owner).\n  An occupied board moves only forward or sideways; only an empty board may move backwards. The move must not leave your own king in check.\n\nEND: check, checkmate and stalemate as in normal chess. Draws: threefold repetition, no mating material, 50-move rule.\nPIECES in text render: uppercase = white, lowercase = black. K king, Q queen, R rook, B bishop, N knight, P pawn.`;\n\nreturn { FILES, MAIN_LEVELS, PINS, LEVELS, LEVEL_NAMES, PIECE_NAMES, PROMOTION_PIECES, isPin, pinNeighbours, levelHas, activeLevels, levelsAt, sqKey, parseSquare, squaresOf, allSquares, initialBoards, initialPieces, promotionRank, piecesOnBoard, boardController, applyMove, findKing, isAttacked, inCheck, legalMoves, deadPosition, Game, RULES_TEXT };\n})();\nconst AI = (() => {\nconst { legalMoves, inCheck, parseSquare, findKing, applyMove } = ENG;\n// Built-in computer player: alpha-beta search (+ capture quiescence at high levels)\n// on top of the rules engine, with selectable strength and playing style.\n\n\nconst V = { P: 100, N: 300, B: 320, R: 500, Q: 900, K: 0 };\n\n// Experience levels. depth = full-width plies, qdepth = extra capture-only plies,\n// noise = random score added per root move (higher = more mistakes).\nconst LEVELS = {\n  1: { name: 'Principiante', depth: 1, qdepth: 0, noise: 260 },\n  2: { name: 'Facile', depth: 1, qdepth: 0, noise: 70 },\n  3: { name: 'Medio', depth: 2, qdepth: 0, noise: 25, budget: 2000 },\n  4: { name: 'Esperto', depth: 2, qdepth: 2, noise: 8, budget: 2500 },\n  5: { name: 'Maestro', depth: 3, qdepth: 2, noise: 2, budget: 3500 },\n};\n\n// Playing styles: weights for the evaluation and root move bonuses.\nconst STYLES = {\n  balanced:   { name: 'Equilibrato', material: 1.0, center: 20, pawnAdv: 8,  attack: 4,  shelter: 4,  check: 15, capture: 0 },\n  aggressive: { name: 'Aggressivo',  material: 0.85, center: 12, pawnAdv: 14, attack: 16, shelter: 0, check: 60, capture: 25 },\n  cautious:   { name: 'Prudente',    material: 1.1, center: 10, pawnAdv: 4,  attack: 0,  shelter: 14, check: 0,  capture: -5 },\n};\n\nconst other = (c) => (c === 'white' ? 'black' : 'white');\n\n// Positions are { pieces, boards } (see engine.js); board moves carry pieces along.\nconst apply = (pos, m) => applyMove(pos, m).pos;\n\nconst dist = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));\n\nfunction evaluate(pos, me, st) {\n  const { pieces } = pos;\n  const kings = { white: findKing(pieces, 'white'), black: findKing(pieces, 'black') };\n  const kpos = { white: kings.white && parseSquare(kings.white), black: kings.black && parseSquare(kings.black) };\n  let s = 0;\n  for (const [k, pc] of Object.entries(pieces)) {\n    const sq = parseSquare(k);\n    const { x, y } = sq;\n    let v = V[pc.type] * st.material;\n    if (pc.type === 'P') v += (pc.color === 'white' ? y : 9 - y) * st.pawnAdv;\n    else if (pc.type !== 'K') {\n      if (x >= 1 && x <= 4 && y >= 3 && y <= 6) v += st.center;\n      const enemyK = kpos[other(pc.color)], ownK = kpos[pc.color];\n      if (enemyK) v += (9 - dist(sq, enemyK)) * st.attack;           // pressure on the enemy king\n      if (ownK && dist(sq, ownK) <= 2) v += st.shelter;               // pieces guarding own king\n    }\n    s += pc.color === me ? v : -v;\n  }\n  return s;\n}\n\nfunction orderMoves(moves) {\n  return moves.sort((a, b) => (b.capture ? V[b.capture] * 10 - V[b.piece] : 0) - (a.capture ? V[a.capture] * 10 - V[a.piece] : 0));\n}\n\n// Capture-only search to avoid stopping in the middle of an exchange.\nlet deadline = Infinity;\nclass Timeout extends Error {}\n\nfunction quiesce(pos, color, me, qdepth, alpha, beta, st) {\n  if (performance.now() > deadline) throw new Timeout();\n  const stand = evaluate(pos, me, st);\n  if (qdepth === 0) return stand;\n  const maximizing = color === me;\n  if (maximizing) { if (stand >= beta) return stand; alpha = Math.max(alpha, stand); }\n  else { if (stand <= alpha) return stand; beta = Math.min(beta, stand); }\n  const caps = orderMoves(legalMoves(pos, color).filter((m) => m.capture));\n  let best = stand;\n  for (const m of caps) {\n    const v = quiesce(apply(pos, m), other(color), me, qdepth - 1, alpha, beta, st);\n    if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, v); }\n    else { best = Math.min(best, v); beta = Math.min(beta, v); }\n    if (alpha >= beta) break;\n  }\n  return best;\n}\n\nfunction search(pos, color, me, depth, alpha, beta, lv, st) {\n  if (performance.now() > deadline) throw new Timeout();\n  const moves = legalMoves(pos, color);\n  if (!moves.length) return inCheck(pos, color) ? (color === me ? -1e6 - depth : 1e6 + depth) : 0;\n  if (depth === 0) return lv.qdepth ? quiesce(pos, color, me, lv.qdepth, alpha, beta, st) : evaluate(pos, me, st);\n  orderMoves(moves);\n  const maximizing = color === me;\n  let best = maximizing ? -Infinity : Infinity;\n  for (const m of moves) {\n    const v = search(apply(pos, m), other(color), me, depth - 1, alpha, beta, lv, st);\n    if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, v); }\n    else { best = Math.min(best, v); beta = Math.min(beta, v); }\n    if (alpha >= beta) break;\n  }\n  return best;\n}\n\n/**\n * Pick a move for `color`.\n * level: 1..5, style: 'balanced' | 'aggressive' | 'cautious'.\n * recent: the side's own recent moves reversed (\"to>from\"), discouraged to avoid shuffling.\n */\nfunction chooseMove(pos, color, level = 3, style = 'balanced', recent = []) {\n  const lv = LEVELS[level] || LEVELS[3];\n  const st = STYLES[style] || STYLES.balanced;\n  let moves = orderMoves(legalMoves(pos, color));\n  if (!moves.length) return null;\n  const bonus = new Map();\n  for (const m of moves) {\n    let b = Math.random() * lv.noise;\n    if (st.check && inCheck(apply(pos, m), other(color))) b += st.check;\n    if (m.capture) b += st.capture;\n    if (recent.includes(`${m.from}>${m.to}`)) b -= 30;\n    bonus.set(m, b);\n  }\n  // Iterative deepening with a time budget: keep the last fully searched depth.\n  deadline = lv.budget ? performance.now() + lv.budget : Infinity;\n  let best = moves[0];\n  try {\n    for (let d = 1; d <= lv.depth; d++) {\n      const scored = [];\n      for (const m of moves) {\n        const v = search(apply(pos, m), other(color), color, d - 1, -Infinity, Infinity, d === lv.depth ? lv : { ...lv, qdepth: 0 }, st);\n        scored.push({ m, s: v + bonus.get(m) });\n      }\n      scored.sort((a, b) => b.s - a.s);\n      best = scored[0].m;\n      moves = scored.map((x) => x.m); // best-first ordering for the next iteration\n    }\n  } catch (e) {\n    if (!(e instanceof Timeout)) throw e;\n  } finally {\n    deadline = Infinity;\n  }\n  return best;\n}\n\nreturn { LEVELS, STYLES, chooseMove };\n})();\nonmessage = (e) => {\n  const { id, pos, color, level, style, recent } = e.data;\n  const m = AI.chooseMove(pos, color, level, style, recent);\n  postMessage({ id, m: m && { from: m.from, to: m.to, promotion: m.promotion || null } });\n};"], { type: 'text/javascript' })));
+const worker = new Worker(URL.createObjectURL(new Blob(["\nconst ENG = (() => {\n\n// Tri-dimensional chess engine following Jens Meder's tournament rules\n// (https://meder.spacechess.org/3dschach/chess3d.htm), with movable attack boards.\n//\n// Geometry: every square is identified by file + rank + level, e.g. \"a1W\", \"z0QL1\".\n//   files  z a b c d e   -> x 0..5\n//   ranks  0..9          -> y 0..9\n//   main levels (fixed): W (white), N (neutral), B (black)\n//   attack-board pins:   QL1..QL6 (queen side, files z-a) and KL1..KL6 (king side, files d-e).\n//     An attack board is a 2x2 board sitting on one pin; its squares are named after the pin\n//     it currently occupies. Four attack boards exist; when one moves, the pieces on it ride along.\n//\n// A position is { pieces, boards, ep } where boards maps an occupied pin to the board's owner\n// and ep describes a pawn that has just made a double step (en passant target) or is null.\n//\n// Piece movement is evaluated on the 2D projection (x, y). A move whose projection is legal\n// may land on ANY existing level square at the target projection (empty or enemy).\n// A piece blocks movement through its file+rank on every level (Meder 3.1c).\n\nconst FILES = ['z', 'a', 'b', 'c', 'd', 'e'];\n\nconst MAIN_LEVELS = {\n  W: { x: [1, 4], y: [1, 4], height: 0 },\n  N: { x: [1, 4], y: [3, 6], height: 1 },\n  B: { x: [1, 4], y: [5, 8], height: 2 },\n};\n\n// Pin n on each side: [main level it hangs from, first rank, height]\nconst PIN_SPECS = {\n  1: ['W', 0, 0.5], 2: ['W', 4, 0.5],\n  3: ['N', 2, 1.5], 4: ['N', 6, 1.5],\n  5: ['B', 4, 2.5], 6: ['B', 8, 2.5],\n};\nconst PINS = {};\nfor (const [n, [main, y0, height]] of Object.entries(PIN_SPECS)) {\n  PINS[`QL${n}`] = { x: [0, 1], y: [y0, y0 + 1], height, main, side: 'Q', n: Number(n) };\n  PINS[`KL${n}`] = { x: [4, 5], y: [y0, y0 + 1], height, main, side: 'K', n: Number(n) };\n}\n// Pins linked along one side: the next pins of the same or the next main board (Meder 3.6).\n// With the sideways link QLn <-> KLn this gives 3/4/5/5/4/3 reachable pins for levels 1..6.\nconst PIN_LINKS = [[1, 2], [1, 3], [2, 3], [2, 4], [3, 4], [3, 5], [4, 5], [4, 6], [5, 6]];\n\nconst LEVELS = { ...MAIN_LEVELS, ...PINS };\nconst LEVEL_NAMES = Object.keys(LEVELS);\nconst PIECE_NAMES = { K: 'king', Q: 'queen', R: 'rook', B: 'bishop', N: 'knight', P: 'pawn' };\nconst PROMOTION_PIECES = ['Q', 'R', 'B', 'N'];\n\nconst isPin = (name) => Object.prototype.hasOwnProperty.call(PINS, name);\n\nfunction pinNeighbours(pin) {\n  const { side, n } = PINS[pin];\n  const out = [];\n  for (const [a, b] of PIN_LINKS) {\n    if (a === n) out.push(`${side}L${b}`);\n    if (b === n) out.push(`${side}L${a}`);\n  }\n  out.push(`${side === 'Q' ? 'K' : 'Q'}L${n}`); // sideways\n  return out;\n}\n\nfunction levelHas(level, x, y) {\n  const l = LEVELS[level];\n  return !!l && x >= l.x[0] && x <= l.x[1] && y >= l.y[0] && y <= l.y[1];\n}\n\nfunction activeLevels(boards) {\n  return ['W', 'N', 'B', ...Object.keys(boards)];\n}\n\nfunction levelsAt(x, y, boards) {\n  return activeLevels(boards).filter((lv) => levelHas(lv, x, y));\n}\n\nfunction sqKey(x, y, level) {\n  return `${FILES[x]}${y}${level}`;\n}\n\n// Parses a square name against the static geometry (whether that level is in play is checked separately).\nfunction parseSquare(str) {\n  if (typeof str !== 'string') return null;\n  const m = /^([zabcde])([0-9])(W|N|B|[QK]L[1-6])$/i.exec(str.trim());\n  if (!m) return null;\n  const x = FILES.indexOf(m[1].toLowerCase());\n  const y = Number(m[2]);\n  const level = m[3].toUpperCase();\n  if (!levelHas(level, x, y)) return null;\n  return { x, y, level, key: sqKey(x, y, level) };\n}\n\nfunction squaresOf(level) {\n  const l = LEVELS[level], out = [];\n  for (let x = l.x[0]; x <= l.x[1]; x++)\n    for (let y = l.y[0]; y <= l.y[1]; y++) out.push({ x, y, level, key: sqKey(x, y, level) });\n  return out;\n}\n\n// Every square of the given boards configuration (or of the whole geometry when omitted).\nfunction allSquares(boards = null) {\n  return (boards ? activeLevels(boards) : LEVEL_NAMES).flatMap(squaresOf);\n}\n\nconst other = (c) => (c === 'white' ? 'black' : 'white');\n\nfunction initialBoards() {\n  return { QL1: 'white', KL1: 'white', QL6: 'black', KL6: 'black' };\n}\n\nfunction initialPieces() {\n  const p = {};\n  const put = (sq, type, color) => { p[sq] = { type, color, moved: false }; };\n  // White\n  put('z0QL1', 'R', 'white'); put('a0QL1', 'Q', 'white');\n  put('z1QL1', 'P', 'white'); put('a1QL1', 'P', 'white');\n  put('d0KL1', 'K', 'white'); put('e0KL1', 'R', 'white');\n  put('d1KL1', 'P', 'white'); put('e1KL1', 'P', 'white');\n  put('a1W', 'N', 'white'); put('b1W', 'B', 'white'); put('c1W', 'B', 'white'); put('d1W', 'N', 'white');\n  for (const f of 'abcd') put(`${f}2W`, 'P', 'white');\n  // Black\n  put('z9QL6', 'R', 'black'); put('a9QL6', 'Q', 'black');\n  put('z8QL6', 'P', 'black'); put('a8QL6', 'P', 'black');\n  put('d9KL6', 'K', 'black'); put('e9KL6', 'R', 'black');\n  put('d8KL6', 'P', 'black'); put('e8KL6', 'P', 'black');\n  put('a8B', 'N', 'black'); put('b8B', 'B', 'black'); put('c8B', 'B', 'black'); put('d8B', 'N', 'black');\n  for (const f of 'abcd') put(`${f}7B`, 'P', 'black');\n  return p;\n}\n\n// --- low level helpers -------------------------------------------------------\n\nfunction columnOccupied(pos, x, y) {\n  for (const lv of levelsAt(x, y, pos.boards)) if (pos.pieces[sqKey(x, y, lv)]) return true;\n  return false;\n}\n\nfunction inGrid(x, y) {\n  return x >= 0 && x <= 5 && y >= 0 && y <= 9;\n}\n\nconst ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];\nconst DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];\nconst KNIGHT = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];\n\n// Destinations at projection (tx,ty): empty or enemy squares on any level in play.\nfunction landings(pos, color, tx, ty, { captureOnly = false, quietOnly = false } = {}) {\n  const out = [];\n  for (const lv of levelsAt(tx, ty, pos.boards)) {\n    const k = sqKey(tx, ty, lv);\n    const occ = pos.pieces[k];\n    if (!occ && !captureOnly) out.push(k);\n    else if (occ && occ.color !== color && !quietOnly) out.push(k);\n  }\n  return out;\n}\n\n// Furthest rank a pawn of `color` can reach on file x (Meder 3.4e).\nfunction promotionRank(pos, color, x) {\n  if (x === 2 || x === 3) return color === 'white' ? 8 : 1;          // files b, c\n  if (x === 0 || x === 5) return color === 'white' ? 9 : 0;          // files z, e\n  // files a, d: the far corner counts only while an attack board overhangs it\n  const pin = color === 'white' ? (x === 1 ? 'QL6' : 'KL6') : (x === 1 ? 'QL1' : 'KL1');\n  const overhang = !!pos.boards[pin];\n  return color === 'white' ? (overhang ? 9 : 8) : (overhang ? 0 : 1);\n}\n\n// Piece moves (no castling). Each move is { from, to } plus { ep: victimKey } for en passant.\nfunction pieceMovesFrom(pos, fromKey) {\n  const piece = pos.pieces[fromKey];\n  if (!piece) return [];\n  const { x, y } = parseSquare(fromKey);\n  const color = piece.color;\n  const targets = [];\n  const extra = [];\n\n  const slide = (dirs, maxSteps) => {\n    for (const [dx, dy] of dirs) {\n      let cx = x, cy = y;\n      for (let s = 1; s <= maxSteps; s++) {\n        cx += dx; cy += dy;\n        if (!inGrid(cx, cy)) break;\n        targets.push(...landings(pos, color, cx, cy));\n        if (columnOccupied(pos, cx, cy)) break;\n      }\n    }\n  };\n\n  switch (piece.type) {\n    case 'R': slide(ORTHO, 10); break;\n    case 'B': slide(DIAG, 10); break;\n    case 'Q': slide([...ORTHO, ...DIAG], 10); break;\n    case 'K': slide([...ORTHO, ...DIAG], 1); break;\n    case 'N':\n      for (const [dx, dy] of KNIGHT) {\n        const tx = x + dx, ty = y + dy;\n        if (inGrid(tx, ty)) targets.push(...landings(pos, color, tx, ty));\n      }\n      break;\n    case 'P': {\n      const dir = color === 'white' ? 1 : -1;\n      const y1 = y + dir;\n      if (inGrid(x, y1)) {\n        targets.push(...landings(pos, color, x, y1, { quietOnly: true }));\n        const y2 = y + 2 * dir;\n        if (!piece.moved && !columnOccupied(pos, x, y1) && inGrid(x, y2))\n          targets.push(...landings(pos, color, x, y2, { quietOnly: true }));\n        for (const dx of [-1, 1])\n          if (inGrid(x + dx, y1)) targets.push(...landings(pos, color, x + dx, y1, { captureOnly: true }));\n        // en passant: capture the pawn that just double-stepped past (ep.x, ep.y), landing on any level\n        const ep = pos.ep;\n        if (ep && ep.color !== color && Math.abs(ep.x - x) === 1 && ep.y === y1 && pos.pieces[ep.victim])\n          for (const k of landings(pos, color, ep.x, ep.y, { quietOnly: true })) extra.push({ from: fromKey, to: k, ep: ep.victim });\n      }\n      break;\n    }\n  }\n  return [...targets.filter((t) => t !== fromKey).map((to) => ({ from: fromKey, to })), ...extra];\n}\n\n// Castling (Meder 3.5a): king and rook unmoved on the same rank, nothing between them.\n// King side: king and rook exchange places. Queen side: the king goes next to the rook\n// and the rook goes to the square the king left.\nfunction castlingMoves(pos, color) {\n  const kingKey = findKing(pos.pieces, color);\n  if (!kingKey) return [];\n  const king = pos.pieces[kingKey];\n  if (king.moved) return [];\n  const k = parseSquare(kingKey);\n  const out = [];\n  for (const [rKey, rook] of Object.entries(pos.pieces)) {\n    if (rook.type !== 'R' || rook.color !== color || rook.moved) continue;\n    const r = parseSquare(rKey);\n    if (r.y !== k.y) continue;\n    const step = Math.sign(r.x - k.x);\n    let clear = true;\n    for (let x = k.x + step; x !== r.x; x += step) if (columnOccupied(pos, x, k.y)) { clear = false; break; }\n    if (!clear) continue;\n    if (step > 0) {\n      out.push({ from: kingKey, to: rKey, castle: 'K', rookFrom: rKey, rookTo: kingKey });\n    } else {\n      const lvls = levelsAt(r.x + 1, r.y, pos.boards);\n      const lv = lvls.includes(r.level) ? r.level : lvls[0];\n      if (!lv) continue;\n      const kingTo = sqKey(r.x + 1, r.y, lv);\n      if (kingTo === kingKey || pos.pieces[kingTo]) continue;\n      out.push({ from: kingKey, to: kingTo, castle: 'Q', rookFrom: rKey, rookTo: kingKey });\n    }\n  }\n  return out;\n}\n\n// Pieces standing on the attack board at `pin`.\nfunction piecesOnBoard(pos, pin) {\n  return squaresOf(pin).map((s) => s.key).filter((k) => pos.pieces[k]);\n}\n\n// Who may move the board on `pin`: its owner when empty, the owner of the single piece on it otherwise.\nfunction boardController(pos, pin) {\n  const on = piecesOnBoard(pos, pin);\n  if (on.length === 0) return pos.boards[pin];\n  if (on.length === 1) return pos.pieces[on[0]].color;\n  return null;\n}\n\n// Board moves (Meder 3.6): to a linked empty pin; an occupied board only forward or sideways,\n// an empty board also backwards (\"inverted\").\nfunction boardMovesFor(pos, color) {\n  const out = [];\n  for (const pin of Object.keys(pos.boards)) {\n    if (boardController(pos, pin) !== color) continue;\n    const occupied = piecesOnBoard(pos, pin).length > 0;\n    for (const to of pinNeighbours(pin)) {\n      if (pos.boards[to]) continue;\n      const dy = PINS[to].y[0] - PINS[pin].y[0];\n      const backward = color === 'white' ? dy < 0 : dy > 0;\n      if (occupied && backward) continue;\n      out.push({ from: pin, to, board: true });\n    }\n  }\n  return out;\n}\n\n// Pawns that stand on their furthest rank (e.g. after an overhanging board left) are promoted\n// before the next move (Meder 3.4e-iii); here automatically to a queen.\nfunction promoteStranded(pos) {\n  for (const [k, pc] of Object.entries(pos.pieces)) {\n    if (pc.type !== 'P') continue;\n    const s = parseSquare(k);\n    if (s.y === promotionRank(pos, pc.color, s.x)) pos.pieces[k] = { ...pc, type: 'Q', moved: true };\n  }\n}\n\nfunction applyMove(pos, move) {\n  const r = applyMoveInner(pos, move);\n  const mover = move.board ? boardController(pos, move.from) : pos.pieces[move.from].color;\n  r.pos.firstMove = { ...(pos.firstMove || {}), [mover]: false };\n  return r;\n}\n\nfunction applyMoveInner(pos, move) {\n  if (move.board) {\n    const boards = { ...pos.boards };\n    boards[move.to] = boards[move.from];\n    delete boards[move.from];\n    const pieces = { ...pos.pieces };\n    const dx = PINS[move.to].x[0] - PINS[move.from].x[0];\n    const dy = PINS[move.to].y[0] - PINS[move.from].y[0];\n    for (const s of squaresOf(move.from)) {\n      const pc = pos.pieces[s.key];\n      if (!pc) continue;\n      delete pieces[s.key];\n      // a pawn moved by an attack board loses its double step (Meder 3.4b)\n      pieces[sqKey(s.x + dx, s.y + dy, move.to)] = pc.type === 'P' ? { ...pc, moved: true } : pc;\n    }\n    const next = { pieces, boards, ep: null };\n    promoteStranded(next);\n    return { pos: next, captured: null };\n  }\n  const pieces = { ...pos.pieces };\n  const piece = pieces[move.from];\n  if (move.castle) {\n    const rook = pieces[move.rookFrom];\n    delete pieces[move.from];\n    delete pieces[move.rookFrom];\n    pieces[move.to] = { ...piece, moved: true };\n    pieces[move.rookTo] = { ...rook, moved: true };\n    return { pos: { pieces, boards: pos.boards, ep: null }, captured: null };\n  }\n  let captured = pieces[move.to] || null;\n  if (move.ep) { captured = pieces[move.ep]; delete pieces[move.ep]; }\n  delete pieces[move.from];\n  const moved = { ...piece, moved: true };\n  if (move.promotion) moved.type = move.promotion;\n  pieces[move.to] = moved;\n  let ep = null;\n  if (piece.type === 'P') {\n    const f = parseSquare(move.from), t = parseSquare(move.to);\n    if (Math.abs(t.y - f.y) === 2) ep = { x: f.x, y: (f.y + t.y) / 2, victim: move.to, color: piece.color };\n  }\n  return { pos: { pieces, boards: pos.boards, ep }, captured };\n}\n\nfunction findKing(pieces, color) {\n  return Object.keys(pieces).find((k) => pieces[k].type === 'K' && pieces[k].color === color);\n}\n\nfunction isAttacked(pos, targetKey, byColor) {\n  for (const k of Object.keys(pos.pieces)) {\n    if (pos.pieces[k].color !== byColor) continue;\n    if (pieceMovesFrom(pos, k).some((m) => m.to === targetKey)) return true;\n  }\n  return false;\n}\n\nfunction inCheck(pos, color) {\n  const king = findKing(pos.pieces, color);\n  return king ? isAttacked(pos, king, other(color)) : false;\n}\n\n// Legal moves for `color`. `from` may be a square (piece moves) or a pin (board moves).\nfunction legalMoves(pos, color, from = null) {\n  const candidates = [];\n  const pinFrom = from && isPin(from);\n  if (!pinFrom) {\n    const keys = from ? [from] : Object.keys(pos.pieces);\n    for (const k of keys) {\n      const p = pos.pieces[k];\n      if (!p || p.color !== color) continue;\n      for (const m of pieceMovesFrom(pos, k)) {\n        // promotion: one move per piece the pawn may become\n        const t = p.type === 'P' && parseSquare(m.to);\n        if (t && t.y === promotionRank(pos, color, t.x)) for (const pr of PROMOTION_PIECES) candidates.push({ ...m, promotion: pr });\n        else candidates.push(m);\n      }\n    }\n    const kingKey = findKing(pos.pieces, color);\n    // Meder 3.5a: castling is not allowed as a player's first move\n    if ((!from || from === kingKey) && !pos.firstMove?.[color] && !inCheck(pos, color)) candidates.push(...castlingMoves(pos, color));\n  }\n  if (!from || pinFrom) candidates.push(...boardMovesFor(pos, color).filter((m) => !from || m.from === from));\n  const out = [];\n  for (const m of candidates) {\n    const { pos: after } = applyMove(pos, m);\n    if (inCheck(after, color)) continue;\n    if (m.board) out.push({ ...m, piece: null, capture: null, promotion: null });\n    else {\n      const p = pos.pieces[m.from];\n      const capt = m.ep ? 'P' : !m.castle && pos.pieces[m.to] ? pos.pieces[m.to].type : null;\n      out.push({ ...m, piece: p.type, capture: capt, promotion: m.promotion || null });\n    }\n  }\n  return out;\n}\n\n// No sequence of legal moves can mate (Meder 1.3): bare kings, or only one minor piece,\n// or only bishops all on squares of one colour.\nfunction deadPosition(pos) {\n  const minors = [];\n  for (const [k, pc] of Object.entries(pos.pieces)) {\n    if (pc.type === 'K') continue;\n    if (pc.type !== 'B' && pc.type !== 'N') return false;\n    minors.push({ type: pc.type, sq: parseSquare(k) });\n  }\n  if (minors.length <= 1) return true;\n  if (minors.every((m) => m.type === 'B')) {\n    const colours = new Set(minors.map((m) => (m.sq.x + m.sq.y) % 2));\n    return colours.size === 1;\n  }\n  return false;\n}\n\n// Key identifying a position for repetition: pieces with castling/double-step rights,\n// boards, side to move and en passant target (Meder 9.2).\nfunction positionKey(pos, turn) {\n  const pcs = Object.keys(pos.pieces).sort().map((k) => {\n    const p = pos.pieces[k];\n    return `${k}${p.color[0]}${p.type}${p.moved ? '' : '*'}`;\n  }).join(',');\n  const boards = Object.keys(pos.boards).sort().map((p) => `${p}${pos.boards[p][0]}`).join(',');\n  return `${turn}|${pcs}|${boards}|${pos.ep ? pos.ep.victim : '-'}`;\n}\n\n// --- game object -------------------------------------------------------------\n\nclass Game {\n  constructor(opts = {}) {\n    this.reset(opts);\n  }\n\n  // computer: per-color settings for the built-in engine, e.g. { white: { level: 4, style: 'aggressive' } }\n  reset({ white = 'human', black = 'ai', computer = {} } = {}) {\n    const cfg = (c) => ({ level: computer[c]?.level ?? 3, style: computer[c]?.style ?? 'balanced' });\n    this.computer = { white: cfg('white'), black: cfg('black') };\n    this.id = Math.random().toString(36).slice(2, 10);\n    this.pieces = initialPieces();\n    this.boards = initialBoards();\n    this.ep = null;\n    this.turn = 'white';\n    this.players = { white, black };\n    this.history = [];\n    this.status = 'playing'; // playing | checkmate | stalemate | draw | resigned | timeout\n    this.drawReason = null;  // fifty | repetition | material | time-material\n    this.winner = null;\n    this.halfmoveClock = 0;\n    this.repetitions = { [positionKey(this.pos, 'white')]: 1 };\n    this.version = 0;\n    this.startedAt = Date.now();\n  }\n\n  get pos() {\n    const moved = (c) => this.history.some((h) => h.color === c);\n    return { pieces: this.pieces, boards: this.boards, ep: this.ep, firstMove: { white: !moved('white'), black: !moved('black') } };\n  }\n\n  legal(from = null) {\n    if (this.status !== 'playing') return [];\n    return legalMoves(this.pos, this.turn, from);\n  }\n\n  // from/to: squares, pins (attack-board move) or \"0-0\" / \"0-0-0\" (castling).\n  // promotion: Q, R, B or N when a pawn reaches its furthest rank (default Q).\n  move(fromStr, toStr, promotion = null) {\n    if (this.status !== 'playing') throw new Error(`Game is over (${this.status}).`);\n    const f = String(fromStr || '').trim().toUpperCase().replace(/O/g, '0');\n    const castleSide = f === '0-0' ? 'K' : f === '0-0-0' ? 'Q' : null;\n    let mv;\n    if (castleSide) {\n      mv = this.legal().find((m) => m.castle === castleSide);\n      if (!mv) throw new Error(`Castling ${castleSide === 'K' ? 'king' : 'queen'}-side is not legal now.`);\n    } else {\n      const boardMove = isPin(f);\n      let from, to;\n      if (boardMove) {\n        from = f; to = String(toStr || '').trim().toUpperCase();\n        if (!this.boards[from]) throw new Error(`No attack board on pin ${from}.`);\n        if (!isPin(to)) throw new Error(`Invalid pin \"${toStr}\". Pins are QL1..QL6 and KL1..KL6.`);\n      } else {\n        const fs = parseSquare(String(fromStr)), ts = parseSquare(String(toStr));\n        if (!fs) throw new Error(`Invalid square \"${fromStr}\". Format: file+rank+level, e.g. a2W, d0KL1 — a pin (e.g. QL1) to move an attack board, or 0-0 / 0-0-0 to castle.`);\n        if (!ts) throw new Error(`Invalid square \"${toStr}\". Format: file+rank+level, e.g. a3N, z1QL1.`);\n        from = fs.key; to = ts.key;\n        const piece = this.pieces[from];\n        if (!piece) throw new Error(`No piece on ${from}.`);\n        if (piece.color !== this.turn) throw new Error(`Piece on ${from} is ${piece.color}, but it is ${this.turn}'s turn.`);\n      }\n      const cands = legalMoves(this.pos, this.turn, from).filter((m) => m.to === to);\n      if (!cands.length) throw new Error(`Illegal move ${from} -> ${to}.`);\n      if (cands.some((m) => m.promotion)) {\n        const pr = String(promotion || 'Q').toUpperCase();\n        mv = cands.find((m) => m.promotion === pr);\n        if (!mv) throw new Error(`Invalid promotion \"${promotion}\". Choose Q, R, B or N.`);\n      } else mv = cands[0];\n    }\n\n    const boardMove = !!mv.board;\n    const piece = boardMove ? null : this.pieces[mv.from];\n    const carried = boardMove ? piecesOnBoard(this.pos, mv.from).map((k) => this.pieces[k].type) : [];\n    const { pos, captured } = applyMove(this.pos, mv);\n    this.pieces = pos.pieces;\n    this.boards = pos.boards;\n    this.ep = pos.ep;\n    this.halfmoveClock = captured || piece?.type === 'P' ? 0 : this.halfmoveClock + 1;\n    const mover = this.turn;\n    this.turn = other(this.turn);\n    const check = inCheck(this.pos, this.turn);\n    const replies = legalMoves(this.pos, this.turn);\n    let notation;\n    if (mv.castle) notation = mv.castle === 'K' ? '0-0' : '0-0-0';\n    else if (boardMove) notation = `${mv.from}→${mv.to}${carried.length ? ` (${carried.join('')})` : ''}`;\n    else notation = `${piece.type === 'P' ? '' : piece.type}${mv.from}${captured ? 'x' : '-'}${mv.to}${mv.promotion ? `=${mv.promotion}` : ''}${mv.ep ? ' e.p.' : ''}`;\n    const key = positionKey(this.pos, this.turn);\n    this.repetitions[key] = (this.repetitions[key] || 0) + 1;\n    if (replies.length === 0) {\n      if (check) { this.status = 'checkmate'; this.winner = mover; notation += '#'; }\n      else this.status = 'stalemate';\n    } else {\n      if (check) notation += '+';\n      if (deadPosition(this.pos)) { this.status = 'draw'; this.drawReason = 'material'; }\n      else if (this.repetitions[key] >= 3) { this.status = 'draw'; this.drawReason = 'repetition'; }\n      else if (this.halfmoveClock >= 100) { this.status = 'draw'; this.drawReason = 'fifty'; }\n    }\n    const record = {\n      n: this.history.length + 1, color: mover, from: mv.from, to: mv.to, board: boardMove || undefined,\n      castle: mv.castle || undefined, rookFrom: mv.rookFrom, rookTo: mv.rookTo, ep: mv.ep ? true : undefined,\n      piece: piece ? piece.type : null, captured: captured ? captured.type : null,\n      promotion: mv.promotion || null, check, notation, at: Date.now(),\n    };\n    this.history.push(record);\n    this.version++;\n    return record;\n  }\n\n  // `color` ran out of time. A draw instead when the opponent could never mate (FIDE 6.9).\n  flag(color) {\n    if (this.status !== 'playing') throw new Error('Game is already over.');\n    const opp = other(color);\n    const oppOnly = { pieces: Object.fromEntries(Object.entries(this.pieces).filter(([, p]) => p.color === opp || p.type === 'K')), boards: this.boards };\n    if (deadPosition(oppOnly)) { this.status = 'draw'; this.drawReason = 'time-material'; }\n    else { this.status = 'timeout'; this.winner = opp; }\n    this.version++;\n  }\n\n  resign(color) {\n    if (this.status !== 'playing') throw new Error('Game is already over.');\n    this.status = 'resigned';\n    this.winner = other(color);\n    this.version++;\n  }\n\n  snapshot() {\n    return {\n      id: this.id,\n      version: this.version,\n      turn: this.turn,\n      players: this.players,\n      startedAt: this.startedAt,\n      computer: this.computer,\n      status: this.status,\n      drawReason: this.drawReason,\n      winner: this.winner,\n      check: this.status === 'playing' && inCheck(this.pos, this.turn),\n      pieces: this.pieces,\n      boards: this.boards,\n      history: this.history,\n      lastMove: this.history[this.history.length - 1] || null,\n      legalMoves: this.legal().map(({ from, to, capture, promotion, board, castle, ep }) => ({\n        from, to, capture, promotion,\n        ...(board ? { board: true } : {}), ...(castle ? { castle } : {}), ...(ep ? { ep: true } : {}),\n      })),\n    };\n  }\n\n  // Text rendering for AI clients: one grid per level in play, from top to bottom.\n  render() {\n    const order = activeLevels(this.boards).sort((a, b) => LEVELS[b].height - LEVELS[a].height || LEVELS[b].y[0] - LEVELS[a].y[0]);\n    const sym = (p) => (p ? (p.color === 'white' ? p.type : p.type.toLowerCase()) : '.');\n    const lines = [];\n    for (const lv of order) {\n      const L = LEVELS[lv];\n      const tag = isPin(lv) ? ` — attack board owned by ${this.boards[lv]}, movable by ${boardController(this.pos, lv) || 'nobody (2+ pieces)'}` : '';\n      lines.push(`Level ${lv} (files ${FILES[L.x[0]]}-${FILES[L.x[1]]}, ranks ${L.y[0]}-${L.y[1]})${tag}:`);\n      for (let y = L.y[1]; y >= L.y[0]; y--) {\n        let row = `  ${y} `;\n        for (let x = L.x[0]; x <= L.x[1]; x++) row += ' ' + sym(this.pieces[sqKey(x, y, lv)]);\n        lines.push(row);\n      }\n      let foot = '    ';\n      for (let x = L.x[0]; x <= L.x[1]; x++) foot += ' ' + FILES[x];\n      lines.push(foot);\n    }\n    const free = Object.keys(PINS).filter((p) => !this.boards[p]);\n    lines.push(`Empty pins: ${free.join(' ')}`);\n    if (this.ep) lines.push(`En passant possible on file ${FILES[this.ep.x]} rank ${this.ep.y} (pawn ${this.ep.victim})`);\n    return lines.join('\\n');\n  }\n}\n\nconst RULES_TEXT = `TRI-D CHESS (Jens Meder's tournament rules)\n\nBOARD: 3 fixed main boards + 4 movable attack boards.\n  Main boards (4x4, files a-d): W = white (ranks 1-4, lowest), N = neutral (ranks 3-6), B = black (ranks 5-8, highest).\n  Attack boards (2x2) sit on pins. There are 12 pins:\n    queen side (files z-a): QL1..QL6, king side (files d-e): KL1..KL6\n    pin 1: ranks 0-1 (by W)   pin 2: ranks 4-5 (by W)   pin 3: ranks 2-3 (by N)\n    pin 4: ranks 6-7 (by N)   pin 5: ranks 4-5 (by B)   pin 6: ranks 8-9 (by B)\n  Start: white boards on QL1 and KL1, black boards on QL6 and KL6. Squares of an attack board are named after its current pin.\n  Files from left to right: z a b c d e. Ranks 0 (white side) .. 9 (black side).\n\nSQUARE NAMES: file + rank + level, e.g. \"a2W\", \"c5N\", \"d0KL1\", \"z9QL6\". The same file+rank can exist on several levels.\n\nPIECE MOVES: project the board flat onto a 6x10 grid. A move is legal if it is a legal chess move on that projection;\n  the piece may then land on ANY level in play that has a square at the target file+rank (empty or enemy).\n  A piece blocks movement through its file+rank on every level. Knights jump. Purely vertical moves are not allowed.\n  Pawns: forward one (two on their first move, path empty), capture diagonally forward. White moves towards rank 9.\n  En passant: a pawn that has just made a double step may be captured by an adjacent pawn as if it had moved one square,\n    on the very next move only; the capturing pawn may land on either level.\n  A pawn carried by an attack board loses its double step.\n  Promotion (to Q, R, B or N, pass promotion in make_move): on the furthest rank of the file —\n    files b,c: rank 8 (white) / 1 (black); files z,e: 9 / 0; files a,d: 9 / 0 if an attack board overhangs that corner, else 8 / 1.\n    A pawn left on its furthest rank when an overhanging board moves away is promoted to a queen.\n\nCASTLING (not as a player's first move; king and rook unmoved, same rank, nothing between them, king not in check and not landing in check):\n  king side \"0-0\": king and rook exchange places. Queen side \"0-0-0\": the king goes next to the rook, the rook to the king's square.\n  make_move with from \"0-0\" or \"0-0-0\" (to is ignored), or move the king onto its castling square.\n\nATTACK BOARD MOVES (a whole turn): make_move with from = current pin, to = target pin (e.g. from \"QL1\" to \"QL3\").\n  Linked pins on the same side: 1-2, 1-3, 2-3, 2-4, 3-4, 3-5, 4-5, 4-6, 5-6; plus sideways QLn <-> KLn.\n  The target pin must be empty. The board carries the pieces on it.\n  It may be moved when empty (by its owner) or carrying exactly ONE piece (by that piece's owner).\n  An occupied board moves only forward or sideways; only an empty board may move backwards. The move must not leave your own king in check.\n\nEND: check, checkmate and stalemate as in normal chess. Draws: threefold repetition, no mating material, 50-move rule.\nPIECES in text render: uppercase = white, lowercase = black. K king, Q queen, R rook, B bishop, N knight, P pawn.`;\n\nreturn { FILES, MAIN_LEVELS, PINS, LEVELS, LEVEL_NAMES, PIECE_NAMES, PROMOTION_PIECES, isPin, pinNeighbours, levelHas, activeLevels, levelsAt, sqKey, parseSquare, squaresOf, allSquares, initialBoards, initialPieces, promotionRank, piecesOnBoard, boardController, applyMove, findKing, isAttacked, inCheck, legalMoves, deadPosition, Game, RULES_TEXT };\n})();\nconst AI = (() => {\nconst { legalMoves, inCheck, parseSquare, findKing, applyMove } = ENG;\n// Built-in computer player: alpha-beta search (+ capture quiescence at high levels)\n// on top of the rules engine, with selectable strength and playing style.\n\n\nconst V = { P: 100, N: 300, B: 320, R: 500, Q: 900, K: 0 };\n\n// Experience levels. depth = full-width plies, qdepth = extra capture-only plies,\n// noise = random score added per root move (higher = more mistakes).\nconst LEVELS = {\n  1: { name: 'Principiante', depth: 1, qdepth: 0, noise: 260 },\n  2: { name: 'Facile', depth: 1, qdepth: 0, noise: 70 },\n  3: { name: 'Medio', depth: 2, qdepth: 0, noise: 25, budget: 2000 },\n  4: { name: 'Esperto', depth: 2, qdepth: 2, noise: 8, budget: 2500 },\n  5: { name: 'Maestro', depth: 3, qdepth: 2, noise: 2, budget: 3500 },\n};\n\n// Playing styles: weights for the evaluation and root move bonuses.\nconst STYLES = {\n  balanced:   { name: 'Equilibrato', material: 1.0, center: 20, pawnAdv: 8,  attack: 4,  shelter: 4,  check: 15, capture: 0 },\n  aggressive: { name: 'Aggressivo',  material: 0.85, center: 12, pawnAdv: 14, attack: 16, shelter: 0, check: 60, capture: 25 },\n  cautious:   { name: 'Prudente',    material: 1.1, center: 10, pawnAdv: 4,  attack: 0,  shelter: 14, check: 0,  capture: -5 },\n};\n\nconst other = (c) => (c === 'white' ? 'black' : 'white');\n\n// Positions are { pieces, boards } (see engine.js); board moves carry pieces along.\nconst apply = (pos, m) => applyMove(pos, m).pos;\n\nconst dist = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));\n\nfunction evaluate(pos, me, st) {\n  const { pieces } = pos;\n  const kings = { white: findKing(pieces, 'white'), black: findKing(pieces, 'black') };\n  const kpos = { white: kings.white && parseSquare(kings.white), black: kings.black && parseSquare(kings.black) };\n  let s = 0;\n  for (const [k, pc] of Object.entries(pieces)) {\n    const sq = parseSquare(k);\n    const { x, y } = sq;\n    let v = V[pc.type] * st.material;\n    if (pc.type === 'P') v += (pc.color === 'white' ? y : 9 - y) * st.pawnAdv;\n    else if (pc.type !== 'K') {\n      if (x >= 1 && x <= 4 && y >= 3 && y <= 6) v += st.center;\n      const enemyK = kpos[other(pc.color)], ownK = kpos[pc.color];\n      if (enemyK) v += (9 - dist(sq, enemyK)) * st.attack;           // pressure on the enemy king\n      if (ownK && dist(sq, ownK) <= 2) v += st.shelter;               // pieces guarding own king\n    }\n    s += pc.color === me ? v : -v;\n  }\n  return s;\n}\n\nfunction orderMoves(moves) {\n  return moves.sort((a, b) => (b.capture ? V[b.capture] * 10 - V[b.piece] : 0) - (a.capture ? V[a.capture] * 10 - V[a.piece] : 0));\n}\n\n// Capture-only search to avoid stopping in the middle of an exchange.\nlet deadline = Infinity;\nclass Timeout extends Error {}\n\nfunction quiesce(pos, color, me, qdepth, alpha, beta, st) {\n  if (performance.now() > deadline) throw new Timeout();\n  const stand = evaluate(pos, me, st);\n  if (qdepth === 0) return stand;\n  const maximizing = color === me;\n  if (maximizing) { if (stand >= beta) return stand; alpha = Math.max(alpha, stand); }\n  else { if (stand <= alpha) return stand; beta = Math.min(beta, stand); }\n  const caps = orderMoves(legalMoves(pos, color).filter((m) => m.capture));\n  let best = stand;\n  for (const m of caps) {\n    const v = quiesce(apply(pos, m), other(color), me, qdepth - 1, alpha, beta, st);\n    if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, v); }\n    else { best = Math.min(best, v); beta = Math.min(beta, v); }\n    if (alpha >= beta) break;\n  }\n  return best;\n}\n\nfunction search(pos, color, me, depth, alpha, beta, lv, st) {\n  if (performance.now() > deadline) throw new Timeout();\n  const moves = legalMoves(pos, color);\n  if (!moves.length) return inCheck(pos, color) ? (color === me ? -1e6 - depth : 1e6 + depth) : 0;\n  if (depth === 0) return lv.qdepth ? quiesce(pos, color, me, lv.qdepth, alpha, beta, st) : evaluate(pos, me, st);\n  orderMoves(moves);\n  const maximizing = color === me;\n  let best = maximizing ? -Infinity : Infinity;\n  for (const m of moves) {\n    const v = search(apply(pos, m), other(color), me, depth - 1, alpha, beta, lv, st);\n    if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, v); }\n    else { best = Math.min(best, v); beta = Math.min(beta, v); }\n    if (alpha >= beta) break;\n  }\n  return best;\n}\n\n/**\n * Pick a move for `color`.\n * level: 1..5, style: 'balanced' | 'aggressive' | 'cautious'.\n * recent: the side's own recent moves reversed (\"to>from\"), discouraged to avoid shuffling.\n */\nfunction chooseMove(pos, color, level = 3, style = 'balanced', recent = []) {\n  const lv = LEVELS[level] || LEVELS[3];\n  const st = STYLES[style] || STYLES.balanced;\n  let moves = orderMoves(legalMoves(pos, color));\n  if (!moves.length) return null;\n  const bonus = new Map();\n  for (const m of moves) {\n    let b = Math.random() * lv.noise;\n    if (st.check && inCheck(apply(pos, m), other(color))) b += st.check;\n    if (m.capture) b += st.capture;\n    if (recent.includes(`${m.from}>${m.to}`)) b -= 30;\n    bonus.set(m, b);\n  }\n  // Iterative deepening with a time budget: keep the last fully searched depth.\n  deadline = lv.budget ? performance.now() + lv.budget : Infinity;\n  let best = moves[0];\n  try {\n    for (let d = 1; d <= lv.depth; d++) {\n      const scored = [];\n      for (const m of moves) {\n        const v = search(apply(pos, m), other(color), color, d - 1, -Infinity, Infinity, d === lv.depth ? lv : { ...lv, qdepth: 0 }, st);\n        scored.push({ m, s: v + bonus.get(m) });\n      }\n      scored.sort((a, b) => b.s - a.s);\n      best = scored[0].m;\n      moves = scored.map((x) => x.m); // best-first ordering for the next iteration\n    }\n  } catch (e) {\n    if (!(e instanceof Timeout)) throw e;\n  } finally {\n    deadline = Infinity;\n  }\n  return best;\n}\n\nreturn { LEVELS, STYLES, chooseMove };\n})();\nonmessage = (e) => {\n  const { id, pos, color, level, style, recent } = e.data;\n  const m = AI.chooseMove(pos, color, level, style, recent);\n  postMessage({ id, m: m && { from: m.from, to: m.to, promotion: m.promotion || null } });\n};"], { type: 'text/javascript' })));
 let thinkingId = 0;
 worker.onmessage = (e) => {
   if (e.data.id !== thinkingId || !e.data.m) return;
@@ -2032,7 +2210,7 @@ function scheduleComputer() {
   }, 650);
 }
 function publish() {
-  applyState(game.snapshot());
+  onLive(game.snapshot());
   try { localStorage.setItem(STORE_KEY, JSON.stringify(serialize())); } catch {}
   scheduleComputer();
 }
@@ -2056,6 +2234,9 @@ async function post(url, body = {}) {
       game.move(body.from, body.to, body.promotion);
     } else if (url === '/api/resign') {
       game.resign(body.color || game.turn);
+    } else if (url === '/api/flag') {
+      if (!Object.values(game.players).includes('remote')) throw new Error('Time control applies to network games only.');
+      game.flag(body.color);
     } else if (url === '/api/remote-move') {
       // move from the network opponent (net.js); n keeps both sides in step
       if (game.players[game.turn] !== 'remote' || body.n !== game.history.length) return { error: 'out of sync', expected: game.history.length };
@@ -2228,7 +2409,7 @@ renderer.setAnimationLoop(() => {
 });
 
 // --- hooks for optional modules (network play, net.js) ---------------------------------
-window.TriD = Object.assign(window.TriD || {}, { getState: () => state, post, toast, t, onLangChange, listeners: window.TriD?.listeners || [] });
+window.TriD = Object.assign(window.TriD || {}, { getState: () => live || state, post, toast, t, onLangChange, listeners: window.TriD?.listeners || [] });
 
 // --- language (IT / EN) -------------------------------------------------------------------
 function refreshLanguage() {
@@ -2248,8 +2429,10 @@ refreshLanguage();
 // between the two browsers. Each side runs its own rules engine and validates every move.
 //
 // Protocol (one action "msg", JSON):
-//   host  → guest  {t:'sync', hostColor, moves:[{from,to,promotion}], resigned}   full game state
-//   either → other {t:'move', n, from, to, promotion}                             n = moves before it
+//   host  → guest  {t:'sync', hostColor, moves:[{from,to,promotion}], resigned, tc, clocks}   full game state
+//   either → other {t:'move', n, from, to, promotion, left}       n = moves before it, left = mover's clock (ms)
+//   either → other {t:'flag', color}                              that side ran out of time
+//   either → other {t:'rematch-req'} | {t:'rematch-ok'} | {t:'rematch-no'}   rematch, colours swapped
 //   either → other {t:'resign'}
 //   guest → host   {t:'syncreq'}  |  {t:'newgame'}
 //   host  → guest  {t:'busy'}     (room already has two players)
@@ -2733,16 +2916,19 @@ function sendSync() {
   const s = T.getState();
   if (!s) return;
   const resigned = s.status === 'resigned' ? other(s.winner) : null;
-  send({ t: 'sync', hostColor: myColor, moves: movesOf(s), resigned });
+  const flaggedSide = s.status === 'timeout' ? other(s.winner) : s.drawReason === 'time-material' ? s.turn : null;
+  send({ t: 'sync', hostColor: myColor, moves: movesOf(s), resigned, flagged: flaggedSide, tc, clocks: tc ? { white: remaining('white'), black: remaining('black') } : null });
 }
 
 // After every state change: forward our own new moves / resignation to the opponent.
 function onState(s) {
   if (!room || !myColor || s.players[myColor] !== 'human' || s.players[other(myColor)] !== 'remote') return;
   if (s.history.length < sent) sent = s.history.length; // new game
+  clockOnState(s);
+  renderRematch();
   while (sent < s.history.length) {
     const h = s.history[sent];
-    if (h.color === myColor) send({ t: 'move', n: sent, from: h.from, to: h.to, promotion: h.promotion || null });
+    if (h.color === myColor) send({ t: 'move', n: sent, from: h.from, to: h.to, promotion: h.promotion || null, left: tc ? clocks[myColor] : null });
     sent++;
   }
   if (s.status === 'resigned' && s.winner !== myColor && !resignSent) { resignSent = true; send({ t: 'resign' }); }
@@ -2758,14 +2944,19 @@ async function onMessage(data, peerId) {
       myColor = other(data.hostColor);
       $('netMe').textContent = IT[myColor];
       const body = { [myColor]: 'human', [data.hostColor]: 'remote', moves: Array.isArray(data.moves) ? data.moves : [], resigned: data.resigned || null };
+      setTimeControl(validTc(data.tc));
       const r = await T.post('/api/net-sync', body);
+      if (data.flagged === 'white' || data.flagged === 'black') await T.post('/api/flag', { color: data.flagged });
       sent = T.getState()?.history.length ?? 0;
+      syncClocks(data.clocks);
+      offerFrom = false; rematchAsked = false; renderRematch();
       resignSent = !!data.resigned;
       if (r.error) setStatus('net.desync', 'err');
       else setStatus('net.connected', 'ok');
       break;
     }
     case 'move': {
+      if (tc && Number.isFinite(data.left)) incomingLeft = data.left;
       const r = await T.post('/api/remote-move', { n: data.n, from: data.from, to: data.to, promotion: data.promotion });
       if (r.error) {
         // out of step: the host's game is the reference
@@ -2781,6 +2972,30 @@ async function onMessage(data, peerId) {
       break;
     }
     case 'syncreq': if (role === 'host') sendSync(); break;
+    case 'flag': {
+      const s = T.getState();
+      if (!tc || s?.status !== 'playing' || !['white', 'black'].includes(data.color)) break;
+      // a claim against us is accepted only if our own clock agrees (latency margin)
+      if (data.color === myColor && remaining(myColor) > 2000) { sendSync(); break; }
+      flagged = true;
+      await T.post('/api/flag', { color: data.color });
+      break;
+    }
+    case 'rematch-req': {
+      const s = T.getState();
+      if (!s || s.status === 'playing') break;
+      offerFrom = true; renderRematch();
+      T.toast(t('rematch.offer'));
+      break;
+    }
+    case 'rematch-ok':
+      if (!rematchAsked) break;
+      rematchAsked = false;
+      if (role === 'host') await doRematch();
+      break;
+    case 'rematch-no':
+      if (rematchAsked) { rematchAsked = false; renderRematch(); T.toast(t('rematch.declined')); }
+      break;
     case 'newgame':
       if (role === 'host') { T.toast(t('net.peerNew')); await startHostGame(); }
       break;
@@ -2804,6 +3019,7 @@ function open(roomCode) {
     if (peer && peer !== id) { msg.send({ t: 'busy' }, { target: id }).catch(() => {}); return; }
     peer = id;
     everJoined = true;
+    renderRematch();
     clearTimeout(joinTimer);
     renderShare();
     if (isPublic) lobby.unannounce().catch(() => {});
@@ -2815,15 +3031,20 @@ function open(roomCode) {
   room.onPeerLeave = (id) => {
     if (id !== peer) return;
     peer = null;
+    renderRematch();
     setStatus('net.peerLeft', 'warn');
     chat.system(t('chat.left'));
   };
 }
 
 async function startHostGame() {
+  resetClocks();
+  lastN = 0;
   await T.post('/api/new', { [myColor]: 'human', [other(myColor)]: 'remote' });
   sent = 0; resignSent = false;
+  offerFrom = false; rematchAsked = false;
   sendSync();
+  renderRematch();
 }
 
 async function host() {
@@ -2831,6 +3052,7 @@ async function host() {
   myColor = pick === 'random' ? (crypto.getRandomValues(new Uint8Array(1))[0] % 2 ? 'white' : 'black') : pick;
   role = 'host';
   code = newCode();
+  setTimeControl(validTc(parseTc($('netTime').value)));
   await setRoomFlag(true);
   await startHostGame();
   open(code);
@@ -2870,6 +3092,8 @@ function join() {
 function leave(silent = false) {
   try { room?.leave(); } catch {}
   room = null; msg = null; peer = null; role = null; code = null; myColor = null; sent = 0;
+  setTimeControl(null);
+  offerFrom = false; rematchAsked = false; renderRematch();
   showActive(false);
   setRoomFlag(false);
   if (isPublic) lobby.unannounce().catch(() => {});
@@ -2988,6 +3212,108 @@ onLangChange(renderLobby);
 lobbyView(true);
 renderLobby();
 
+// --- chess clock -----------------------------------------------------------------------
+// Each side counts the clock of the side to move; a move carries the mover's remaining time.
+// Clocks start after both players' first move. Your own flag: you lose. The opponent's flag
+// is claimed after a grace period, so a stalled or modified client cannot freeze the game.
+let tc = null;                      // { base, inc } in ms, or null = no clock
+let clocks = { white: 0, black: 0 };
+let clockTurn = null, turnStart = 0, lastN = 0, flagged = false, incomingLeft = null;
+const CLOCK_GRACE = 3000;
+const parseTc = (v) => { const m = /^(\d+)\+(\d+)$/.exec(String(v || '')); return m && +m[1] > 0 ? { base: +m[1] * 1000, inc: +m[2] * 1000 } : null; };
+const validTc = (x) => (x && Number.isFinite(x.base) && x.base >= 60000 && x.base <= 3600000 && Number.isFinite(x.inc) && x.inc >= 0 && x.inc <= 60000 ? { base: x.base, inc: x.inc } : null);
+function setTimeControl(x) { tc = x; resetClocks(); renderClock(); }
+function resetClocks() { clocks = tc ? { white: tc.base, black: tc.base } : { white: 0, black: 0 }; clockTurn = null; flagged = false; incomingLeft = null; }
+const clockLive = (s) => !!(tc && room && s && s.status === 'playing' && s.history.length >= 2);
+function remaining(c) {
+  let ms = clocks[c];
+  if (c === clockTurn && clockLive(T.getState())) ms -= performance.now() - turnStart;
+  return ms;
+}
+function syncClocks(cl) {
+  const s = T.getState();
+  if (tc && cl && Number.isFinite(cl.white) && Number.isFinite(cl.black)) clocks = { white: Math.max(0, Math.min(cl.white, tc.base * 4)), black: Math.max(0, Math.min(cl.black, tc.base * 4)) };
+  lastN = s?.history.length ?? 0; clockTurn = s?.turn ?? null; turnStart = performance.now(); flagged = false;
+}
+// called on every state: charge the mover's clock when a move appears
+function clockOnState(s) {
+  if (!tc) return;
+  const n = s.history.length;
+  if (n === lastN) return;
+  if (n < lastN) { resetClocks(); lastN = n; clockTurn = s.turn; turnStart = performance.now(); return; }
+  const mover = s.history[n - 1].color;
+  const timed = n - 1 >= 2; // the first move of each side is not timed
+  if (mover === myColor) { if (timed) clocks[myColor] = Math.max(0, clocks[myColor] - (performance.now() - turnStart)) + tc.inc; }
+  else if (incomingLeft != null) { clocks[mover] = Math.max(0, Math.min(incomingLeft, clocks[mover] + tc.inc + 1000)); incomingLeft = null; }
+  lastN = n; clockTurn = s.turn; turnStart = performance.now();
+}
+const fmtClock = (ms) => { ms = Math.max(0, ms); const sec = ms < 10000 ? Math.ceil(ms / 100) / 10 : Math.ceil(ms / 1000); return ms < 10000 ? sec.toFixed(1) : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
+function renderClock() {
+  const el = $('netClock');
+  const on = !!(tc && room);
+  el.hidden = !on;
+  document.body.classList.toggle('has-clock', on);
+  if (!on) return;
+  const s = T.getState();
+  for (const c of ['white', 'black']) {
+    const box = el.querySelector(`[data-c="${c}"]`);
+    const ms = remaining(c);
+    box.querySelector('.ct').textContent = fmtClock(ms);
+    box.querySelector('.cn').textContent = IT[c] + (c === myColor ? ' ★' : '');
+    box.classList.toggle('active', clockLive(s) && s.turn === c);
+    box.classList.toggle('low', ms < 30000);
+  }
+}
+setInterval(() => {
+  renderClock();
+  const s = T.getState();
+  // also when the opponent has left: their clock keeps running and can still run out
+  if (!clockLive(s) || flagged) return;
+  const c = s.turn, ms = remaining(c);
+  if ((c === myColor && ms <= 0) || (c !== myColor && ms <= -CLOCK_GRACE)) {
+    flagged = true;
+    T.post('/api/flag', { color: c });
+    send({ t: 'flag', color: c });
+  }
+}, 200);
+
+// --- rematch ----------------------------------------------------------------------------
+let offerFrom = false;   // the opponent offered a rematch
+let rematchAsked = false; // we offered one
+function renderRematch() {
+  const s = T.getState();
+  const over = !!(room && peer && s && s.status !== 'playing' && s.players[other(myColor)] === 'remote');
+  $('rematchBox').hidden = !over;
+  $('vRematch').hidden = !over || offerFrom;
+  $('netRematch').hidden = offerFrom;
+  $('netRematch').disabled = $('vRematch').disabled = rematchAsked;
+  $('rematchOffer').hidden = !(over && offerFrom);
+  $('vRematchOffer').hidden = !(over && offerFrom);
+}
+function askRematch() {
+  if (offerFrom) return acceptRematch();
+  rematchAsked = true; renderRematch();
+  send({ t: 'rematch-req' });
+  T.toast(t('rematch.sent'));
+}
+async function acceptRematch() {
+  offerFrom = false; renderRematch();
+  send({ t: 'rematch-ok' });
+  rematchAsked = role !== 'host'; // the host starts the new game right away
+  if (role === 'host') await doRematch();
+}
+function declineRematch() { offerFrom = false; renderRematch(); send({ t: 'rematch-no' }); }
+async function doRematch() {
+  myColor = other(myColor);
+  $('netMe').textContent = IT[myColor];
+  await startHostGame();
+  T.toast(t('rematch.started', { c: IT[myColor] }));
+}
+for (const id of ['netRematch', 'vRematch']) $(id).onclick = askRematch;
+for (const id of ['rmAccept', 'vRmAccept']) $(id).onclick = acceptRematch;
+for (const id of ['rmDecline', 'vRmDecline']) $(id).onclick = declineRematch;
+onLangChange(() => { renderClock(); renderRematch(); });
+
 // --- invite: room link + dedicated post for each network ------------------------------
 // The link always points to the public browser demo, so the invited player needs nothing installed.
 const SHARE_BASE = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
@@ -3038,6 +3364,23 @@ window.addEventListener('beforeunload', () => {
   if (isPublic) lobby.unannounce().catch(() => {});
   if (room) { try { navigator.sendBeacon('/api/net-room', new Blob([JSON.stringify({ open: false })], { type: 'application/json' })); } catch {} }
 });
+
+</script>
+<script type="module">
+
+const T = window.TriD, btn = document.getElementById('btnInstall');
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let deferred = null;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; btn.hidden = false; });
+addEventListener('appinstalled', () => { deferred = null; btn.hidden = true; });
+if (ios && !standalone) btn.hidden = false;
+btn.onclick = async () => {
+  if (deferred) { deferred.prompt(); try { await deferred.userChoice; } catch {} deferred = null; btn.hidden = true; }
+  else T.toast(T.t('pwa.ios'));
+};
+addEventListener('offline', () => T.toast(T.t('pwa.offline')));
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
 </script>
 

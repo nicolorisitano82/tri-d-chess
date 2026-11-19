@@ -17,6 +17,9 @@
 - **Online play, no game server**: share a room code; [Trystero](https://github.com/dmotz/trystero) finds the other player through public Nostr relays, then the game flows directly between the two browsers over encrypted WebRTC. Reconnect with the same code. Online games are human vs human only.
 - **Serverless lobby**: public rooms are announced as signed, expiring Nostr events (NIP-78 / NIP-40) with a throwaway key, so anyone can see who is waiting and join with one tap; uncheck the box for a private, code-only room.
 - **Chat**: short messages (≤512 chars) with emoji and animated reactions, rate-limited per minute on both ends.
+- **Online extras**: invite links for X, Threads, Facebook, WhatsApp and Telegram (`?room=CODE` joins directly), optional chess clock (5/10/15 min, with or without increment), one-tap rematch with colours swapped.
+- **Replay**: step through any finished game move by move and share it as a link (`?replay=…`).
+- **Installable web app (PWA)**: add the browser demo to your phone's home screen; it also works offline against the computer.
 - **AI via MCP**: a built-in MCP server lets Claude or any MCP client play one colour, or two AIs play each other.
 - **Italian and English**, statistics panel, victory animation, original piece designs.
 
@@ -63,7 +66,7 @@ MCP tools: `get_rules`, `get_game_state`, `get_legal_moves`, `make_move` (square
 - A move is legal if it is legal on the flat projection; the piece may land on any level that has that square. A piece blocks movement on every level; knights jump; no purely vertical moves.
 - Moving an attack board is a move: to a linked empty pin (1-2, 1-3, 2-3, 2-4, 3-4, 3-5, 4-5, 4-6, 5-6) or sideways (QLn ↔ KLn). Allowed when empty (by its owner) or with one piece (by that piece's owner); an occupied board moves only forward or sideways.
 - Castling is not allowed as a player's first move. Promotion: files b–c on rank 8/1, z–e on 9/0, a–d on 9/0 when an attack board overhangs the corner, otherwise 8/1.
-- The starting position follows the common layout; Meder's official diagram has not been verified.
+- The starting position matches the diagram in Meder's tournament rules (checked by a test).
 
 ## Project layout
 
@@ -99,6 +102,9 @@ Not affiliated with any science-fiction franchise. Piece designs are original.
 - **In rete senza server**: condividi un codice stanza; Trystero trova l'avversario tramite relay Nostr pubblici, poi la partita viaggia direttamente tra i due browser via WebRTC cifrato. Ci si può ricollegare con lo stesso codice. Le partite in rete sono solo umano contro umano.
 - **Lobby senza server**: le stanze pubbliche vengono annunciate come eventi Nostr firmati e con scadenza, con una chiave usa-e-getta: chiunque vede chi è in attesa ed entra con un tocco. Togliendo la spunta la stanza resta privata, solo col codice.
 - **Chat**: messaggi brevi (≤512 caratteri) con emoticon e reaction animate, con limiti al minuto da entrambe le parti.
+- **Extra in rete**: link di invito per X, Threads, Facebook, WhatsApp e Telegram (`?room=CODICE` entra direttamente), orologio facoltativo (5/10/15 minuti, con o senza incremento), rivincita con un tocco e colori invertiti.
+- **Replay**: rivedi mossa per mossa qualunque partita finita e condividila come link (`?replay=…`).
+- **Web app installabile (PWA)**: aggiungi la demo alla schermata Home del telefono; funziona anche offline contro il computer.
 - **AI via MCP**: un server MCP integrato permette a Claude o a un altro client MCP di giocare un colore, o a due AI di sfidarsi.
 - **Italiano e inglese**, statistiche, animazione di vittoria, pezzi dal design originale.
 
@@ -125,6 +131,6 @@ Poi in una nuova sessione di Claude Code: *"Leggi get_rules e gioca col Nero: al
 - Una mossa è valida se lo è vista dall'alto; il pezzo atterra su un livello qualunque che abbia quella casella. Un pezzo blocca il passaggio su tutti i livelli; il cavallo salta.
 - Spostare una tavola d'attacco è una mossa: verso un aggancio libero collegato o di lato (QLn ↔ KLn); vuota (la sposta il proprietario) o con un solo pezzo (lo sposta chi possiede il pezzo); occupata solo avanti o di lato.
 - Arrocco non come prima mossa del giocatore. Promozione: colonne b–c su 8/1, z–e su 9/0, a–d su 9/0 se una tavola d'attacco sovrasta l'angolo, altrimenti 8/1.
-- La posizione iniziale segue la disposizione più diffusa; il diagramma ufficiale di Meder non è stato verificato.
+- La posizione iniziale corrisponde al diagramma delle regole da torneo di Meder (verificata da un test).
 
 Progetto amatoriale, non affiliato ad alcun marchio di fantascienza. Pezzi dal design originale.

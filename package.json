@@ -1,6 +1,6 @@
 {
   "name": "tri-d-chess",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Three-dimensional chess on seven levels: Meder rules, computer opponent, P2P online play with chat, AI via MCP",
   "type": "module",
   "main": "electron/main.js",
@@ -53,7 +53,10 @@
       "icon": "build/icon.png",
       "identity": "-",
       "hardenedRuntime": false
-    }
+    },
+    "asarUnpack": [
+      "src/**"
+    ]
   },
   "repository": {
     "type": "git",

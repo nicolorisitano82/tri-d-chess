@@ -435,8 +435,8 @@ export class Game {
     this.turn = 'white';
     this.players = { white, black };
     this.history = [];
-    this.status = 'playing'; // playing | checkmate | stalemate | draw | resigned
-    this.drawReason = null;  // fifty | repetition | material
+    this.status = 'playing'; // playing | checkmate | stalemate | draw | resigned | timeout
+    this.drawReason = null;  // fifty | repetition | material | time-material
     this.winner = null;
     this.halfmoveClock = 0;
     this.repetitions = { [positionKey(this.pos, 'white')]: 1 };
@@ -525,6 +525,16 @@ export class Game {
     this.history.push(record);
     this.version++;
     return record;
+  }
+
+  // `color` ran out of time. A draw instead when the opponent could never mate (FIDE 6.9).
+  flag(color) {
+    if (this.status !== 'playing') throw new Error('Game is already over.');
+    const opp = other(color);
+    const oppOnly = { pieces: Object.fromEntries(Object.entries(this.pieces).filter(([, p]) => p.color === opp || p.type === 'K')), boards: this.boards };
+    if (deadPosition(oppOnly)) { this.status = 'draw'; this.drawReason = 'time-material'; }
+    else { this.status = 'timeout'; this.winner = opp; }
+    this.version++;
   }
 
   resign(color) {

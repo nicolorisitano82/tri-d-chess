@@ -19,6 +19,22 @@ const B = (type, extra = {}) => ({ type, color: 'black', ...extra });
 let n = 0;
 const ok = (name) => { n++; console.log('  ✓', name); };
 
+// --- official starting position (Meder's diagram, image5 of the tournament rules) ---------
+{
+  const g = fresh();
+  const official = {
+    white: { z0QL1: 'R', a0QL1: 'Q', z1QL1: 'P', a1QL1: 'P', d0KL1: 'K', e0KL1: 'R', d1KL1: 'P', e1KL1: 'P',
+      a1W: 'N', b1W: 'B', c1W: 'B', d1W: 'N', a2W: 'P', b2W: 'P', c2W: 'P', d2W: 'P' },
+    black: { z9QL6: 'R', a9QL6: 'Q', z8QL6: 'P', a8QL6: 'P', d9KL6: 'K', e9KL6: 'R', d8KL6: 'P', e8KL6: 'P',
+      a8B: 'N', b8B: 'B', c8B: 'B', d8B: 'N', a7B: 'P', b7B: 'P', c7B: 'P', d7B: 'P' },
+  };
+  const actual = Object.fromEntries(Object.entries(g.pieces).map(([k, p]) => [k, p.color + p.type]));
+  const expected = Object.fromEntries(Object.entries(official).flatMap(([c, sq]) => Object.entries(sq).map(([k, ty]) => [k, c + ty])));
+  assert.deepEqual(actual, expected);
+  assert.deepEqual(Object.keys(g.boards).sort(), ['KL1', 'KL6', 'QL1', 'QL6']);
+  ok('starting position matches the official diagram');
+}
+
 // --- pin graph: 3/4/5/5/4/3 reachable pins, examples from Meder 3.6 ------------------
 assert.deepEqual([1, 2, 3, 4, 5, 6].map((i) => pinNeighbours(`QL${i}`).length), [3, 4, 5, 5, 4, 3]);
 assert.deepEqual(pinNeighbours('QL6').sort(), ['KL6', 'QL4', 'QL5']);

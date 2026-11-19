@@ -2,11 +2,12 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
+import { Worker } from 'node:worker_threads';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import { Game, RULES_TEXT } from './src/engine.js';
-import { chooseMove, LEVELS as AI_LEVELS, STYLES as AI_STYLES } from './src/ai.js';
+import { LEVELS as AI_LEVELS, STYLES as AI_STYLES } from './src/ai.js';
 
 const PORT = Number(process.env.PORT || 47321);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -17,23 +18,46 @@ const bus = new EventEmitter();
 bus.setMaxListeners(100);
 const changed = () => { bus.emit('change', game.snapshot()); scheduleComputer(); };
 
-// --- built-in computer player ---------------------------------------------------
+// --- built-in computer player (search runs in a worker thread) -----------------
 const COMPUTER_DELAY = Number(process.env.COMPUTER_DELAY || 900);
 const recent = { white: [], black: [] };
 let computerTimer = null;
+let aiWorker = null;
+let aiRequest = 0;
+// Inside the packaged app the worker must load from app.asar.unpacked (see build.asarUnpack).
+const workerFile = fileURLToPath(new URL('./src/ai-worker.js', import.meta.url)).replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
+function getWorker() {
+  if (aiWorker) return aiWorker;
+  aiWorker = new Worker(workerFile);
+  aiWorker.on('message', onComputerMove);
+  aiWorker.on('error', (e) => { console.error('computer worker error', e.message); aiWorker = null; });
+  aiWorker.on('exit', () => { aiWorker = null; });
+  aiWorker.unref();
+  return aiWorker;
+}
+let pendingTurn = null; // { id, gameId, version, turn }
+function onComputerMove({ id, move, error }) {
+  const p = pendingTurn;
+  if (!p || p.id !== id) return;                                  // superseded request
+  pendingTurn = null;
+  if (error) { console.error('computer search failed', error); return; }
+  if (!move || game.id !== p.gameId || game.version !== p.version) return; // game changed meanwhile
+  recent[p.turn].push(`${move.to}>${move.from}`);
+  if (recent[p.turn].length > 4) recent[p.turn].shift();
+  try { game.move(move.from, move.to, move.promotion); } catch (e) { console.error('computer move failed', e.message); return; }
+  changed();
+}
 function scheduleComputer() {
   clearTimeout(computerTimer);
+  pendingTurn = null;
   if (game.status !== 'playing' || game.players[game.turn] !== 'computer') return;
-  const { id, version, turn } = game;
+  const { id: gameId, version, turn } = game;
   computerTimer = setTimeout(() => {
-    if (game.id !== id || game.version !== version) return; // game changed meanwhile
+    if (game.id !== gameId || game.version !== version) return;
     const { level, style } = game.computer[turn];
-    const m = chooseMove(game.pos, turn, level, style, recent[turn]);
-    if (!m) return;
-    recent[turn].push(`${m.to}>${m.from}`);
-    if (recent[turn].length > 4) recent[turn].shift();
-    try { game.move(m.from, m.to, m.promotion); } catch (e) { console.error('computer move failed', e.message); return; }
-    changed();
+    const id = ++aiRequest;
+    pendingTurn = { id, gameId, version, turn };
+    getWorker().postMessage({ id, pos: game.pos, color: turn, level, style, recent: recent[turn] });
   }, COMPUTER_DELAY);
 }
 const PLAYER_TYPES = ['human', 'ai', 'computer', 'remote'];
@@ -129,6 +153,15 @@ app.post('/api/remote-move', (req, res) => {
 });
 
 // Rebuild the game from a move list (joining or re-joining a network game).
+// A player of a network game ran out of time (reported by either side's clock).
+app.post('/api/flag', (req, res) => {
+  const color = req.body?.color;
+  if (!['white', 'black'].includes(color) || !Object.values(game.players).includes('remote') || !['human', 'remote'].includes(game.players[color]))
+    return res.status(409).json({ error: 'Time control applies to network games only.' });
+  try { game.flag(color); changed(); res.json({ ok: true, status: game.status }); }
+  catch (e) { res.status(409).json({ error: e.message }); }
+});
+
 // The page reports whether a network room is open (network games are human vs human only).
 app.post('/api/net-room', (req, res) => {
   netRoom = !!req.body?.open;

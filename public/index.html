@@ -103,6 +103,26 @@
     .sharelinks a { font-size: 12px; font-weight: 700; text-decoration: none; color: var(--text); background: #1a1428; border: 1px solid #443a5a; border-radius: 12px; padding: 4px 10px; }
     .sharelinks a:hover, .sharelinks a:focus-visible { border-color: var(--orange); color: #fff; }
     .shareact { display: flex; gap: 6px; }
+    /* --- clock --- */
+    #netClock { position: fixed; top: max(12px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 9; display: flex; gap: 8px; pointer-events: none; }
+    #netClock[hidden] { display: none; }
+    #netClock .ck { display: flex; align-items: baseline; gap: 8px; background: rgba(10,8,20,.88); border: 1px solid #443a5a; border-radius: 14px; padding: 6px 14px; backdrop-filter: blur(6px); }
+    #netClock .cn { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+    #netClock .ct { font: 700 20px ui-monospace, Menlo, monospace; color: var(--text); font-variant-numeric: tabular-nums; min-width: 4.2ch; text-align: right; }
+    #netClock .ck.active { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange) inset; }
+    #netClock .ck.active .ct { color: var(--peach); }
+    #netClock .ck.low .ct { color: var(--red); }
+    body.has-clock #stats { top: 64px; }
+    /* --- rematch --- */
+    .rematch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--peach); }
+    .rematch[hidden], #rematchOffer[hidden] { display: none; }
+    #victory .rematch { justify-content: center; margin-top: 10px; pointer-events: auto; }
+    /* --- replay --- */
+    #replayBar { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 12; display: flex; align-items: center; gap: 6px; background: rgba(10,8,20,.94); border: 1px solid #443a5a; border-left: 10px solid var(--sky); border-radius: 0 16px 16px 0; padding: 8px 10px; backdrop-filter: blur(6px); max-width: calc(100vw - 24px); }
+    #replayBar[hidden] { display: none; }
+    #replayBar button:not(.lilac) { background: #1a1428; color: var(--text); border: 1px solid #443a5a; padding: 6px 10px; font-size: 14px; border-radius: 10px; }
+    #replayBar button:disabled { opacity: .35; cursor: default; }
+    #rpPos { font: 700 14px ui-monospace, Menlo, monospace; min-width: 7ch; text-align: center; color: var(--peach); font-variant-numeric: tabular-nums; }
     /* --- lobby --- */
     .netpub { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; }
     .netpub input { accent-color: var(--orange); }
@@ -161,6 +181,7 @@
     @keyframes reactSpark { 0% { transform: translate(-50%, 0) scale(.4); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), var(--dy)) scale(.9); opacity: 0; } }
     @media (prefers-reduced-motion: reduce) { .react-pop, .react-spark { animation-duration: .01s; } }
     @media (max-height: 500px) { #chat { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: min(320px, 46vw); } #chatLog { height: 26vh; height: 26dvh; } #emojiPicker { grid-template-columns: repeat(10, 1fr); } }
+    @media (max-width: 700px) { #netClock .ck { padding: 4px 10px; } #netClock .ct { font-size: 17px; } #netClock .cn { display: none; } body.has-clock #stats { top: 52px; } #replayBar { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); gap: 4px; padding: 6px 8px; } #replayBar button:not(.lilac) { padding: 6px 8px; } #rpPos { min-width: 6ch; font-size: 13px; } }
     @media (max-width: 700px) { #chat { left: 8px; right: 8px; width: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); } #chatLog { height: 22vh; height: 22dvh; } }
     /* --- promotion picker --- */
     #promo { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(0,0,6,.55); }
@@ -250,6 +271,8 @@
         <button class="red" id="btnResign" data-i18n="ui.resign">Abbandona</button>
         <button class="blue" id="btnCam" data-i18n="ui.view">Vista</button>
         <button class="lilac" id="btnStats" data-i18n="ui.stats">Statistiche</button>
+        <button class="blue" id="btnReplay" type="button" hidden data-i18n="replay.btn">Rivedi partita</button>
+        <button class="peach" id="btnInstall" type="button" hidden style="background:var(--peach)" data-i18n="pwa.install">Installa app</button>
       </div>
     </div>
     <div class="block blue" id="netblock">
@@ -258,6 +281,8 @@
         <div class="grid2">
           <label for="netColor" data-i18n="net.iPlay">Io gioco</label>
           <select id="netColor"><option value="white" data-i18n="name.white">Bianco</option><option value="black" data-i18n="name.black">Nero</option><option value="random" data-i18n="net.random">Casuale</option></select>
+          <label for="netTime" data-i18n="clock.label">Orologio</label>
+          <select id="netTime"><option value="0" data-i18n="clock.none">Nessuno</option><option value="300+0">5 min</option><option value="600+0">10 min</option><option value="900+0">15 min</option><option value="300+3">5 min + 3 s</option><option value="600+5">10 min + 5 s</option></select>
         </div>
         <label class="netpub"><input type="checkbox" id="netPublic" checked> <span data-i18n="lobby.public">Mostra nella lobby pubblica</span></label>
         <input id="netName" class="netname" maxlength="24" autocomplete="nickname" data-i18n-placeholder="lobby.name" data-i18n-aria="lobby.name" placeholder="Il tuo nome (facoltativo)">
@@ -289,6 +314,12 @@
             <button class="blue mini" id="shNative" type="button" hidden data-i18n="share.native">Condividi…</button>
           </div>
         </div>
+        <div id="rematchBox" class="rematch" hidden>
+          <button class="orange" id="netRematch" type="button" data-i18n="rematch.btn">Rivincita</button>
+          <span id="rematchOffer" hidden><span data-i18n="rematch.offer">L'avversario propone la rivincita</span>
+            <button class="orange mini" id="rmAccept" type="button" data-i18n="rematch.accept">Accetta</button>
+            <button class="red mini" id="rmDecline" type="button" data-i18n="rematch.decline">Rifiuta</button></span>
+        </div>
         <div class="btns"><button class="red" id="netLeave" data-i18n="net.leave">Esci dalla stanza</button></div>
       </div>
     </div>
@@ -316,7 +347,12 @@
       <div class="btns">
         <button class="orange" id="vNew" data-i18n="ui.newGame">Nuova partita</button>
         <button class="blue" id="vClose" data-i18n="victory.watch">Guarda la scacchiera</button>
+        <button class="lilac" id="vReplay" type="button" hidden data-i18n="replay.btn">Rivedi partita</button>
+        <button class="orange" id="vRematch" type="button" hidden data-i18n="rematch.btn">Rivincita</button>
       </div>
+      <div id="vRematchOffer" class="rematch" hidden><span data-i18n="rematch.offer">L'avversario propone la rivincita</span>
+        <button class="orange mini" id="vRmAccept" type="button" data-i18n="rematch.accept">Accetta</button>
+        <button class="red mini" id="vRmDecline" type="button" data-i18n="rematch.decline">Rifiuta</button></div>
     </div>
   </div>
 
@@ -332,6 +368,21 @@
       </div>
       <button class="blue" id="promoCancel" data-i18n="promo.cancel">Annulla</button>
     </div>
+  </div>
+
+  <div id="netClock" hidden aria-live="off">
+    <span class="ck" data-c="white"><span class="cn">Bianco</span><span class="ct">5:00</span></span>
+    <span class="ck" data-c="black"><span class="cn">Nero</span><span class="ct">5:00</span></span>
+  </div>
+
+  <div id="replayBar" hidden role="toolbar" data-i18n-aria="replay.btn">
+    <button id="rpFirst" type="button" data-i18n-title="replay.first" data-i18n-aria="replay.first">⏮</button>
+    <button id="rpPrev" type="button" data-i18n-title="replay.prev" data-i18n-aria="replay.prev">◀</button>
+    <span id="rpPos">0 / 0</span>
+    <button id="rpNext" type="button" data-i18n-title="replay.next" data-i18n-aria="replay.next">▶</button>
+    <button id="rpLast" type="button" data-i18n-title="replay.last" data-i18n-aria="replay.last">⏭</button>
+    <button id="rpShare" class="lilac" type="button" data-i18n="replay.share">Copia link</button>
+    <button id="rpClose" type="button" data-i18n-title="replay.close" data-i18n-aria="replay.close">×</button>
   </div>
 
   <div id="lobbyModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="lobbyTitle">

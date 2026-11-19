@@ -5,7 +5,7 @@
 // usage: node scripts/build-web.mjs [--target=artifact|pages] [out.html]
 //   artifact (default): one file, Three.js from a CDN, no network play (WebRTC is blocked in artifacts)
 //   pages:   a full page for GitHub Pages with local vendor files and peer-to-peer network play
-import { readFileSync, writeFileSync, mkdirSync, cpSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, cpSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -61,7 +61,7 @@ onmessage = (e) => {
 // ---- main app: adapt server calls to a local game -------------------------------
 appSrc = appSrc.replace(/^import .*$/gm, '');
 appSrc = must(appSrc,
-  "const es = new EventSource('/api/events');\nes.onmessage = (e) => applyState(JSON.parse(e.data));\nes.onerror = () => { $('status').textContent = t('status.lost'); };",
+  "const es = new EventSource('/api/events');\nes.onmessage = (e) => onLive(JSON.parse(e.data));\nes.onerror = () => { $('status').textContent = t('status.lost'); };",
   '/*LOCAL_GAME*/', 'EventSource block');
 appSrc = appSrc.replace(/async function post\(url, body\) \{[\s\S]*?\n\}\n/, '');
 appSrc = must(appSrc,
@@ -119,7 +119,7 @@ function scheduleComputer() {
   }, 650);
 }
 function publish() {
-  applyState(game.snapshot());
+  onLive(game.snapshot());
   try { localStorage.setItem(STORE_KEY, JSON.stringify(serialize())); } catch {}
   scheduleComputer();
 }
@@ -143,6 +143,9 @@ async function post(url, body = {}) {
       game.move(body.from, body.to, body.promotion);
     } else if (url === '/api/resign') {
       game.resign(body.color || game.turn);
+    } else if (url === '/api/flag') {
+      if (!Object.values(game.players).includes('remote')) throw new Error('Time control applies to network games only.');
+      game.flag(body.color);
     } else if (url === '/api/remote-move') {
       // move from the network opponent (net.js); n keeps both sides in step
       if (game.players[game.turn] !== 'remote' || body.n !== game.history.length) return { error: 'out of sync', expected: game.history.length };
@@ -257,6 +260,23 @@ const importMap = PAGES
       '@trystero-p2p/core': './vendor/trystero-core/index.mjs', '@trystero-p2p/nostr': './vendor/trystero-nostr/index.mjs',
       '@noble/secp256k1': './vendor/noble-secp256k1/index.js' }
   : { three: `${THREE_CDN}/build/three.module.js`, 'three/addons/': `${THREE_CDN}/examples/jsm/` };
+// ---- PWA (pages only): install button + service worker registration ----------------------
+const PWA_SRC = `
+const T = window.TriD, btn = document.getElementById('btnInstall');
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let deferred = null;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; btn.hidden = false; });
+addEventListener('appinstalled', () => { deferred = null; btn.hidden = true; });
+if (ios && !standalone) btn.hidden = false;
+btn.onclick = async () => {
+  if (deferred) { deferred.prompt(); try { await deferred.userChoice; } catch {} deferred = null; btn.hidden = true; }
+  else T.toast(T.t('pwa.ios'));
+};
+addEventListener('offline', () => T.toast(T.t('pwa.offline')));
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+`;
+
 const content = `${PAGES ? '' : '<title>Tri-D Chess</title>\n'}<style>${style}</style>
 ${body}
 <script type="importmap">
@@ -265,7 +285,7 @@ ${body}
 <script type="module">
 ${mainSrc}
 </script>
-${PAGES ? `<script type="module">\n${netSrc}\n</script>\n` : ''}`;
+${PAGES ? `<script type="module">\n${netSrc}\n</script>\n<script type="module">\n${PWA_SRC}\n</script>\n` : ''}`;
 // artifacts get their document skeleton at publish time; GitHub Pages needs a full page
 const page = PAGES
   ? `<!doctype html>
@@ -295,6 +315,13 @@ const page = PAGES
 <meta name="twitter:image:alt" content="Tri-D Chess: a three-dimensional chessboard with three main levels and four attack boards in space">
 <link rel="canonical" href="https://nicolorisitano82.github.io/tri-d-chess/play/">
 <link rel="icon" href="../assets/icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#000006">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tri-D Chess">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 </head>
 <body>
 ${content}
@@ -304,5 +331,43 @@ ${content}
   : content;
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, page);
-if (PAGES) cpSync(join(root, 'public/vendor'), join(dirname(out), 'vendor'), { recursive: true });
+if (PAGES) {
+  const dir = dirname(out);
+  cpSync(join(root, 'public/vendor'), join(dir, 'vendor'), { recursive: true });
+  const version = JSON.parse(read('package.json')).version;
+  writeFileSync(join(dir, 'manifest.webmanifest'), JSON.stringify({
+    name: 'Tri-D Chess', short_name: 'Tri-D Chess', id: './', start_url: './', scope: './',
+    description: 'Three-dimensional chess on seven levels: play the computer or a friend online.',
+    display: 'standalone', orientation: 'any', background_color: '#000006', theme_color: '#000006', lang: 'it',
+    categories: ['games', 'board'],
+    icons: [
+      { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: 'icons/maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: 'icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+  }, null, 2));
+  // offline cache: the page, its icons and every vendored module
+  const walk = (d, base = '') => readdirSync(join(dir, d)).flatMap((f) => statSync(join(dir, d, f)).isDirectory() ? walk(join(d, f), base) : [`./${join(d, f)}`]);
+  const assets = ['./', './manifest.webmanifest', ...walk('icons'), ...walk('vendor')];
+  writeFileSync(join(dir, 'sw.js'), `// Tri-D Chess service worker — generated by scripts/build-web.mjs
+const CACHE = 'tridchess-${version}';
+const ASSETS = ${JSON.stringify(assets)};
+self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith('tridchess-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  if (req.mode === 'navigate') {
+    // the page: network first (updates arrive at once), cached copy when offline; ?room=… shares the same page
+    e.respondWith(fetch(req).then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put('./', copy)); return res; })
+      .catch(() => caches.match('./', { ignoreSearch: true })));
+    return;
+  }
+  e.respondWith(caches.match(req, { ignoreSearch: true }).then((hit) => hit || fetch(req)));
+});
+`);
+}
 console.log(`built ${target} → ${out} (${(page.length / 1024).toFixed(0)} KB)`);
