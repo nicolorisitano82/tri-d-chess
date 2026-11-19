@@ -60,6 +60,10 @@ const STRINGS = {
     'net.busy': 'La stanza è già occupata da due giocatori', 'net.peerNew': "L'avversario ha avviato una nuova partita",
     'net.peerAway': "L'avversario non è connesso", 'net.unavailable': 'Rete non disponibile: {e}',
 
+    'net.waitingPublic': "In attesa dell'avversario… (visibile nella lobby)",
+    'lobby.title': 'Stanze aperte', 'lobby.public': 'Mostra nella lobby pubblica', 'lobby.name': 'Il tuo nome (facoltativo)',
+    'lobby.empty': 'Nessuna stanza in attesa: creane una!', 'lobby.searching': 'Collegamento alla lobby…', 'lobby.anon': 'Giocatore anonimo',
+    'lobby.youPlay': 'Giochi col {c}', 'lobby.now': 'adesso', 'lobby.min': 'da {n} min', 'lobby.relays': '{n} relay', 'lobby.join': 'Entra nella stanza', 'lobby.noAnswer': 'La stanza non risponde: forse è già piena o chiusa',
     'chat.title': 'Chat', 'chat.send': 'Invia', 'chat.placeholder': 'Scrivi un messaggio…', 'chat.emoji': 'Emoticon',
     'chat.reactions': 'Reazioni', 'chat.me': 'Tu', 'chat.them': 'Avversario', 'chat.wait': 'attendi {s}s',
     'chat.tooManyEmoji': 'Massimo {n} emoticon per messaggio', 'chat.joined': "L'avversario è nella stanza",
@@ -124,6 +128,10 @@ const STRINGS = {
     'net.busy': 'This room already has two players', 'net.peerNew': 'Your opponent started a new game',
     'net.peerAway': 'Your opponent is not connected', 'net.unavailable': 'Network unavailable: {e}',
 
+    'net.waitingPublic': 'Waiting for an opponent… (listed in the lobby)',
+    'lobby.title': 'Open rooms', 'lobby.public': 'List in the public lobby', 'lobby.name': 'Your name (optional)',
+    'lobby.empty': 'No rooms waiting: create one!', 'lobby.searching': 'Connecting to the lobby…', 'lobby.anon': 'Anonymous player',
+    'lobby.youPlay': 'You play {c}', 'lobby.now': 'just now', 'lobby.min': '{n} min', 'lobby.relays': '{n} relays', 'lobby.join': 'Join this room', 'lobby.noAnswer': 'The room does not answer: it may be full or closed',
     'chat.title': 'Chat', 'chat.send': 'Send', 'chat.placeholder': 'Write a message…', 'chat.emoji': 'Emoji',
     'chat.reactions': 'Reactions', 'chat.me': 'You', 'chat.them': 'Opponent', 'chat.wait': 'wait {s}s',
     'chat.tooManyEmoji': 'At most {n} emoji per message', 'chat.joined': 'Your opponent is in the room',

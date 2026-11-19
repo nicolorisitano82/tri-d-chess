@@ -10,8 +10,11 @@
 //   guest → host   {t:'syncreq'}  |  {t:'newgame'}
 //   host  → guest  {t:'busy'}     (room already has two players)
 //   either → other {t:'chat', text} | {t:'react', r}   chat, see chat.js (rate-limited both ways)
+// Public rooms are also announced in a serverless lobby on Nostr relays (lobby.js).
 import { joinRoom } from '@trystero-p2p/nostr';
 import { createChat } from '/chat.js';
+import { schnorr } from '@noble/secp256k1';
+import { createLobby } from '/lobby.js';
 
 const T = window.TriD;
 const { t, onLangChange } = T;
@@ -123,8 +126,8 @@ async function onMessage(data, peerId) {
       chat.receive(data);
       break;
     case 'busy':
+      leave(true);
       T.toast(t('net.busy'));
-      leave();
       break;
   }
 }
@@ -137,6 +140,8 @@ function open(roomCode) {
   room.onPeerJoin = (id) => {
     if (peer && peer !== id) { msg.send({ t: 'busy' }, { target: id }).catch(() => {}); return; }
     peer = id;
+    clearTimeout(joinTimer);
+    if (isPublic) lobby.unannounce().catch(() => {});
     chat.show(true);
     chat.system(t('chat.joined'));
     if (role === 'host') { sendSync(); setStatus('net.connected', 'ok'); }
@@ -166,8 +171,11 @@ async function host() {
   open(code);
   $('netRoom').textContent = code;
   $('netMe').textContent = IT[myColor];
-  setStatus('net.waiting', 'warn');
   showActive(true);
+  isPublic = $('netPublic').checked;
+  setStatus(isPublic ? 'net.waitingPublic' : 'net.waiting', 'warn');
+  if (isPublic) lobby.announce({ code, hostColor: myColor, lang: document.documentElement.lang === 'en' ? 'en' : 'it', name: saveName() }).catch(() => {});
+  lobbyView(false);
 }
 
 function join() {
@@ -177,21 +185,30 @@ function join() {
   code = c;
   myColor = null;
   setRoomFlag(true);
+  lobbyView(false);
   open(code);
+  // a room from the lobby may already be full or closed: give up if nobody answers
+  clearTimeout(joinTimer);
+  joinTimer = setTimeout(() => {
+    if (role === 'guest' && !peer && code === c) { lobby.hide(c); leave(true); T.toast(t('lobby.noAnswer')); }
+  }, 20000);
   $('netRoom').textContent = code;
   $('netMe').textContent = '—';
   setStatus('net.searching', 'warn');
   showActive(true);
 }
 
-function leave() {
+function leave(silent = false) {
   try { room?.leave(); } catch {}
   room = null; msg = null; peer = null; role = null; code = null; myColor = null; sent = 0;
   showActive(false);
   setRoomFlag(false);
+  if (isPublic) lobby.unannounce().catch(() => {});
+  isPublic = false;
+  lobbyView(true);
   chat.show(false);
   chat.clear();
-  T.toast(t('net.left'));
+  if (!silent) T.toast(t('net.left'));
 }
 
 // "Nuova partita" while in a room: the host restarts the network game, the guest asks the host.
@@ -208,15 +225,71 @@ function wrapNewGame(id) {
 
 const chat = createChat({ t, send, onLangChange });
 
+// --- lobby: open public rooms -------------------------------------------------------------
+let isPublic = false;
+let joinTimer = null;
+let lobbyRooms = [];
+let lobbyState = { relays: 0, total: 0 };
+let lobbyOn = false;
+const NAME_KEY = 'tridchess.name';
+try { $('netName').value = localStorage.getItem(NAME_KEY) || ''; } catch {}
+function saveName() {
+  const v = $('netName').value.trim().slice(0, 24);
+  try { localStorage.setItem(NAME_KEY, v); } catch {}
+  return v;
+}
+const ago = (sec) => { const m = Math.floor(Math.max(0, Date.now() / 1000 - sec) / 60); return m < 1 ? t('lobby.now') : t('lobby.min', { n: m }); };
+function renderLobby() {
+  const box = $('lobbyList');
+  box.textContent = '';
+  $('lobbyRelays').textContent = lobbyState.relays ? t('lobby.relays', { n: lobbyState.relays }) : '';
+  if (!lobbyRooms.length) {
+    const p = document.createElement('div');
+    p.className = 'lobbyempty';
+    p.textContent = !lobbyState.relays ? t('lobby.searching') : t('lobby.empty');
+    box.append(p);
+    return;
+  }
+  for (const r of lobbyRooms) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'lobbyitem';
+    const name = document.createElement('span');
+    name.className = 'ln';
+    name.textContent = r.name || t('lobby.anon');
+    const meta = document.createElement('span');
+    meta.className = 'lm';
+    meta.textContent = `${t('lobby.youPlay', { c: IT[other(r.hostColor)] })} · ${r.lang.toUpperCase()} · ${ago(r.since)}`;
+    b.append(name, meta);
+    b.title = t('lobby.join');
+    b.onclick = () => { $('netCode').value = r.code; join(); };
+    box.append(b);
+  }
+}
+const lobby = createLobby({
+  schnorr,
+  onRooms: (list) => { lobbyRooms = list; renderLobby(); },
+  onStatus: (s) => { lobbyState = s; renderLobby(); },
+});
+function lobbyView(on) {
+  if (on === lobbyOn) return;
+  lobbyOn = on;
+  if (on) lobby.listen(); else lobby.unlisten();
+}
+onLangChange(renderLobby);
+lobbyView(true);
+renderLobby();
+
 $('netHost').onclick = () => host().catch((e) => T.toast(t('net.unavailable', { e: e.message })));
 $('netJoin').onclick = () => { try { join(); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
 $('netCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('netJoin').click(); });
-$('netLeave').onclick = leave;
+$('netLeave').onclick = () => leave();
 $('netCopy').onclick = () => navigator.clipboard?.writeText(code || '').then(() => T.toast(t('net.codeCopied')), () => {});
 wrapNewGame('btnNew');
 wrapNewGame('vNew');
 T.listeners.push((s) => onState(s));
 window.addEventListener('beforeunload', () => {
   try { room?.leave(); } catch {}
+  if (isPublic) lobby.unannounce().catch(() => {});
   if (room) { try { navigator.sendBeacon('/api/net-room', new Blob([JSON.stringify({ open: false })], { type: 'application/json' })); } catch {} }
 });

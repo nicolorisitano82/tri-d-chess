@@ -41,8 +41,10 @@ const aiSrc = read('src/ai.js');
 const piecesSrc = read('public/pieces.js');
 const i18nSrc = read('public/i18n.js');
 const chatSrc = read('public/chat.js');
+const lobbySrc = read('public/lobby.js');
 const netSrc = read('public/net.js')
-  .replace("import { createChat } from '/chat.js';", () => `const { createChat } = ${asNamespace(chatSrc)};`);
+  .replace("import { createChat } from '/chat.js';", () => `const { createChat } = ${asNamespace(chatSrc)};`)
+  .replace("import { createLobby } from '/lobby.js';", () => `const { createLobby } = ${asNamespace(lobbySrc)};`);
 let appSrc = read('public/app.js');
 const html = read('public/index.html');
 

@@ -94,6 +94,18 @@
     button.mini { padding: 2px 8px; font-size: 10px; border-radius: 8px; }
     #netRoom { font-size: 14px; letter-spacing: .14em; color: var(--peach); }
     #netStatus.ok { color: #66ffcc; } #netStatus.warn { color: var(--peach); } #netStatus.err { color: var(--red); }
+    /* --- lobby --- */
+    .netpub { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; }
+    .netpub input { accent-color: var(--orange); }
+    .netname { width: 100%; margin-top: 6px; background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+    .lobby { margin-top: 10px; border-top: 1px solid #2a2340; padding-top: 8px; }
+    .lobbyhead { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    #lobbyList { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 150px; overflow-y: auto; }
+    .lobbyitem { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; background: #1a1428; border: 1px solid #443a5a; border-radius: 8px; padding: 6px 10px; color: var(--text); text-transform: none; letter-spacing: 0; font-weight: 400; }
+    .lobbyitem:hover, .lobbyitem:focus-visible { border-color: var(--orange); filter: none; }
+    .lobbyitem .ln { font-weight: 700; font-size: 13px; overflow-wrap: anywhere; }
+    .lobbyitem .lm { font-size: 11px; color: var(--muted); }
+    .lobbyempty { font-size: 12px; color: var(--muted); font-style: italic; }
     /* --- chat --- */
     #chat { position: fixed; right: 16px; bottom: 64px; width: 300px; z-index: 8; display: flex; flex-direction: column; }
     #chat[hidden] { display: none; }
@@ -212,10 +224,16 @@
           <label for="netColor" data-i18n="net.iPlay">Io gioco</label>
           <select id="netColor"><option value="white" data-i18n="name.white">Bianco</option><option value="black" data-i18n="name.black">Nero</option><option value="random" data-i18n="net.random">Casuale</option></select>
         </div>
+        <label class="netpub"><input type="checkbox" id="netPublic" checked> <span data-i18n="lobby.public">Mostra nella lobby pubblica</span></label>
+        <input id="netName" class="netname" maxlength="24" autocomplete="nickname" data-i18n-placeholder="lobby.name" data-i18n-aria="lobby.name" placeholder="Il tuo nome (facoltativo)">
         <div class="btns"><button class="orange" id="netHost" data-i18n="net.host">Crea stanza</button></div>
         <div class="netjoin">
           <input id="netCode" data-i18n-placeholder="net.code" data-i18n-aria="net.code" placeholder="Codice stanza" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false">
           <button class="blue" id="netJoin" data-i18n="net.join">Entra</button>
+        </div>
+        <div class="lobby">
+          <div class="lobbyhead"><span data-i18n="lobby.title">Stanze aperte</span><span id="lobbyRelays"></span></div>
+          <div id="lobbyList" aria-live="polite"></div>
         </div>
       </div>
       <div id="netActive" hidden>
