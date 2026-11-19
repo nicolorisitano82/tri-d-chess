@@ -38,6 +38,17 @@ function scheduleComputer() {
 }
 const PLAYER_TYPES = ['human', 'ai', 'computer', 'remote'];
 
+// Network games are strictly human vs human: a "remote" side is always paired with a local human,
+// and while a network room is open (netRoom, set by the page) no other kind of game may start.
+let netRoom = false;
+function playersError(white, black) {
+  if (!PLAYER_TYPES.includes(white) || !PLAYER_TYPES.includes(black)) return 'players must be "human", "ai", "computer" or "remote"';
+  const remote = [white, black].filter((p) => p === 'remote').length;
+  if (remote && !(remote === 1 && [white, black].includes('human'))) return 'Network games are human vs human only.';
+  if (netRoom && remote !== 1) return 'A network game is open: leave the room before starting another kind of game.';
+  return null;
+}
+
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -72,7 +83,8 @@ app.post('/api/move', (req, res) => {
 
 app.post('/api/new', (req, res) => {
   const { white = 'human', black = 'ai', computer = {} } = req.body || {};
-  if (!PLAYER_TYPES.includes(white) || !PLAYER_TYPES.includes(black)) return res.status(400).json({ error: 'players must be "human", "ai", "computer" or "remote"' });
+  const perr = playersError(white, black);
+  if (perr) return res.status(409).json({ error: perr });
   const cfg = {};
   for (const c of ['white', 'black']) {
     const { level = 3, style = 'balanced' } = computer[c] || {};
@@ -117,9 +129,16 @@ app.post('/api/remote-move', (req, res) => {
 });
 
 // Rebuild the game from a move list (joining or re-joining a network game).
+// The page reports whether a network room is open (network games are human vs human only).
+app.post('/api/net-room', (req, res) => {
+  netRoom = !!req.body?.open;
+  res.json({ ok: true, open: netRoom });
+});
+
 app.post('/api/net-sync', (req, res) => {
   const { white, black, moves = [], resigned = null } = req.body || {};
-  if (!PLAYER_TYPES.includes(white) || !PLAYER_TYPES.includes(black)) return res.status(400).json({ error: 'bad players' });
+  const perr = playersError(white, black);
+  if (perr) return res.status(409).json({ error: perr });
   recent.white = []; recent.black = [];
   game.reset({ white, black });
   try {
@@ -245,6 +264,10 @@ function buildMcp(urlColor = null) {
       black_style: z.enum(['balanced', 'aggressive', 'cautious']).default('balanced').describe('Black built-in computer style'),
     },
   }, async ({ white, black, white_level, white_style, black_level, black_style }) => {
+    if (netRoom || Object.values(game.players).includes('remote') && game.status === 'playing')
+      return fail('A human-vs-human network game is in progress on this board; new_game is not available until it ends.');
+    const perr = playersError(white, black);
+    if (perr) return fail(perr);
     recent.white = []; recent.black = [];
     game.reset({ white, black, computer: { white: { level: white_level, style: white_style }, black: { level: black_level, style: black_style } } });
     changed();

@@ -43,7 +43,12 @@ onLangChange(() => {
 function showActive(on) {
   $('netIdle').hidden = on;
   $('netActive').hidden = !on;
+  // network games are human vs human only: lock the player / computer settings while a room is open
+  for (const id of ['selW', 'selB', 'lvlW', 'lvlB', 'styW', 'styB']) $(id).disabled = on;
 }
+
+// Tell the game server a room is open, so it refuses any non human-vs-human game meanwhile.
+const setRoomFlag = (open) => T.post('/api/net-room', { open });
 
 const movesOf = (s) => s.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || null }));
 
@@ -156,6 +161,7 @@ async function host() {
   myColor = pick === 'random' ? (crypto.getRandomValues(new Uint8Array(1))[0] % 2 ? 'white' : 'black') : pick;
   role = 'host';
   code = newCode();
+  await setRoomFlag(true);
   await startHostGame();
   open(code);
   $('netRoom').textContent = code;
@@ -170,6 +176,7 @@ function join() {
   role = 'guest';
   code = c;
   myColor = null;
+  setRoomFlag(true);
   open(code);
   $('netRoom').textContent = code;
   $('netMe').textContent = '—';
@@ -181,6 +188,7 @@ function leave() {
   try { room?.leave(); } catch {}
   room = null; msg = null; peer = null; role = null; code = null; myColor = null; sent = 0;
   showActive(false);
+  setRoomFlag(false);
   chat.show(false);
   chat.clear();
   T.toast(t('net.left'));
@@ -208,4 +216,7 @@ $('netCopy').onclick = () => navigator.clipboard?.writeText(code || '').then(() 
 wrapNewGame('btnNew');
 wrapNewGame('vNew');
 T.listeners.push((s) => onState(s));
-window.addEventListener('beforeunload', () => { try { room?.leave(); } catch {} });
+window.addEventListener('beforeunload', () => {
+  try { room?.leave(); } catch {}
+  if (room) { try { navigator.sendBeacon('/api/net-room', new Blob([JSON.stringify({ open: false })], { type: 'application/json' })); } catch {} }
+});

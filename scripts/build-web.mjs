@@ -121,8 +121,18 @@ function publish() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(serialize())); } catch {}
   scheduleComputer();
 }
+let netRoom = false;
+// network games are human vs human only (same rule as server.js)
+function playersError(white, black) {
+  const remote = [white, black].filter((p) => p === 'remote').length;
+  if (remote && !(remote === 1 && [white, black].includes('human'))) return 'Network games are human vs human only.';
+  if (netRoom && remote !== 1) return 'A network game is open: leave the room first.';
+  return null;
+}
 async function post(url, body = {}) {
   try {
+    if (url === '/api/net-room') { netRoom = !!body.open; return { ok: true }; }
+    if ((url === '/api/new' || url === '/api/net-sync') && playersError(body.white, body.black)) throw new Error(playersError(body.white, body.black));
     if (url === '/api/new') {
       game.reset({ white: body.white, black: body.black, computer: body.computer });
       recentMoves.white = []; recentMoves.black = [];
