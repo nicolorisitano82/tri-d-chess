@@ -80,7 +80,7 @@ appSrc = must(appSrc,
   "function setView(name) {\n  const v = CAM_VIEWS[name];\n  camera.position.set(...v.pos);\n  controls.target.set(...v.target);\n  controls.update();\n}",
   `function setView(name) {
   const v = CAM_VIEWS[name];
-  const narrow = window.innerWidth < 700;
+  const narrow = window.matchMedia('(max-width: 700px), (max-height: 500px)').matches;
   const k = camera.aspect < 1 ? Math.min(1.8, 0.8 / camera.aspect) : 1;
   const t = narrow ? [-0.5, 1.5, 0] : v.target;
   camera.position.set(...v.pos.map((p, i) => t[i] + (p - v.target[i]) * k));
@@ -171,7 +171,7 @@ function boot(data) {
 hot?.ready ? hot.ready(boot) : boot(hot?.data ?? {});
 
 // --- phone: collapse the panel to a status pill so the board gets the whole screen ---
-const narrowMQ = window.matchMedia('(max-width: 700px)');
+const narrowMQ = window.matchMedia('(max-width: 700px), (max-height: 500px)');
 function setMini(on) {
   const p = $('panel');
   p.classList.toggle('mini', on && narrowMQ.matches);
@@ -200,11 +200,11 @@ style += `
     /* --- standalone / phone layout --- */
     #btnMore { display: none; }
     #mcpblock, #dragbar${PAGES ? '' : ', #netblock, #chat'} { display: none !important; }
-    @media (max-width: 700px) {
-      #panel { top: auto; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: auto; height: auto; max-height: 64vh; overflow-y: auto; gap: 6px; }
+    @media (max-width: 700px), (max-height: 500px) {
+      #panel { top: auto; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: auto; height: auto; max-height: 64vh; max-height: 64dvh; overflow-y: auto; gap: 6px; }
       #panel .bar.title, #panel .logbar, #log, #panel .grid2 { display: none; }
       #panel.open .logbar { display: block; }
-      #panel.open #log { display: block; flex: none; max-height: 20vh; }
+      #panel.open #log { display: block; flex: none; max-height: 20vh; max-height: 20dvh; }
       #panel.open .grid2 { display: grid; margin-bottom: 4px; }
       #panel .block { padding: 8px 10px; }
       #status { font-size: 15px; }
@@ -213,9 +213,9 @@ style += `
       button { padding: 9px 12px; font-size: 12px; }
       select { padding: 7px 6px; font-size: 14px; }
       #hover { display: none; }
-      #stats { top: calc(8px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; max-height: 46vh; }
+      #stats { top: calc(8px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; max-height: 46vh; max-height: 46dvh; }
       #statsTab { padding: 12px 5px; }
-      #victory { padding-bottom: 12vh; }
+      #victory { padding-bottom: 12vh; padding-bottom: 12dvh; }
       #statusBlock { cursor: pointer; }
       #status::after { content: " ▾"; color: var(--muted); font-size: 12px; }
       #panel.mini { left: auto; right: max(8px, env(safe-area-inset-right, 0px)); max-width: 78vw; overflow: visible; }
@@ -229,6 +229,13 @@ style += `
       #victory .rays { width: 560px; height: 560px; margin: -280px 0 0 -280px; }
       #victory .king { font-size: 48px; }
       #victory .sub { font-size: 14px; }
+    }
+    @media (max-height: 500px) and (min-width: 701px) {
+      #panel { right: auto; width: min(380px, 48vw); max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px - env(safe-area-inset-bottom, 0px)); }
+      #panel.mini { left: auto; right: max(8px, env(safe-area-inset-right, 0px)); width: auto; }
+      #stats { left: auto; right: max(8px, env(safe-area-inset-right, 0px)); width: min(300px, 42vw); max-height: calc(100vh - 70px); max-height: calc(100dvh - 70px); }
+      #victory { padding-bottom: 2vh; }
+      #chat { left: auto; right: max(8px, env(safe-area-inset-right, 0px)); }
     }`;
 
 let body = html.match(/<body>([\s\S]*?)<\/body>/)[1];

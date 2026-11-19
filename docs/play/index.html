@@ -44,7 +44,9 @@
     html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
       font-family: "Helvetica Neue", "Avenir Next Condensed", -apple-system, sans-serif; overflow: hidden; }
     #scene { position: fixed; inset: 0; }
-    #panel { position: fixed; top: 16px; left: 16px; bottom: 16px; width: 300px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    #panel { position: fixed; top: 16px; left: 16px; bottom: 16px; width: 300px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+    #panel > * { flex-shrink: 0; }
+    #panel > #log { flex: 1 1 auto; flex-shrink: 1; }
     #panel > * { pointer-events: auto; }
     .bar { border-radius: 22px 6px 6px 22px; padding: 8px 16px; color: #000; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
     .bar.title { background: var(--orange); font-size: 20px; border-radius: 30px 6px 6px 6px; padding: 14px 18px; }
@@ -79,7 +81,7 @@
     body.app #toast { top: 44px; }
 
     /* --- stats panel --- */
-    #stats { position: fixed; top: 16px; right: 16px; width: 290px; max-height: calc(100vh - 90px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    #stats { position: fixed; top: 16px; right: 16px; width: 290px; max-height: calc(100vh - 90px); max-height: calc(100dvh - 90px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
       transition: transform .35s ease, opacity .35s ease; z-index: 5; }
     #stats.hidden { transform: translateX(calc(100% + 32px)); opacity: 0; pointer-events: none; }
     #stats .bar { display: flex; justify-content: space-between; align-items: center; background: var(--sky); border-radius: 6px 22px 22px 6px; }
@@ -135,7 +137,7 @@
     .relaycount { font-size: 11px; color: var(--muted); }
     .modal { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,6,.6); backdrop-filter: blur(3px); }
     .modal[hidden] { display: none; }
-    .modalcard { width: min(520px, 100%); max-height: min(78vh, 640px); display: flex; flex-direction: column; gap: 10px; background: rgba(10,8,20,.97); border-left: 14px solid var(--lilac); border-radius: 0 16px 16px 0; padding: 14px 16px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+    .modalcard { width: min(520px, 100%); max-height: min(78vh, 640px); max-height: min(86dvh, 640px); display: flex; flex-direction: column; gap: 10px; background: rgba(10,8,20,.97); border-left: 14px solid var(--lilac); border-radius: 0 16px 16px 0; padding: 14px 16px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
     .modalhead { display: flex; align-items: center; gap: 10px; }
     #lobbyTitle { font-size: 16px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--lilac); }
     .modalhead .relaycount { margin-left: auto; }
@@ -182,7 +184,8 @@
     @keyframes reactRise { 0% { transform: translate(-50%, 40px) scale(.3); opacity: 0; } 15% { transform: translate(-50%, 0) scale(1.15); opacity: 1; } 30% { transform: translate(-50%, -20px) scale(1) rotate(-6deg); } 50% { transform: translate(-50%, -18vh) rotate(6deg); } 100% { transform: translate(-50%, -46vh) scale(.9) rotate(0); opacity: 0; } }
     @keyframes reactSpark { 0% { transform: translate(-50%, 0) scale(.4); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), var(--dy)) scale(.9); opacity: 0; } }
     @media (prefers-reduced-motion: reduce) { .react-pop, .react-spark { animation-duration: .01s; } }
-    @media (max-width: 700px) { #chat { left: 8px; right: 8px; width: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); } #chatLog { height: 22vh; } }
+    @media (max-height: 500px) { #chat { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: min(320px, 46vw); } #chatLog { height: 26vh; height: 26dvh; } #emojiPicker { grid-template-columns: repeat(10, 1fr); } }
+    @media (max-width: 700px) { #chat { left: 8px; right: 8px; width: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); } #chatLog { height: 22vh; height: 22dvh; } }
     /* --- promotion picker --- */
     #promo { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(0,0,6,.55); }
     #promo[hidden] { display: none; }
@@ -202,7 +205,7 @@
       background: repeating-conic-gradient(from 0deg, var(--vc) 0deg 5deg, transparent 5deg 15deg);
       -webkit-mask: radial-gradient(circle, #000 0%, transparent 62%); mask: radial-gradient(circle, #000 0%, transparent 62%); animation: spin 24s linear infinite; }
     #victory .eyebrow { font-size: 14px; letter-spacing: .5em; color: var(--peach); text-transform: uppercase; }
-    #victory h1 { margin: 6px 0 4px; font-size: clamp(40px, 8vw, 92px); letter-spacing: .14em; line-height: 1; text-transform: uppercase;
+    #victory h1 { margin: 6px 0 4px; font-size: clamp(34px, min(8vw, 12vh), 92px); letter-spacing: .14em; line-height: 1; text-transform: uppercase;
       background: linear-gradient(180deg, #fff6d8 0%, #ffd36b 45%, #ff9c33 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
       filter: drop-shadow(0 0 18px rgba(255,190,80,.65)); animation: glow 2.4s ease-in-out infinite; }
     #victory .king { font-size: 70px; line-height: 1; color: var(--vk); filter: drop-shadow(0 0 22px var(--vc)); animation: float 3s ease-in-out infinite; }
@@ -215,6 +218,18 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes glow { 50% { filter: drop-shadow(0 0 34px rgba(255,210,120,.95)); } }
     @keyframes float { 50% { transform: translateY(-8px); } }
+    @media (max-height: 500px) {
+      #victory { padding-bottom: 2vh; }
+      #victory .card { padding: 10px 16px 12px; }
+      #victory .king { font-size: 36px; }
+      #victory .eyebrow { font-size: 11px; }
+      #victory .sub { font-size: 13px; margin-top: 2px; }
+      #victory .meta { font-size: 11px; }
+      #victory .btns { margin-top: 8px; }
+      #victory .rays { width: 520px; height: 520px; margin: -260px 0 0 -260px; }
+      .promocard { padding: 10px 14px; gap: 6px; }
+      .prow .pp { width: 52px; height: 52px; font-size: 32px; }
+    }
     @media (prefers-reduced-motion: reduce) { #victory .rays, #victory h1, #victory .king, #victory .card { animation: none; } }
     @media (max-width: 700px) {
       #stats { top: 16px; left: 16px; right: 16px; width: auto; max-height: 50vh; }
@@ -226,11 +241,11 @@
     /* --- standalone / phone layout --- */
     #btnMore { display: none; }
     #mcpblock, #dragbar { display: none !important; }
-    @media (max-width: 700px) {
-      #panel { top: auto; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: auto; height: auto; max-height: 64vh; overflow-y: auto; gap: 6px; }
+    @media (max-width: 700px), (max-height: 500px) {
+      #panel { top: auto; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: auto; height: auto; max-height: 64vh; max-height: 64dvh; overflow-y: auto; gap: 6px; }
       #panel .bar.title, #panel .logbar, #log, #panel .grid2 { display: none; }
       #panel.open .logbar { display: block; }
-      #panel.open #log { display: block; flex: none; max-height: 20vh; }
+      #panel.open #log { display: block; flex: none; max-height: 20vh; max-height: 20dvh; }
       #panel.open .grid2 { display: grid; margin-bottom: 4px; }
       #panel .block { padding: 8px 10px; }
       #status { font-size: 15px; }
@@ -239,9 +254,9 @@
       button { padding: 9px 12px; font-size: 12px; }
       select { padding: 7px 6px; font-size: 14px; }
       #hover { display: none; }
-      #stats { top: calc(8px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; max-height: 46vh; }
+      #stats { top: calc(8px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; max-height: 46vh; max-height: 46dvh; }
       #statsTab { padding: 12px 5px; }
-      #victory { padding-bottom: 12vh; }
+      #victory { padding-bottom: 12vh; padding-bottom: 12dvh; }
       #statusBlock { cursor: pointer; }
       #status::after { content: " ▾"; color: var(--muted); font-size: 12px; }
       #panel.mini { left: auto; right: max(8px, env(safe-area-inset-right, 0px)); max-width: 78vw; overflow: visible; }
@@ -255,6 +270,13 @@
       #victory .rays { width: 560px; height: 560px; margin: -280px 0 0 -280px; }
       #victory .king { font-size: 48px; }
       #victory .sub { font-size: 14px; }
+    }
+    @media (max-height: 500px) and (min-width: 701px) {
+      #panel { right: auto; width: min(380px, 48vw); max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px - env(safe-area-inset-bottom, 0px)); }
+      #panel.mini { left: auto; right: max(8px, env(safe-area-inset-right, 0px)); width: auto; }
+      #stats { left: auto; right: max(8px, env(safe-area-inset-right, 0px)); width: min(300px, 42vw); max-height: calc(100vh - 70px); max-height: calc(100dvh - 70px); }
+      #victory { padding-bottom: 2vh; }
+      #chat { left: auto; right: max(8px, env(safe-area-inset-right, 0px)); }
     }</style>
 
     <div id="dragbar"></div>
@@ -1443,7 +1465,7 @@ const CAM_VIEWS = {
 let camIdx = 0;
 function setView(name) {
   const v = CAM_VIEWS[name];
-  const narrow = window.innerWidth < 700;
+  const narrow = window.matchMedia('(max-width: 700px), (max-height: 500px)').matches;
   const k = camera.aspect < 1 ? Math.min(1.8, 0.8 / camera.aspect) : 1;
   const t = narrow ? [-0.5, 1.5, 0] : v.target;
   camera.position.set(...v.pos.map((p, i) => t[i] + (p - v.target[i]) * k));
@@ -2062,7 +2084,7 @@ function boot(data) {
 hot?.ready ? hot.ready(boot) : boot(hot?.data ?? {});
 
 // --- phone: collapse the panel to a status pill so the board gets the whole screen ---
-const narrowMQ = window.matchMedia('(max-width: 700px)');
+const narrowMQ = window.matchMedia('(max-width: 700px), (max-height: 500px)');
 function setMini(on) {
   const p = $('panel');
   p.classList.toggle('mini', on && narrowMQ.matches);
