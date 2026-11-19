@@ -94,6 +94,13 @@
     button.mini { padding: 2px 8px; font-size: 10px; border-radius: 8px; }
     #netRoom { font-size: 14px; letter-spacing: .14em; color: var(--peach); }
     #netStatus.ok { color: #66ffcc; } #netStatus.warn { color: var(--peach); } #netStatus.err { color: var(--red); }
+    /* --- invite / share --- */
+    .sharebox { margin-top: 8px; padding: 8px 10px; border: 1px dashed #5a4a7a; border-radius: 10px; display: grid; gap: 6px; }
+    .sharehead { font-size: 11px; color: var(--peach); text-transform: uppercase; letter-spacing: .12em; }
+    .sharelinks { display: flex; flex-wrap: wrap; gap: 5px; }
+    .sharelinks a { font-size: 12px; font-weight: 700; text-decoration: none; color: var(--text); background: #1a1428; border: 1px solid #443a5a; border-radius: 12px; padding: 4px 10px; }
+    .sharelinks a:hover, .sharelinks a:focus-visible { border-color: var(--orange); color: #fff; }
+    .shareact { display: flex; gap: 6px; }
     /* --- lobby --- */
     .netpub { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; }
     .netpub input { accent-color: var(--orange); }
@@ -253,6 +260,20 @@
         <div class="row"><span data-i18n="net.room">Stanza</span><span><code id="netRoom">—</code> <button class="lilac mini" id="netCopy" data-i18n="net.copy">Copia</button></span></div>
         <div class="row"><span data-i18n="net.state">Stato</span><span id="netStatus">—</span></div>
         <div class="row"><span data-i18n="net.you">Tu giochi</span><span id="netMe">—</span></div>
+        <div id="shareBox" class="sharebox" hidden>
+          <div class="sharehead" data-i18n="share.title">Invita un avversario</div>
+          <div class="sharelinks">
+            <a id="shX" target="_blank" rel="noopener noreferrer">X</a>
+            <a id="shThreads" target="_blank" rel="noopener noreferrer">Threads</a>
+            <a id="shFacebook" target="_blank" rel="noopener noreferrer">Facebook</a>
+            <a id="shWhatsApp" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+            <a id="shTelegram" target="_blank" rel="noopener noreferrer">Telegram</a>
+          </div>
+          <div class="shareact">
+            <button class="lilac mini" id="shCopy" type="button" data-i18n="share.copy">Copia link</button>
+            <button class="blue mini" id="shNative" type="button" hidden data-i18n="share.native">Condividi…</button>
+          </div>
+        </div>
         <div class="btns"><button class="red" id="netLeave" data-i18n="net.leave">Esci dalla stanza</button></div>
       </div>
     </div>

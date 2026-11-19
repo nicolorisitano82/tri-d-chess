@@ -140,7 +140,9 @@ function open(roomCode) {
   room.onPeerJoin = (id) => {
     if (peer && peer !== id) { msg.send({ t: 'busy' }, { target: id }).catch(() => {}); return; }
     peer = id;
+    everJoined = true;
     clearTimeout(joinTimer);
+    renderShare();
     if (isPublic) lobby.unannounce().catch(() => {});
     chat.show(true);
     chat.system(t('chat.joined'));
@@ -176,6 +178,8 @@ async function host() {
   setStatus(isPublic ? 'net.waitingPublic' : 'net.waiting', 'warn');
   if (isPublic) lobby.announce({ code, hostColor: myColor, lang: document.documentElement.lang === 'en' ? 'en' : 'it', name: saveName() }).catch(() => {});
   lobbyView(false);
+  everJoined = false;
+  renderShare(); // (no ?room= for the host: a reload would make it join its own room as a guest)
 }
 
 function join() {
@@ -196,6 +200,8 @@ function join() {
   $('netMe').textContent = '—';
   setStatus('net.searching', 'warn');
   showActive(true);
+  setRoomInUrl(code);
+  renderShare();
 }
 
 function leave(silent = false) {
@@ -208,6 +214,8 @@ function leave(silent = false) {
   lobbyView(true);
   chat.show(false);
   chat.clear();
+  setRoomInUrl(null);
+  renderShare();
   if (!silent) T.toast(t('net.left'));
 }
 
@@ -227,6 +235,7 @@ const chat = createChat({ t, send, onLangChange });
 
 // --- lobby: open public rooms -------------------------------------------------------------
 let isPublic = false;
+let everJoined = false;
 let joinTimer = null;
 let lobbyRooms = [];
 let lobbyState = { relays: 0, total: 0 };
@@ -316,6 +325,39 @@ onLangChange(renderLobby);
 lobbyView(true);
 renderLobby();
 
+// --- invite: room link + dedicated post for each network ------------------------------
+// The link always points to the public browser demo, so the invited player needs nothing installed.
+const SHARE_BASE = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
+const ROOM_RE = /^[A-Z2-9]{8}$/;
+const roomLink = () => `${SHARE_BASE}?room=${code}`;
+const enc = encodeURIComponent;
+function shareText() {
+  return t('share.text', { c: IT[myColor], o: IT[other(myColor)], code });
+}
+function renderShare() {
+  const show = role === 'host' && !!code && !peer && !everJoined;
+  $('shareBox').hidden = !show;
+  if (!show) return;
+  const url = roomLink(), text = shareText();
+  $('shX').href = `https://x.com/intent/post?text=${enc(text + ' #TriDChess')}&url=${enc(url)}`;
+  $('shThreads').href = `https://www.threads.net/intent/post?text=${enc(text + ' ' + url)}`;
+  $('shFacebook').href = `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}`;
+  $('shWhatsApp').href = `https://wa.me/?text=${enc(text + ' ' + url)}`;
+  $('shTelegram').href = `https://t.me/share/url?url=${enc(url)}&text=${enc(text)}`;
+  $('shNative').hidden = typeof navigator.share !== 'function';
+}
+$('shCopy').onclick = () => navigator.clipboard?.writeText(roomLink()).then(() => T.toast(t('share.copied')), () => {});
+$('shNative').onclick = () => navigator.share?.({ title: 'Tri-D Chess', text: shareText(), url: roomLink() }).catch(() => {});
+onLangChange(renderShare);
+// keep ?room=CODE in the address while in a room, so a reload reconnects
+function setRoomInUrl(c) {
+  try {
+    const u = new URL(location.href);
+    if (c) u.searchParams.set('room', c); else u.searchParams.delete('room');
+    history.replaceState(null, '', u);
+  } catch {}
+}
+
 $('netHost').onclick = () => host().catch((e) => T.toast(t('net.unavailable', { e: e.message })));
 $('netJoin').onclick = () => { try { join(); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
 $('netCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('netJoin').click(); });
@@ -324,6 +366,10 @@ $('netCopy').onclick = () => navigator.clipboard?.writeText(code || '').then(() 
 wrapNewGame('btnNew');
 wrapNewGame('vNew');
 T.listeners.push((s) => onState(s));
+{
+  const linked = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
+  if (ROOM_RE.test(linked)) { $('netCode').value = linked; setTimeout(() => { try { join(); } catch {} }, 300); }
+}
 window.addEventListener('beforeunload', () => {
   try { room?.leave(); } catch {}
   if (isPublic) lobby.unannounce().catch(() => {});
