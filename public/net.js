@@ -49,7 +49,7 @@ function showActive(on) {
   $('netIdle').hidden = on;
   $('netActive').hidden = !on;
   // network games are human vs human only: lock the player / computer settings while a room is open
-  for (const id of ['selW', 'selB', 'lvlW', 'lvlB', 'styW', 'styB']) $(id).disabled = on;
+  for (const id of ['gameKind', 'selW', 'selB', 'lvlW', 'lvlB', 'styW', 'styB']) $(id).disabled = on;
 }
 
 // Tell the game server a room is open, so it refuses any non human-vs-human game meanwhile.
@@ -73,7 +73,7 @@ function sendSync() {
   if (!s) return;
   const resigned = s.status === 'resigned' ? other(s.winner) : null;
   const flaggedSide = s.status === 'timeout' ? other(s.winner) : s.drawReason === 'time-material' ? s.turn : null;
-  send({ t: 'sync', hostColor: myColor, moves: movesOf(s), resigned, flagged: flaggedSide, tc, clocks: tc ? { white: remaining('white'), black: remaining('black') } : null });
+  send({ t: 'sync', kind: s.kind || 'trid', hostColor: myColor, moves: movesOf(s), resigned, flagged: flaggedSide, tc, clocks: tc ? { white: remaining('white'), black: remaining('black') } : null });
 }
 
 // After every state change: forward our own new moves / resignation to the opponent.
@@ -99,7 +99,7 @@ async function onMessage(data, peerId) {
       if (role !== 'guest') return;
       myColor = other(data.hostColor);
       $('netMe').textContent = IT[myColor];
-      const body = { [myColor]: 'human', [data.hostColor]: 'remote', moves: Array.isArray(data.moves) ? data.moves : [], resigned: data.resigned || null };
+      const body = { kind: data.kind === 'chess' ? 'chess' : 'trid', [myColor]: 'human', [data.hostColor]: 'remote', moves: Array.isArray(data.moves) ? data.moves : [], resigned: data.resigned || null };
       setTimeControl(validTc(data.tc));
       const r = await T.post('/api/net-sync', body);
       if (data.flagged === 'white' || data.flagged === 'black') await T.post('/api/flag', { color: data.flagged });
@@ -193,10 +193,11 @@ function open(roomCode) {
   };
 }
 
+let hostKind = 'trid'; // game kind of the room we host (chosen in the Game menu before hosting)
 async function startHostGame() {
   resetClocks();
   lastN = 0;
-  await T.post('/api/new', { [myColor]: 'human', [other(myColor)]: 'remote' });
+  await T.post('/api/new', { kind: hostKind, [myColor]: 'human', [other(myColor)]: 'remote' });
   sent = 0; resignSent = false;
   offerFrom = false; rematchAsked = false;
   sendSync();
@@ -207,6 +208,7 @@ async function host() {
   const pick = $('netColor').value;
   myColor = pick === 'random' ? (crypto.getRandomValues(new Uint8Array(1))[0] % 2 ? 'white' : 'black') : pick;
   role = 'host';
+  hostKind = $('gameKind').value === 'chess' ? 'chess' : 'trid';
   code = newCode();
   setTimeControl(validTc(parseTc($('netTime').value)));
   await setRoomFlag(true);
@@ -217,7 +219,7 @@ async function host() {
   showActive(true);
   isPublic = $('netPublic').checked;
   setStatus(isPublic ? 'net.waitingPublic' : 'net.waiting', 'warn');
-  if (isPublic) lobby.announce({ code, hostColor: myColor, lang: document.documentElement.lang === 'en' ? 'en' : 'it', name: saveName() }).catch(() => {});
+  if (isPublic) lobby.announce({ code, kind: hostKind, hostColor: myColor, lang: document.documentElement.lang === 'en' ? 'en' : 'it', name: saveName() }).catch(() => {});
   lobbyView(false);
   everJoined = false;
   renderShare(); // (no ?room= for the host: a reload would make it join its own room as a guest)
@@ -296,7 +298,7 @@ const fold = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g,
 function matches(r, q) {
   if (!q) return true;
   const mine = other(r.hostColor);
-  const hay = fold([r.name || t('lobby.anon'), r.code, r.lang, IT[mine], mine, t('lobby.youPlay', { c: IT[mine] })].join(' '));
+  const hay = fold([r.name || t('lobby.anon'), r.code, t('game.' + r.kind), r.lang, IT[mine], mine, t('lobby.youPlay', { c: IT[mine] })].join(' '));
   return fold(q).split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
 }
 function renderLobby() {
@@ -326,7 +328,7 @@ function renderLobby() {
     name.textContent = r.name || t('lobby.anon');
     const meta = document.createElement('span');
     meta.className = 'lm';
-    meta.textContent = `${t('lobby.youPlay', { c: IT[other(r.hostColor)] })} · ${r.lang.toUpperCase()} · ${ago(r.since)}`;
+    meta.textContent = `${t('game.' + r.kind)} · ${t('lobby.youPlay', { c: IT[other(r.hostColor)] })} · ${r.lang.toUpperCase()} · ${ago(r.since)}`;
     const codeTag = document.createElement('code');
     codeTag.className = 'lc';
     codeTag.textContent = r.code;

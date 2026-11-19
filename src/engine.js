@@ -427,6 +427,7 @@ export class Game {
   // computer: per-color settings for the built-in engine, e.g. { white: { level: 4, style: 'aggressive' } }
   reset({ white = 'human', black = 'ai', computer = {} } = {}) {
     const cfg = (c) => ({ level: computer[c]?.level ?? 3, style: computer[c]?.style ?? 'balanced' });
+    this.kind = 'trid';
     this.computer = { white: cfg('white'), black: cfg('black') };
     this.id = Math.random().toString(36).slice(2, 10);
     this.pieces = initialPieces();
@@ -546,6 +547,7 @@ export class Game {
 
   snapshot() {
     return {
+      kind: 'trid',
       id: this.id,
       version: this.version,
       turn: this.turn,

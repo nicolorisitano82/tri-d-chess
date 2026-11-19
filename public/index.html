@@ -253,6 +253,8 @@
     <div class="block blue" id="log"><ol id="moves"></ol></div>
     <div class="block peach">
       <div class="grid2">
+        <label for="gameKind" data-i18n="ui.game">Gioco</label>
+        <select id="gameKind"><option value="trid" data-i18n="game.trid">Scacchi 3D (Tri-D)</option><option value="chess" data-i18n="game.chess">Scacchi classici</option></select>
         <label for="selW" data-i18n="name.white">Bianco</label>
         <select id="selW"><option value="human" data-i18n="name.human">Umano</option><option value="ai" data-i18n="opt.ai">AI (MCP)</option><option value="computer" data-i18n="name.computer">Computer</option><option value="remote" hidden data-i18n="name.remote">In rete</option></select>
         <div class="cpu" id="cpuW" hidden>
@@ -422,7 +424,8 @@
         "three/addons/": "/vendor/three/examples/jsm/",
         "@trystero-p2p/core": "/vendor/trystero-core/index.mjs",
         "@trystero-p2p/nostr": "/vendor/trystero-nostr/index.mjs",
-        "@noble/secp256k1": "/vendor/noble-secp256k1/index.js"
+        "@noble/secp256k1": "/vendor/noble-secp256k1/index.js",
+        "chess.js": "/vendor/chess.js/chess.js"
     } }
   </script>
   <script type="module" src="/app.js"></script>

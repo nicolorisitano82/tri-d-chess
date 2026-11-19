@@ -13,6 +13,7 @@
 
 - **3D board**: three fixed 4×4 boards (W, N, B) and four 2×2 attack boards on twelve pins, rendered with Three.js.
 - **Official rules** ([Meder](https://meder.spacechess.org/3dschach/chess3d.htm)): movable attack boards (forward, sideways, backwards when empty), castling, en passant across levels, per-file promotion with a choice of piece, draws by stalemate, threefold repetition, insufficient material and the 50-move rule.
+- **Classic chess too**: switch the Game menu to classic chess (FIDE rules via [chess.js](https://github.com/jhlywa/chess.js)) on a walnut-and-maple board in a torch-lit medieval room, with ivory and ebony pieces. Computer, online play, lobby, clock, replay and MCP all work for both games.
 - **Computer opponent**: 5 levels (Beginner → Master) × 3 styles (balanced, aggressive, cautious), set separately for White and Black.
 - **Online play, no game server**: share a room code; [Trystero](https://github.com/dmotz/trystero) finds the other player through public Nostr relays, then the game flows directly between the two browsers over encrypted WebRTC. Reconnect with the same code. Online games are human vs human only.
 - **Serverless lobby**: public rooms are announced as signed, expiring Nostr events (NIP-78 / NIP-40) with a throwaway key, so anyone can see who is waiting and join with one tap; uncheck the box for a private, code-only room.
@@ -74,9 +75,10 @@ MCP tools: `get_rules`, `get_game_state`, `get_legal_moves`, `make_move` (square
 |---|---|
 | `src/engine.js` | rules engine (also used in the browser) |
 | `src/ai.js` | computer player (alpha-beta, levels and styles) |
+| `src/chess2d.js`, `src/ai-chess.js`, `src/games.js` | classic chess on chess.js, its computer player, the game-kind registry |
 | `server.js` | Express: UI, REST + SSE, network endpoints, MCP server |
 | `electron/main.js` | macOS app |
-| `public/` | Three.js client: `app.js`, `pieces.js`, `i18n.js`, `net.js` (P2P), `chat.js`, `lobby.js` |
+| `public/` | Three.js client: `app.js`, `pieces.js`, `chess-view.js` (medieval board), `i18n.js`, `net.js` (P2P), `chat.js`, `lobby.js` |
 | `scripts/build-web.mjs` | standalone pages: `npm run pages` → `docs/play/`, `npm run web` → `dist-web/` |
 | `docs/` | GitHub Pages site and playable demo |
 | `test/` | engine and rules tests |
@@ -98,6 +100,7 @@ Not affiliated with any science-fiction franchise. Piece designs are original.
 
 - **Scacchiera 3D**: tre tavole fisse 4×4 (W, N, B) e quattro tavole d'attacco 2×2 su dodici agganci.
 - **Regole ufficiali** di Meder: tavole d'attacco mobili (avanti, di lato, indietro se vuote), arrocco, en passant anche tra livelli, promozione per colonna a scelta del pezzo, patte per stallo, triplice ripetizione, materiale insufficiente e 50 mosse.
+- **Anche scacchi classici**: dal menu Gioco passi agli scacchi classici (regole FIDE tramite [chess.js](https://github.com/jhlywa/chess.js)) su una scacchiera in noce e acero, in una sala medievale illuminata da torce, con pezzi in avorio ed ebano. Computer, rete, lobby, orologio, replay e MCP valgono per entrambi i giochi.
 - **Computer**: 5 livelli (Principiante → Maestro) × 3 stili (equilibrato, aggressivo, prudente), separati per Bianco e Nero.
 - **In rete senza server**: condividi un codice stanza; Trystero trova l'avversario tramite relay Nostr pubblici, poi la partita viaggia direttamente tra i due browser via WebRTC cifrato. Ci si può ricollegare con lo stesso codice. Le partite in rete sono solo umano contro umano.
 - **Lobby senza server**: le stanze pubbliche vengono annunciate come eventi Nostr firmati e con scadenza, con una chiave usa-e-getta: chiunque vede chi è in attesa ed entra con un tocco. Togliendo la spunta la stanza resta privata, solo col codice.

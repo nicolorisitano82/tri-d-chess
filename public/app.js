@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildPiece } from '/pieces.js';
+import { buildPiece as buildTriDPiece } from '/pieces.js';
+import { createChessView } from '/chess-view.js';
+import { ChessGame } from '/chess2d.js';
 import { t, table, getLang, setLang, applyStatic, onLangChange } from '/i18n.js';
 import { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseSquare, PIECE_NAMES, Game } from '/engine.js';
 
@@ -8,7 +10,12 @@ import { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseS
 const H = 2.0; // vertical spacing per level unit
 const SQ = 1.0;
 const worldPos = (x, y, level) => new THREE.Vector3((x - 2.5) * SQ, LEVELS[level].height * H, -(y - 4.5) * SQ);
-const posOfKey = (key) => { const s = parseSquare(key); return worldPos(s.x, s.y, s.level); };
+const tridPos = (key) => { const s = parseSquare(key); return worldPos(s.x, s.y, s.level); };
+// game kinds: 'trid' (Star Trek 3D chess) and 'chess' (classic chess, medieval room)
+let kind = 'trid';
+const chessView = createChessView();
+const posOfKey = (key) => (kind === 'chess' ? chessView.posOfKey(key) : tridPos(key));
+const buildPiece = (type, color) => (kind === 'chess' ? chessView.buildPiece(type, color) : buildTriDPiece(type, color));
 
 // --- renderer / scene ------------------------------------------------------------
 const container = document.getElementById('scene');
@@ -29,12 +36,33 @@ controls.minDistance = 5;
 controls.maxDistance = 40;
 controls.maxPolarAngle = Math.PI * 0.95;
 
-const CAM_VIEWS = {
-  white: { pos: [7, 11, 12], target: [-1.6, 2.2, 0] },
-  black: { pos: [-7, 11, -12], target: [-1.6, 2.2, 0] },
-  side: { pos: [14, 4, 0], target: [-1.6, 2.2, 0] },
+const VIEWS = {
+  trid: {
+    white: { pos: [7, 11, 12], target: [-1.6, 2.2, 0] },
+    black: { pos: [-7, 11, -12], target: [-1.6, 2.2, 0] },
+    side: { pos: [14, 4, 0], target: [-1.6, 2.2, 0] },
+  },
+  chess: chessView.views,
 };
+let CAM_VIEWS = VIEWS.trid;
 let camIdx = 0;
+function setKind(k) {
+  if (k === kind) return;
+  kind = k;
+  const chess = k === 'chess';
+  tridRoot.visible = !chess;
+  chessView.root.visible = chess;
+  CAM_VIEWS = VIEWS[k];
+  const bg = chess ? chessView.background : 0x000006;
+  scene.background.setHex(bg);
+  scene.fog.color.setHex(bg);
+  [scene.fog.near, scene.fog.far] = chess ? chessView.fog.slice(1) : [30, 90];
+  document.body.dataset.kind = k;
+  pieceGroup.clear();
+  pieceMeshes.clear();
+  camIdx = 0;
+  setView('white');
+}
 function setView(name) {
   const v = CAM_VIEWS[name];
   camera.position.set(...v.pos);
@@ -43,16 +71,20 @@ function setView(name) {
 }
 setView('white');
 
-scene.add(new THREE.HemisphereLight(0x8899ff, 0x110818, 0.9));
+// everything specific to the Tri-D scene lives in tridRoot; the chess room in chessView.root
+const tridRoot = new THREE.Group();
+scene.add(tridRoot);
+scene.add(chessView.root);
+tridRoot.add(new THREE.HemisphereLight(0x8899ff, 0x110818, 0.9));
 const key = new THREE.DirectionalLight(0xffffff, 2.2);
 key.position.set(6, 14, 8);
-scene.add(key);
+tridRoot.add(key);
 const rim = new THREE.PointLight(0x66ccff, 40, 30);
 rim.position.set(-6, 6, -6);
-scene.add(rim);
+tridRoot.add(rim);
 const warm = new THREE.PointLight(0xff9c33, 30, 30);
 warm.position.set(6, -1, 6);
-scene.add(warm);
+tridRoot.add(warm);
 
 // starfield
 {
@@ -65,7 +97,7 @@ scene.add(warm);
   g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
   const stars = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 0.25, sizeAttenuation: true, fog: false }));
   stars.name = 'stars';
-  scene.add(stars);
+  tridRoot.add(stars);
 }
 
 // --- boards: one group per level; attack-board pins are shown only while a board sits on them ---
@@ -74,7 +106,7 @@ const pickables = [];
 const levelGroups = {};          // level -> THREE.Group
 const pinFrames = {};            // pin -> frame (own material, recoloured when the board can move)
 const ghostGroup = new THREE.Group();
-scene.add(ghostGroup);
+tridRoot.add(ghostGroup);
 const ghosts = {};               // pin -> group shown as a move target for a selected board
 const lightMat = () => new THREE.MeshStandardMaterial({ color: 0xb8d4ff, transparent: true, opacity: 0.42, metalness: 0.1, roughness: 0.2, emissive: 0x000000, depthWrite: false });
 const darkMat = () => new THREE.MeshStandardMaterial({ color: 0x14244a, transparent: true, opacity: 0.72, metalness: 0.3, roughness: 0.3, emissive: 0x000000, depthWrite: false });
@@ -111,7 +143,7 @@ for (const lv of LEVEL_NAMES) {
   const L = LEVELS[lv];
   const g = new THREE.Group();
   levelGroups[lv] = g;
-  scene.add(g);
+  tridRoot.add(g);
   const { w, d, cx, cz, y } = levelDims(L);
   for (const s of squaresOf(lv)) {
     const m = new THREE.Mesh(squareGeo, (s.x + s.y) % 2 === 0 ? darkMat() : lightMat());
@@ -169,12 +201,14 @@ function syncBoards() {
     levelGroups[pin].position.set(0, 0, 0);
   }
 }
+// classic chess squares share the maps (keys "a1".."h8" never clash with Tri-D keys)
+for (const { key, mesh } of chessView.squares) { squareMeshes.set(key, mesh); pickables.push(mesh); }
 // base plate
 {
   const base = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.0, 0.25, 48), metal);
   base.position.set(-3.6, BASE_Y - 0.12, 0);
   base.scale.set(0.6, 1, 2.2);
-  scene.add(base);
+  tridRoot.add(base);
 }
 
 // --- pieces: faction sets in pieces.js ----------------------------------------------
@@ -222,6 +256,7 @@ function renderMcp() {
 }
 function syncLevel() { for (const c of ['W', 'B']) $('cpu' + c).hidden = $('sel' + c).value !== 'computer'; }
 const newGameBody = () => ({
+  kind: $('gameKind').value,
   white: $('selW').value, black: $('selB').value,
   computer: {
     white: { level: Number($('lvlW').value), style: $('styW').value },
@@ -229,6 +264,15 @@ const newGameBody = () => ({
   },
 });
 $('selW').onchange = $('selB').onchange = () => { renderMcp(); syncLevel(); };
+// switching game starts a new game of that kind (asks first if a game is under way)
+$('gameKind').onchange = () => {
+  const s = live || state;
+  const busy = s && !s.replay && s.status === 'playing' && s.history.length > 0;
+  if (busy && !confirm(t('ui.switchConfirm'))) { $('gameKind').value = kindOf(s); return; }
+  if (replay) closeReplay();
+  selected = null;
+  post('/api/new', newGameBody());
+};
 syncLevel();
 
 // --- statistics panel -----------------------------------------------------------------
@@ -317,6 +361,7 @@ function toast(msg) {
   toast._t = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+const kindOf = (s) => s?.kind || 'trid';
 const isHumanTurn = () => state && !state.replay && state.status === 'playing' && state.players[state.turn] === 'human';
 
 function setSquareGlow() {
@@ -427,7 +472,13 @@ function renderPanel() {
 function applyState(s) {
   const prev = state;
   state = s;
-  if (!s.replay && (!prev || prev.id !== s.id)) { $('selW').value = s.players.white; $('selB').value = s.players.black; if (s.computer) for (const [c, k] of [['white', 'W'], ['black', 'B']]) { $('lvl' + k).value = String(s.computer[c].level); $('sty' + k).value = s.computer[c].style; } }
+  setKind(kindOf(s));
+  if (!s.replay && (!prev || prev.id !== s.id)) {
+    // new game: look from Black's side when Black is the only human on this screen
+    const view = s.players.black === 'human' && s.players.white !== 'human' ? 'black' : 'white';
+    if (!prev || prev.players?.black !== s.players.black || prev.players?.white !== s.players.white || kindOf(prev) !== kindOf(s)) { camIdx = view === 'black' ? 1 : 0; setView(view); }
+  }
+  if (!s.replay && (!prev || prev.id !== s.id)) { $('gameKind').value = kindOf(s); $('selW').value = s.players.white; $('selB').value = s.players.black; if (s.computer) for (const [c, k] of [['white', 'W'], ['black', 'B']]) { $('lvl' + k).value = String(s.computer[c].level); $('sty' + k).value = s.computer[c].style; } }
   if (selected && ((!isPin(selected) && !s.pieces[selected]) || (isPin(selected) && !s.boards[selected]) || !isHumanTurn())) selected = null;
   syncBoards();
   renderPieces(prev);
@@ -455,34 +506,36 @@ let replayFromUrl = null;
 function onLive(s) {
   live = s;
   if (!replay) applyState(s);
-  if (replayFromUrl) { const m = replayFromUrl; replayFromUrl = null; startReplay(m); }
+  if (replayFromUrl) { const { moves, k } = replayFromUrl; replayFromUrl = null; startReplay(moves, k); }
 }
 const PUBLIC_DEMO = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
+const CHESS_MOVE_RE = /^([a-h][1-8])-([a-h][1-8])(?:=([QRBN]))?$/;
 const MOVE_RE = /^([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])-([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])(?:=([QRBN]))?$/;
 const b64url = (s) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64url = (s) => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
 function encodeGame(moves) { return b64url(moves.map((m) => `${m.from}-${m.to}${m.promotion ? '=' + m.promotion : ''}`).join('.')); }
-function decodeGame(code) {
+function decodeGame(code, k = 'trid') {
   try {
     if (!code || code.length > 30000) return null;
     const parts = unb64url(code).split('.').filter(Boolean);
     if (!parts.length || parts.length > 2000) return null;
-    const moves = parts.map((p) => { const m = MOVE_RE.exec(p); return m && { from: m[1], to: m[2], promotion: m[3] || null }; });
+    const re = k === 'chess' ? CHESS_MOVE_RE : MOVE_RE;
+    const moves = parts.map((p) => { const m = re.exec(p); return m && { from: m[1], to: m[2], promotion: m[3] || null }; });
     return moves.every(Boolean) ? moves : null;
   } catch { return null; }
 }
 function replayState(moves, i) {
-  const g = new Game({ white: 'human', black: 'human' });
+  const g = replay?.kind === 'chess' ? new ChessGame({ white: 'human', black: 'human' }) : new Game({ white: 'human', black: 'human' });
   g.id = 'replay';
   let k = 0;
   for (; k < i; k++) { try { g.move(moves[k].from, moves[k].to, moves[k].promotion); } catch { break; } }
   return { ...g.snapshot(), legalMoves: [], replay: { i: k, n: moves.length } };
 }
-function startReplay(moves) {
+function startReplay(moves, k = 'trid') {
   if (!moves?.length) return;
   hideVictory();
   selected = null;
-  replay = { moves, i: moves.length };
+  replay = { moves, i: moves.length, kind: k };
   // validate the whole list once: stop at the first illegal move
   const full = replayState(moves, moves.length);
   replay.moves = moves.slice(0, full.replay.i);
@@ -506,13 +559,13 @@ function closeReplay() {
   if (!replay) return;
   replay = null;
   $('replayBar').hidden = true;
-  try { const u = new URL(location.href); if (u.searchParams.has('replay')) { u.searchParams.delete('replay'); history.replaceState(null, '', u); } } catch {}
+  try { const u = new URL(location.href); if (u.searchParams.has('replay')) { u.searchParams.delete('replay'); u.searchParams.delete('game'); history.replaceState(null, '', u); } } catch {}
   quietVictory = true;
   if (live) applyState(live);
 }
 const movesOfState = (s) => s.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || null }));
-$('btnReplay').onclick = () => live && startReplay(movesOfState(live));
-$('vReplay').onclick = () => live && startReplay(movesOfState(live));
+$('btnReplay').onclick = () => live && startReplay(movesOfState(live), kindOf(live));
+$('vReplay').onclick = () => live && startReplay(movesOfState(live), kindOf(live));
 $('rpFirst').onclick = () => stepReplay(0);
 $('rpPrev').onclick = () => stepReplay(replay.i - 1);
 $('rpNext').onclick = () => stepReplay(replay.i + 1);
@@ -520,7 +573,7 @@ $('rpLast').onclick = () => stepReplay(Infinity);
 $('rpClose').onclick = closeReplay;
 $('rpShare').onclick = () => {
   if (!replay) return;
-  const url = `${PUBLIC_DEMO}?replay=${encodeGame(replay.moves)}`;
+  const url = `${PUBLIC_DEMO}?replay=${encodeGame(replay.moves)}${replay.kind === 'chess' ? '&game=chess' : ''}`;
   navigator.clipboard?.writeText(url).then(() => toast(t('replay.copied')), () => {});
 };
 window.addEventListener('keydown', (e) => {
@@ -532,8 +585,9 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'Escape') closeReplay();
 });
 {
-  const code = new URLSearchParams(location.search).get('replay');
-  if (code) { const m = decodeGame(code); if (m) replayFromUrl = m; else setTimeout(() => toast(t('replay.bad')), 500); }
+  const qs = new URLSearchParams(location.search);
+  const code = qs.get('replay'), k = qs.get('game') === 'chess' ? 'chess' : 'trid';
+  if (code) { const m = decodeGame(code, k); if (m) replayFromUrl = { moves: m, k }; else setTimeout(() => toast(t('replay.bad')), 500); }
 }
 
 // --- victory celebration -------------------------------------------------------------
@@ -780,7 +834,8 @@ window.addEventListener('resize', () => {
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const t = clock.getElapsedTime();
-  scene.getObjectByName('stars').rotation.y = t * 0.004;
+  if (kind === 'chess') chessView.update(t);
+  else scene.getObjectByName('stars').rotation.y = t * 0.004;
   ringMove.opacity = 0.6 + 0.3 * Math.sin(t * 4);
   if (anim) {
     const k = Math.min(1, (performance.now() - anim.t0) / anim.dur);

@@ -26,4 +26,8 @@ copyDir(nm('@trystero-p2p/nostr/dist'), out('trystero-nostr'));
 mkdirSync(out('noble-secp256k1'), { recursive: true });
 cpSync(nm('@noble/secp256k1/index.js'), out('noble-secp256k1/index.js'));
 
-console.log('vendored three.js + trystero →', 'public/vendor');
+// chess.js (classic chess rules, BSD-2): one ESM file, mapped as "chess.js"
+mkdirSync(out('chess.js'), { recursive: true });
+cpSync(nm('chess.js/dist/esm/chess.js'), out('chess.js/chess.js'));
+
+console.log('vendored three.js + trystero + chess.js →', 'public/vendor');

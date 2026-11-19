@@ -6,14 +6,16 @@ import { Worker } from 'node:worker_threads';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
-import { Game, RULES_TEXT } from './src/engine.js';
+import { createGame, isKind, rulesText } from './src/games.js';
 import { LEVELS as AI_LEVELS, STYLES as AI_STYLES } from './src/ai.js';
 
 const PORT = Number(process.env.PORT || 47321);
 const HOST = process.env.HOST || '127.0.0.1';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const game = new Game({ white: 'human', black: 'ai' });
+// The game being played; its kind ('trid' | 'chess') is chosen when a new game starts.
+let game = createGame('trid', { white: 'human', black: 'ai' });
+const KIND_NAMES = { trid: 'Tri-D chess (Meder rules)', chess: 'classic chess' };
 const bus = new EventEmitter();
 bus.setMaxListeners(100);
 const changed = () => { bus.emit('change', game.snapshot()); scheduleComputer(); };
@@ -57,7 +59,7 @@ function scheduleComputer() {
     const { level, style } = game.computer[turn];
     const id = ++aiRequest;
     pendingTurn = { id, gameId, version, turn };
-    getWorker().postMessage({ id, pos: game.pos, color: turn, level, style, recent: recent[turn] });
+    getWorker().postMessage({ id, kind: game.kind, pos: game.pos, color: turn, level, style, recent: recent[turn] });
   }, COMPUTER_DELAY);
 }
 const PLAYER_TYPES = ['human', 'ai', 'computer', 'remote'];
@@ -77,6 +79,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/engine.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/engine.js')));
+app.get('/chess2d.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/chess2d.js')));
 
 // --- REST API for the 3D UI --------------------------------------------------
 
@@ -106,7 +109,8 @@ app.post('/api/move', (req, res) => {
 });
 
 app.post('/api/new', (req, res) => {
-  const { white = 'human', black = 'ai', computer = {} } = req.body || {};
+  const { white = 'human', black = 'ai', computer = {}, kind = game.kind } = req.body || {};
+  if (!isKind(kind)) return res.status(400).json({ error: 'kind must be "trid" or "chess"' });
   const perr = playersError(white, black);
   if (perr) return res.status(409).json({ error: perr });
   const cfg = {};
@@ -117,7 +121,7 @@ app.post('/api/new', (req, res) => {
     cfg[c] = { level: Number(level), style };
   }
   recent.white = []; recent.black = [];
-  game.reset({ white, black, computer: cfg });
+  game = createGame(kind, { white, black, computer: cfg });
   changed();
   res.json({ ok: true });
 });
@@ -169,11 +173,12 @@ app.post('/api/net-room', (req, res) => {
 });
 
 app.post('/api/net-sync', (req, res) => {
-  const { white, black, moves = [], resigned = null } = req.body || {};
+  const { white, black, moves = [], resigned = null, kind = game.kind } = req.body || {};
+  if (!isKind(kind)) return res.status(400).json({ error: 'bad game kind' });
   const perr = playersError(white, black);
   if (perr) return res.status(409).json({ error: perr });
   recent.white = []; recent.black = [];
-  game.reset({ white, black });
+  game = createGame(kind, { white, black });
   try {
     for (const m of moves) game.move(m.from, m.to, m.promotion);
     if (resigned && game.status === 'playing') game.resign(resigned);
@@ -207,7 +212,7 @@ function describe(me = null) {
   const list = (v) => Object.entries(s.players).filter(([, p]) => p === v).map(([c]) => c).join(', ') || 'none';
   const myTurn = me ? s.status === 'playing' && s.turn === me && s.players[me] === 'ai' : s.status === 'playing' && s.players[s.turn] === 'ai';
   const head = [
-    `Game ${s.id} — status: ${s.status}${s.winner ? `, winner: ${s.winner}` : ''}`,
+    `Game ${s.id} (${KIND_NAMES[s.kind] || s.kind}) — status: ${s.status}${s.winner ? `, winner: ${s.winner}` : ''}`,
     `Turn: ${s.turn}${s.check ? ' (IN CHECK)' : ''}`,
     `AI (MCP) plays: ${list('ai')} | human plays: ${list('human')} | built-in computer plays: ${list('computer')}`,
     me ? `You play: ${me}` : null,
@@ -227,7 +232,7 @@ function buildMcp(urlColor = null) {
   mcp.registerTool('get_rules', {
     description: 'Explain the board geometry, square naming and movement rules of this tri-dimensional chess variant. Read this first.',
     inputSchema: {},
-  }, async () => text(RULES_TEXT + (urlColor ? `\n\nThis MCP connection plays ${urlColor}.` : '')));
+  }, async () => text(`Current game: ${KIND_NAMES[game.kind]}.\n\n` + rulesText(game.kind) + (urlColor ? `\n\nThis MCP connection plays ${urlColor}.` : '')));
 
   mcp.registerTool('get_game_state', {
     description: 'Current game state: whose turn, your color, status, a text render of every level and the legal moves for the side to move.',
@@ -244,7 +249,7 @@ function buildMcp(urlColor = null) {
   });
 
   mcp.registerTool('make_move', {
-    description: 'Play a move for your (AI) color. Piece move: squares file+rank+level, e.g. from "b2W" to "b4N". Attack-board move: pins, e.g. from "QL1" to "QL3". See get_rules.',
+    description: 'Play a move for your (AI) color. Tri-D: squares file+rank+level, e.g. from "b2W" to "b4N"; classic chess: from "e2" to "e4". Attack-board move: pins, e.g. from "QL1" to "QL3". See get_rules.',
     inputSchema: {
       from: z.string().describe('Origin square (e.g. "b2W"), attack-board pin (e.g. "QL1"), or "0-0" / "0-0-0" to castle'),
       to: z.string().describe('Destination square (e.g. "b4N") or empty pin (e.g. "QL3"); ignored for "0-0"/"0-0-0"'),
@@ -295,14 +300,15 @@ function buildMcp(urlColor = null) {
       white_style: z.enum(['balanced', 'aggressive', 'cautious']).default('balanced').describe('White built-in computer style'),
       black_level: z.number().int().min(1).max(5).default(3).describe('Black built-in computer strength: 1 beginner .. 5 master'),
       black_style: z.enum(['balanced', 'aggressive', 'cautious']).default('balanced').describe('Black built-in computer style'),
+      kind: z.enum(['trid', 'chess']).optional().describe('Which game: "trid" (3D chess, Meder rules) or "chess" (classic chess). Default: the current one'),
     },
-  }, async ({ white, black, white_level, white_style, black_level, black_style }) => {
+  }, async ({ white, black, white_level, white_style, black_level, black_style, kind }) => {
     if (netRoom || Object.values(game.players).includes('remote') && game.status === 'playing')
       return fail('A human-vs-human network game is in progress on this board; new_game is not available until it ends.');
     const perr = playersError(white, black);
     if (perr) return fail(perr);
     recent.white = []; recent.black = [];
-    game.reset({ white, black, computer: { white: { level: white_level, style: white_style }, black: { level: black_level, style: black_style } } });
+    game = createGame(kind || game.kind, { white, black, computer: { white: { level: white_level, style: white_style }, black: { level: black_level, style: black_style } } });
     changed();
     return text(`New game started.\n\n${describe(urlColor)}`);
   });

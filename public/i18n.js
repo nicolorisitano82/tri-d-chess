@@ -18,6 +18,7 @@ const STRINGS = {
     'status.computer': 'Il computer pensa ({c})…', 'status.remote': "Mossa dell'avversario in rete ({c})…",
     'status.ai': "In attesa dell'AI ({c})…", 'status.you': 'Tocca a te ({c}) · {n} mosse',
 
+    'ui.game': 'Gioco', 'game.trid': 'Scacchi 3D (Tri-D)', 'game.chess': 'Scacchi classici', 'ui.switchConfirm': 'Cambiare gioco? La partita in corso verrà chiusa.',
     'ui.turn': 'Turno', 'ui.log': 'Registro mosse', 'ui.newGame': 'Nuova partita', 'ui.resign': 'Abbandona',
     'ui.confirm': 'Conferma?', 'ui.view': 'Vista', 'ui.stats': 'Statistiche', 'ui.statsHide': 'Nascondi (S)',
     'ui.statsShow': 'Mostra statistiche (S)', 'ui.options': 'Opzioni', 'ui.close': 'Chiudi',
@@ -94,6 +95,7 @@ const STRINGS = {
     'status.computer': 'Computer thinking ({c})…', 'status.remote': 'Waiting for the online opponent ({c})…',
     'status.ai': 'Waiting for the AI ({c})…', 'status.you': 'Your move ({c}) · {n} moves',
 
+    'ui.game': 'Game', 'game.trid': '3D chess (Tri-D)', 'game.chess': 'Classic chess', 'ui.switchConfirm': 'Switch game? The current game will be closed.',
     'ui.turn': 'Turn', 'ui.log': 'Move log', 'ui.newGame': 'New game', 'ui.resign': 'Resign',
     'ui.confirm': 'Confirm?', 'ui.view': 'View', 'ui.stats': 'Stats', 'ui.statsHide': 'Hide (S)',
     'ui.statsShow': 'Show stats (S)', 'ui.options': 'Options', 'ui.close': 'Close',

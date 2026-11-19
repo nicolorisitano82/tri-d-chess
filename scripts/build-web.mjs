@@ -38,6 +38,14 @@ function asNamespace(src, { inject = '' } = {}) {
 
 const engineSrc = read('src/engine.js');
 const aiSrc = read('src/ai.js');
+const aiChessSrc = read('src/ai-chess.js');
+const chess2dSrc = read('src/chess2d.js');
+const chessViewSrc = read('public/chess-view.js');
+// chess.js is one ES module ending in a single export list: inline it in the worker as a namespace
+const chessJsSrc = read('node_modules/chess.js/dist/esm/chess.js');
+const CHESS_EXPORT = /^export \{[^}]*\};\s*$/m;
+if (!CHESS_EXPORT.test(chessJsSrc) || (chessJsSrc.match(/^export /gm) || []).length !== 1) throw new Error('build-web: unexpected chess.js export format');
+const chessJsNs = `(() => {\n${chessJsSrc.replace(CHESS_EXPORT, '')}\nreturn { Chess };\n})()`;
 const piecesSrc = read('public/pieces.js');
 const i18nSrc = read('public/i18n.js');
 const chatSrc = read('public/chat.js');
@@ -52,9 +60,11 @@ const html = read('public/index.html');
 const workerSrc = `
 const ENG = ${asNamespace(engineSrc)};
 const AI = ${asNamespace(aiSrc, { inject: `const { ${importNames(aiSrc, './engine.js')} } = ENG;` })};
+const CJS = ${chessJsNs};
+const AIC = ${asNamespace(aiChessSrc, { inject: 'const { Chess } = CJS; const { STYLES } = AI;' })};
 onmessage = (e) => {
-  const { id, pos, color, level, style, recent } = e.data;
-  const m = AI.chooseMove(pos, color, level, style, recent);
+  const { id, kind, pos, color, level, style, recent } = e.data;
+  const m = kind === 'chess' ? AIC.chooseMoveChess(pos, color, level, style, recent) : AI.chooseMove(pos, color, level, style, recent);
   postMessage({ id, m: m && { from: m.from, to: m.to, promotion: m.promotion || null } });
 };`;
 
@@ -82,7 +92,7 @@ appSrc = must(appSrc,
   const v = CAM_VIEWS[name];
   const narrow = window.matchMedia('(max-width: 700px), (max-height: 500px)').matches;
   const k = camera.aspect < 1 ? Math.min(1.8, 0.8 / camera.aspect) : 1;
-  const t = narrow ? [-0.5, 1.5, 0] : v.target;
+  const t = narrow ? (v.narrow || [-0.5, 1.5, 0]) : v.target;
   camera.position.set(...v.pos.map((p, i) => t[i] + (p - v.target[i]) * k));
   controls.target.set(...t);
   controls.update();
@@ -95,11 +105,22 @@ appSrc = must(appSrc,
 
 const localGame = `
 // --- local game: replaces the server's REST + SSE ------------------------------------
-const STORE_KEY = 'tridchess.web.game.v3';
-const game = new ENG.Game({ white: 'human', black: 'computer', computer: { black: { level: 3, style: 'aggressive' } } });
+const STORE_KEY = 'tridchess.web.game.v4';
+const createGame = (kind, opts) => (kind === 'chess' ? new ChessGame(opts) : new ENG.Game(opts));
+let game = createGame('trid', { white: 'human', black: 'computer', computer: { black: { level: 3, style: 'aggressive' } } });
 const recentMoves = { white: [], black: [] };
-const serialize = () => ({ id: game.id, pieces: game.pieces, boards: game.boards, turn: game.turn, players: game.players, history: game.history, status: game.status,
-  winner: game.winner, drawReason: game.drawReason, ep: game.ep, repetitions: game.repetitions, halfmoveClock: game.halfmoveClock, version: game.version, startedAt: game.startedAt, computer: game.computer });
+// saved as the move list (replayed on load), so every game kind restores the same way
+const serialize = () => ({ kind: game.kind, id: game.id, players: game.players, computer: game.computer, startedAt: game.startedAt,
+  moves: game.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || null, at: h.at })),
+  status: game.status, winner: game.winner, drawReason: game.drawReason });
+function restore(sv) {
+  const g = createGame(sv.kind === 'chess' ? 'chess' : 'trid', { white: sv.players.white, black: sv.players.black, computer: sv.computer });
+  for (const m of sv.moves || []) { const r = g.move(m.from, m.to, m.promotion); if (m.at) r.at = m.at; }
+  if (g.status === 'playing' && ['resigned', 'timeout', 'draw'].includes(sv.status)) { g.status = sv.status; g.winner = sv.winner || null; g.drawReason = sv.drawReason || null; }
+  if (sv.id) g.id = sv.id;
+  if (sv.startedAt) g.startedAt = sv.startedAt;
+  return g;
+}
 const worker = new Worker(URL.createObjectURL(new Blob([${JSON.stringify(workerSrc)}], { type: 'text/javascript' })));
 let thinkingId = 0;
 worker.onmessage = (e) => {
@@ -115,7 +136,7 @@ function scheduleComputer() {
   setTimeout(() => {
     if (id !== thinkingId || ver !== game.version) return;
     const { level, style } = game.computer[game.turn];
-    worker.postMessage({ id, pos: game.pos, color: game.turn, level, style, recent: recentMoves[game.turn] });
+    worker.postMessage({ id, kind: game.kind, pos: game.pos, color: game.turn, level, style, recent: recentMoves[game.turn] });
   }, 650);
 }
 function publish() {
@@ -136,7 +157,7 @@ async function post(url, body = {}) {
     if (url === '/api/net-room') { netRoom = !!body.open; return { ok: true }; }
     if ((url === '/api/new' || url === '/api/net-sync') && playersError(body.white, body.black)) throw new Error(playersError(body.white, body.black));
     if (url === '/api/new') {
-      game.reset({ white: body.white, black: body.black, computer: body.computer });
+      game = createGame(body.kind === 'chess' || body.kind === 'trid' ? body.kind : game.kind, { white: body.white, black: body.black, computer: body.computer });
       recentMoves.white = []; recentMoves.black = [];
     } else if (url === '/api/move') {
       if (game.players[game.turn] !== 'human') throw new Error(t('hint.notYourTurn'));
@@ -151,7 +172,7 @@ async function post(url, body = {}) {
       if (game.players[game.turn] !== 'remote' || body.n !== game.history.length) return { error: 'out of sync', expected: game.history.length };
       game.move(body.from, body.to, body.promotion);
     } else if (url === '/api/net-sync') {
-      game.reset({ white: body.white, black: body.black });
+      game = createGame(body.kind === 'chess' ? 'chess' : 'trid', { white: body.white, black: body.black });
       recentMoves.white = []; recentMoves.black = [];
       try { for (const m of body.moves || []) game.move(m.from, m.to, m.promotion); if (body.resigned && game.status === 'playing') game.resign(body.resigned); }
       catch (err) { publish(); return { error: err.message }; }
@@ -168,7 +189,7 @@ hot?.snapshot?.(() => ({ game: serialize() }));
 function boot(data) {
   let saved = data?.game || null;
   if (!saved) { try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch {} }
-  if (saved && saved.pieces && saved.players && saved.boards) Object.assign(game, saved);
+  if (saved && saved.players && Array.isArray(saved.moves)) { try { game = restore(saved); } catch {} }
   publish();
 }
 hot?.ready ? hot.ready(boot) : boot(hot?.data ?? {});
@@ -192,7 +213,10 @@ const mainSrc = `import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const ENG = ${asNamespace(engineSrc)};
 const { ${importNames(read('public/app.js'), '/engine.js')} } = ENG;
-const { buildPiece } = ${asNamespace(piecesSrc)};
+import { Chess } from 'chess.js';
+const { buildPiece: buildTriDPiece } = ${asNamespace(piecesSrc)};
+const { ChessGame } = ${asNamespace(chess2dSrc)};
+const { createChessView } = ${asNamespace(chessViewSrc)};
 const { ${importNames(read('public/app.js'), '/i18n.js')} } = ${asNamespace(i18nSrc)};
 ${appSrc}`;
 
@@ -258,8 +282,8 @@ body = must(body, '<select id="selB"><option value="human" data-i18n="name.human
 const importMap = PAGES
   ? { three: './vendor/three/build/three.module.js', 'three/addons/': './vendor/three/examples/jsm/',
       '@trystero-p2p/core': './vendor/trystero-core/index.mjs', '@trystero-p2p/nostr': './vendor/trystero-nostr/index.mjs',
-      '@noble/secp256k1': './vendor/noble-secp256k1/index.js' }
-  : { three: `${THREE_CDN}/build/three.module.js`, 'three/addons/': `${THREE_CDN}/examples/jsm/` };
+      '@noble/secp256k1': './vendor/noble-secp256k1/index.js', 'chess.js': './vendor/chess.js/chess.js' }
+  : { three: `${THREE_CDN}/build/three.module.js`, 'three/addons/': `${THREE_CDN}/examples/jsm/`, 'chess.js': 'https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/esm/chess.js' };
 // ---- PWA (pages only): install button + service worker registration ----------------------
 const PWA_SRC = `
 const T = window.TriD, btn = document.getElementById('btnInstall');

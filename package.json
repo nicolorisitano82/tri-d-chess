@@ -1,6 +1,6 @@
 {
   "name": "tri-d-chess",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Three-dimensional chess on seven levels: Meder rules, computer opponent, P2P online play with chat, AI via MCP",
   "type": "module",
   "main": "electron/main.js",
@@ -9,7 +9,7 @@
     "app": "electron .",
     "dist": "electron-builder --mac dmg --arm64",
     "pack": "electron-builder --mac dir --arm64",
-    "test": "node test/engine.test.js && node test/rules.test.js",
+    "test": "node test/engine.test.js && node test/rules.test.js && node test/chess.test.js",
     "postinstall": "node scripts/vendor.mjs",
     "predist": "node scripts/vendor.mjs",
     "prepack": "node scripts/vendor.mjs",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
+    "chess.js": "1.4.0",
     "express": "^4.22.3",
     "three": "^0.170.0",
     "trystero": "0.26.0",
@@ -55,7 +56,8 @@
       "hardenedRuntime": false
     },
     "asarUnpack": [
-      "src/**"
+      "src/**",
+      "node_modules/chess.js/**"
     ]
   },
   "repository": {
