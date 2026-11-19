@@ -98,9 +98,22 @@
     .netpub { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; }
     .netpub input { accent-color: var(--orange); }
     .netname { width: 100%; margin-top: 6px; background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 6px; padding: 6px 8px; font-size: 13px; }
-    .lobby { margin-top: 10px; border-top: 1px solid #2a2340; padding-top: 8px; }
-    .lobbyhead { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
-    #lobbyList { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 150px; overflow-y: auto; }
+    .lobby { margin-top: 10px; border-top: 1px solid #2a2340; padding-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    #lobbyOpen { display: inline-flex; align-items: center; gap: 6px; }
+    .count { background: #000; color: var(--peach); border-radius: 9px; padding: 0 7px; font-size: 11px; letter-spacing: 0; }
+    .relaycount { font-size: 11px; color: var(--muted); }
+    .modal { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,6,.6); backdrop-filter: blur(3px); }
+    .modal[hidden] { display: none; }
+    .modalcard { width: min(520px, 100%); max-height: min(78vh, 640px); display: flex; flex-direction: column; gap: 10px; background: rgba(10,8,20,.97); border-left: 14px solid var(--lilac); border-radius: 0 16px 16px 0; padding: 14px 16px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+    .modalhead { display: flex; align-items: center; gap: 10px; }
+    #lobbyTitle { font-size: 16px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--lilac); }
+    .modalhead .relaycount { margin-left: auto; }
+    #lobbyClose { background: #1a1428; color: var(--text); padding: 2px 10px; font-size: 18px; border-radius: 10px; }
+    #lobbySearch { width: 100%; background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+    #lobbySearch:focus { outline: none; border-color: var(--orange); }
+    #lobbyList { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 120px; padding-right: 2px; }
+    .lobbyitem { position: relative; padding-right: 92px !important; }
+    .lobbyitem .lc { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--peach); letter-spacing: .1em; }
     .lobbyitem { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; background: #1a1428; border: 1px solid #443a5a; border-radius: 8px; padding: 6px 10px; color: var(--text); text-transform: none; letter-spacing: 0; font-weight: 400; }
     .lobbyitem:hover, .lobbyitem:focus-visible { border-color: var(--orange); filter: none; }
     .lobbyitem .ln { font-weight: 700; font-size: 13px; overflow-wrap: anywhere; }
@@ -232,8 +245,8 @@
           <button class="blue" id="netJoin" data-i18n="net.join">Entra</button>
         </div>
         <div class="lobby">
-          <div class="lobbyhead"><span data-i18n="lobby.title">Stanze aperte</span><span id="lobbyRelays"></span></div>
-          <div id="lobbyList" aria-live="polite"></div>
+          <button class="lilac" id="lobbyOpen" type="button" aria-haspopup="dialog" aria-controls="lobbyModal"><span data-i18n="lobby.title">Stanze aperte</span> <span id="lobbyCount" class="count" hidden>0</span></button>
+          <span id="lobbyRelays" class="relaycount"></span>
         </div>
       </div>
       <div id="netActive" hidden>
@@ -282,6 +295,18 @@
         <button data-p="N" data-i18n-title="piece.N" data-i18n-aria="piece.N"></button>
       </div>
       <button class="blue" id="promoCancel" data-i18n="promo.cancel">Annulla</button>
+    </div>
+  </div>
+
+  <div id="lobbyModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="lobbyTitle">
+    <div class="modalcard">
+      <div class="modalhead">
+        <span id="lobbyTitle" data-i18n="lobby.title">Stanze aperte</span>
+        <span id="lobbyModalRelays" class="relaycount"></span>
+        <button id="lobbyClose" type="button" data-i18n-aria="ui.close" data-i18n-title="ui.close">×</button>
+      </div>
+      <input id="lobbySearch" type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="lobby.search" data-i18n-aria="lobby.search" placeholder="Cerca per nome, codice, lingua…">
+      <div id="lobbyList" aria-live="polite"></div>
     </div>
   </div>
 

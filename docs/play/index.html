@@ -103,9 +103,22 @@
     .netpub { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text); text-transform: none; letter-spacing: 0; cursor: pointer; }
     .netpub input { accent-color: var(--orange); }
     .netname { width: 100%; margin-top: 6px; background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 6px; padding: 6px 8px; font-size: 13px; }
-    .lobby { margin-top: 10px; border-top: 1px solid #2a2340; padding-top: 8px; }
-    .lobbyhead { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
-    #lobbyList { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 150px; overflow-y: auto; }
+    .lobby { margin-top: 10px; border-top: 1px solid #2a2340; padding-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    #lobbyOpen { display: inline-flex; align-items: center; gap: 6px; }
+    .count { background: #000; color: var(--peach); border-radius: 9px; padding: 0 7px; font-size: 11px; letter-spacing: 0; }
+    .relaycount { font-size: 11px; color: var(--muted); }
+    .modal { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,6,.6); backdrop-filter: blur(3px); }
+    .modal[hidden] { display: none; }
+    .modalcard { width: min(520px, 100%); max-height: min(78vh, 640px); display: flex; flex-direction: column; gap: 10px; background: rgba(10,8,20,.97); border-left: 14px solid var(--lilac); border-radius: 0 16px 16px 0; padding: 14px 16px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+    .modalhead { display: flex; align-items: center; gap: 10px; }
+    #lobbyTitle { font-size: 16px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--lilac); }
+    .modalhead .relaycount { margin-left: auto; }
+    #lobbyClose { background: #1a1428; color: var(--text); padding: 2px 10px; font-size: 18px; border-radius: 10px; }
+    #lobbySearch { width: 100%; background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+    #lobbySearch:focus { outline: none; border-color: var(--orange); }
+    #lobbyList { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 120px; padding-right: 2px; }
+    .lobbyitem { position: relative; padding-right: 92px !important; }
+    .lobbyitem .lc { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--peach); letter-spacing: .1em; }
     .lobbyitem { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; background: #1a1428; border: 1px solid #443a5a; border-radius: 8px; padding: 6px 10px; color: var(--text); text-transform: none; letter-spacing: 0; font-weight: 400; }
     .lobbyitem:hover, .lobbyitem:focus-visible { border-color: var(--orange); filter: none; }
     .lobbyitem .ln { font-weight: 700; font-size: 13px; overflow-wrap: anywhere; }
@@ -269,8 +282,8 @@
           <button class="blue" id="netJoin" data-i18n="net.join">Entra</button>
         </div>
         <div class="lobby">
-          <div class="lobbyhead"><span data-i18n="lobby.title">Stanze aperte</span><span id="lobbyRelays"></span></div>
-          <div id="lobbyList" aria-live="polite"></div>
+          <button class="lilac" id="lobbyOpen" type="button" aria-haspopup="dialog" aria-controls="lobbyModal"><span data-i18n="lobby.title">Stanze aperte</span> <span id="lobbyCount" class="count" hidden>0</span></button>
+          <span id="lobbyRelays" class="relaycount"></span>
         </div>
       </div>
       <div id="netActive" hidden>
@@ -319,6 +332,18 @@
         <button data-p="N" data-i18n-title="piece.N" data-i18n-aria="piece.N"></button>
       </div>
       <button class="blue" id="promoCancel" data-i18n="promo.cancel">Annulla</button>
+    </div>
+  </div>
+
+  <div id="lobbyModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="lobbyTitle">
+    <div class="modalcard">
+      <div class="modalhead">
+        <span id="lobbyTitle" data-i18n="lobby.title">Stanze aperte</span>
+        <span id="lobbyModalRelays" class="relaycount"></span>
+        <button id="lobbyClose" type="button" data-i18n-aria="ui.close" data-i18n-title="ui.close">×</button>
+      </div>
+      <input id="lobbySearch" type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="lobby.search" data-i18n-aria="lobby.search" placeholder="Cerca per nome, codice, lingua…">
+      <div id="lobbyList" aria-live="polite"></div>
     </div>
   </div>
 
@@ -1215,7 +1240,7 @@ const STRINGS = {
     'net.waitingPublic': "In attesa dell'avversario… (visibile nella lobby)",
     'lobby.title': 'Stanze aperte', 'lobby.public': 'Mostra nella lobby pubblica', 'lobby.name': 'Il tuo nome (facoltativo)',
     'lobby.empty': 'Nessuna stanza in attesa: creane una!', 'lobby.searching': 'Collegamento alla lobby…', 'lobby.anon': 'Giocatore anonimo',
-    'lobby.youPlay': 'Giochi col {c}', 'lobby.now': 'adesso', 'lobby.min': 'da {n} min', 'lobby.relays': '{n} relay', 'lobby.join': 'Entra nella stanza', 'lobby.noAnswer': 'La stanza non risponde: forse è già piena o chiusa',
+    'lobby.youPlay': 'Giochi col {c}', 'lobby.now': 'adesso', 'lobby.min': 'da {n} min', 'lobby.relays': '{n} relay', 'lobby.join': 'Entra nella stanza', 'lobby.noAnswer': 'La stanza non risponde: forse è già piena o chiusa', 'lobby.search': 'Cerca per nome, codice, lingua, colore…', 'lobby.noMatch': 'Nessuna stanza corrisponde alla ricerca',
     'chat.title': 'Chat', 'chat.send': 'Invia', 'chat.placeholder': 'Scrivi un messaggio…', 'chat.emoji': 'Emoticon',
     'chat.reactions': 'Reazioni', 'chat.me': 'Tu', 'chat.them': 'Avversario', 'chat.wait': 'attendi {s}s',
     'chat.tooManyEmoji': 'Massimo {n} emoticon per messaggio', 'chat.joined': "L'avversario è nella stanza",
@@ -1283,7 +1308,7 @@ const STRINGS = {
     'net.waitingPublic': 'Waiting for an opponent… (listed in the lobby)',
     'lobby.title': 'Open rooms', 'lobby.public': 'List in the public lobby', 'lobby.name': 'Your name (optional)',
     'lobby.empty': 'No rooms waiting: create one!', 'lobby.searching': 'Connecting to the lobby…', 'lobby.anon': 'Anonymous player',
-    'lobby.youPlay': 'You play {c}', 'lobby.now': 'just now', 'lobby.min': '{n} min', 'lobby.relays': '{n} relays', 'lobby.join': 'Join this room', 'lobby.noAnswer': 'The room does not answer: it may be full or closed',
+    'lobby.youPlay': 'You play {c}', 'lobby.now': 'just now', 'lobby.min': '{n} min', 'lobby.relays': '{n} relays', 'lobby.join': 'Join this room', 'lobby.noAnswer': 'The room does not answer: it may be full or closed', 'lobby.search': 'Search by name, code, language, colour…', 'lobby.noMatch': 'No rooms match your search',
     'chat.title': 'Chat', 'chat.send': 'Send', 'chat.placeholder': 'Write a message…', 'chat.emoji': 'Emoji',
     'chat.reactions': 'Reactions', 'chat.me': 'You', 'chat.them': 'Opponent', 'chat.wait': 'wait {s}s',
     'chat.tooManyEmoji': 'At most {n} emoji per message', 'chat.joined': 'Your opponent is in the room',
@@ -2811,18 +2836,33 @@ function saveName() {
   return v;
 }
 const ago = (sec) => { const m = Math.floor(Math.max(0, Date.now() / 1000 - sec) / 60); return m < 1 ? t('lobby.now') : t('lobby.min', { n: m }); };
+const fold = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// Room matches the search text: name, code, language and the colour *you* would play (as listed)
+function matches(r, q) {
+  if (!q) return true;
+  const mine = other(r.hostColor);
+  const hay = fold([r.name || t('lobby.anon'), r.code, r.lang, IT[mine], mine, t('lobby.youPlay', { c: IT[mine] })].join(' '));
+  return fold(q).split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
+}
 function renderLobby() {
+  const relays = lobbyState.relays ? t('lobby.relays', { n: lobbyState.relays }) : '';
+  $('lobbyRelays').textContent = relays;
+  $('lobbyCount').textContent = String(lobbyRooms.length);
+  $('lobbyCount').hidden = !lobbyRooms.length;
+  if ($('lobbyModal').hidden) return;
+  $('lobbyModalRelays').textContent = relays;
   const box = $('lobbyList');
   box.textContent = '';
-  $('lobbyRelays').textContent = lobbyState.relays ? t('lobby.relays', { n: lobbyState.relays }) : '';
-  if (!lobbyRooms.length) {
+  const q = $('lobbySearch').value.trim();
+  const shown = lobbyRooms.filter((r) => matches(r, q));
+  if (!shown.length) {
     const p = document.createElement('div');
     p.className = 'lobbyempty';
-    p.textContent = !lobbyState.relays ? t('lobby.searching') : t('lobby.empty');
+    p.textContent = !lobbyState.relays ? t('lobby.searching') : lobbyRooms.length ? t('lobby.noMatch') : t('lobby.empty');
     box.append(p);
     return;
   }
-  for (const r of lobbyRooms) {
+  for (const r of shown) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'lobbyitem';
@@ -2832,12 +2872,32 @@ function renderLobby() {
     const meta = document.createElement('span');
     meta.className = 'lm';
     meta.textContent = `${t('lobby.youPlay', { c: IT[other(r.hostColor)] })} · ${r.lang.toUpperCase()} · ${ago(r.since)}`;
-    b.append(name, meta);
+    const codeTag = document.createElement('code');
+    codeTag.className = 'lc';
+    codeTag.textContent = r.code;
+    b.append(name, meta, codeTag);
     b.title = t('lobby.join');
-    b.onclick = () => { $('netCode').value = r.code; join(); };
+    b.onclick = () => { closeLobby(); $('netCode').value = r.code; join(); };
     box.append(b);
   }
 }
+let lastFocus = null;
+function openLobby() {
+  lastFocus = document.activeElement;
+  $('lobbyModal').hidden = false;
+  renderLobby();
+  setTimeout(() => $('lobbySearch').focus(), 30);
+}
+function closeLobby() {
+  if ($('lobbyModal').hidden) return;
+  $('lobbyModal').hidden = true;
+  lastFocus?.focus?.();
+}
+$('lobbyOpen').onclick = openLobby;
+$('lobbyClose').onclick = closeLobby;
+$('lobbyModal').addEventListener('click', (e) => { if (e.target === $('lobbyModal')) closeLobby(); });
+$('lobbySearch').addEventListener('input', renderLobby);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('lobbyModal').hidden) { e.stopPropagation(); closeLobby(); } }, true);
 const lobby = createLobby({
   schnorr,
   onRooms: (list) => { lobbyRooms = list; renderLobby(); },
@@ -2846,6 +2906,7 @@ const lobby = createLobby({
 function lobbyView(on) {
   if (on === lobbyOn) return;
   lobbyOn = on;
+  if (!on) closeLobby();
   if (on) lobby.listen(); else lobby.unlisten();
 }
 onLangChange(renderLobby);

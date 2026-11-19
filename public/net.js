@@ -239,18 +239,33 @@ function saveName() {
   return v;
 }
 const ago = (sec) => { const m = Math.floor(Math.max(0, Date.now() / 1000 - sec) / 60); return m < 1 ? t('lobby.now') : t('lobby.min', { n: m }); };
+const fold = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// Room matches the search text: name, code, language and the colour *you* would play (as listed)
+function matches(r, q) {
+  if (!q) return true;
+  const mine = other(r.hostColor);
+  const hay = fold([r.name || t('lobby.anon'), r.code, r.lang, IT[mine], mine, t('lobby.youPlay', { c: IT[mine] })].join(' '));
+  return fold(q).split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
+}
 function renderLobby() {
+  const relays = lobbyState.relays ? t('lobby.relays', { n: lobbyState.relays }) : '';
+  $('lobbyRelays').textContent = relays;
+  $('lobbyCount').textContent = String(lobbyRooms.length);
+  $('lobbyCount').hidden = !lobbyRooms.length;
+  if ($('lobbyModal').hidden) return;
+  $('lobbyModalRelays').textContent = relays;
   const box = $('lobbyList');
   box.textContent = '';
-  $('lobbyRelays').textContent = lobbyState.relays ? t('lobby.relays', { n: lobbyState.relays }) : '';
-  if (!lobbyRooms.length) {
+  const q = $('lobbySearch').value.trim();
+  const shown = lobbyRooms.filter((r) => matches(r, q));
+  if (!shown.length) {
     const p = document.createElement('div');
     p.className = 'lobbyempty';
-    p.textContent = !lobbyState.relays ? t('lobby.searching') : t('lobby.empty');
+    p.textContent = !lobbyState.relays ? t('lobby.searching') : lobbyRooms.length ? t('lobby.noMatch') : t('lobby.empty');
     box.append(p);
     return;
   }
-  for (const r of lobbyRooms) {
+  for (const r of shown) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'lobbyitem';
@@ -260,12 +275,32 @@ function renderLobby() {
     const meta = document.createElement('span');
     meta.className = 'lm';
     meta.textContent = `${t('lobby.youPlay', { c: IT[other(r.hostColor)] })} · ${r.lang.toUpperCase()} · ${ago(r.since)}`;
-    b.append(name, meta);
+    const codeTag = document.createElement('code');
+    codeTag.className = 'lc';
+    codeTag.textContent = r.code;
+    b.append(name, meta, codeTag);
     b.title = t('lobby.join');
-    b.onclick = () => { $('netCode').value = r.code; join(); };
+    b.onclick = () => { closeLobby(); $('netCode').value = r.code; join(); };
     box.append(b);
   }
 }
+let lastFocus = null;
+function openLobby() {
+  lastFocus = document.activeElement;
+  $('lobbyModal').hidden = false;
+  renderLobby();
+  setTimeout(() => $('lobbySearch').focus(), 30);
+}
+function closeLobby() {
+  if ($('lobbyModal').hidden) return;
+  $('lobbyModal').hidden = true;
+  lastFocus?.focus?.();
+}
+$('lobbyOpen').onclick = openLobby;
+$('lobbyClose').onclick = closeLobby;
+$('lobbyModal').addEventListener('click', (e) => { if (e.target === $('lobbyModal')) closeLobby(); });
+$('lobbySearch').addEventListener('input', renderLobby);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('lobbyModal').hidden) { e.stopPropagation(); closeLobby(); } }, true);
 const lobby = createLobby({
   schnorr,
   onRooms: (list) => { lobbyRooms = list; renderLobby(); },
@@ -274,6 +309,7 @@ const lobby = createLobby({
 function lobbyView(on) {
   if (on === lobbyOn) return;
   lobbyOn = on;
+  if (!on) closeLobby();
   if (on) lobby.listen(); else lobby.unlisten();
 }
 onLangChange(renderLobby);
