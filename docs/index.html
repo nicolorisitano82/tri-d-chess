@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tri-D Chess</title>
+<meta name="description" content="Three-dimensional chess on seven levels with movable attack boards, Jens Meder's tournament rules, a computer opponent, peer-to-peer online play with chat, and AI players via MCP.">
+<meta property="og:title" content="Tri-D Chess">
+<meta property="og:description" content="3D chess on seven levels: Meder rules, computer opponent, online P2P play, AI via MCP.">
+<meta property="og:image" content="assets/board.jpg">
+<link rel="icon" href="assets/icon.png">
+<style>
+  /* Layout: a dark "console" page — orange/lilac/sky bars echo the game's own panels. */
+  :root {
+    color-scheme: dark;
+    --bg: #05040c;
+    --panel: #0f0c1c;
+    --line: #2a2340;
+    --text: #efe7dc;
+    --muted: #a59a8f;
+    --orange: #ff9c33;
+    --peach: #ffcc99;
+    --lilac: #cc99cc;
+    --sky: #66ccff;
+    --red: #ff5f6d;
+    --font: "Avenir Next", "Helvetica Neue", -apple-system, "Segoe UI", sans-serif;
+    --display: "Avenir Next Condensed", "Helvetica Neue", "Arial Narrow", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html[data-lang="it"] [lang="en"], html[data-lang="en"] [lang="it"] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--font); }
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(1px 1px at 20% 30%, #fff8 50%, transparent 51%), radial-gradient(1px 1px at 70% 20%, #fff6 50%, transparent 51%),
+      radial-gradient(1px 1px at 40% 80%, #fff5 50%, transparent 51%), radial-gradient(1px 1px at 85% 65%, #fff7 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 10% 70%, #fff6 50%, transparent 51%), radial-gradient(1px 1px at 55% 50%, #fff4 50%, transparent 51%);
+    background-size: 380px 380px, 520px 520px, 440px 440px, 610px 610px, 700px 700px, 300px 300px; }
+  a { color: var(--sky); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+  header { position: sticky; top: 0; z-index: 10; background: rgba(5,4,12,.85); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  header .wrap { display: flex; align-items: center; gap: 14px; padding-block: 10px; }
+  .brand { display: flex; align-items: center; gap: 10px; font: 700 18px var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--text); text-decoration: none; }
+  .brand img { width: 34px; height: 34px; }
+  header nav { margin-left: auto; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  header nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  header nav a:hover { color: var(--text); }
+  .lang { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font: 600 12px var(--font); letter-spacing: .12em; cursor: pointer; }
+
+  .hero { padding-block: 56px 40px; display: grid; grid-template-columns: 1fr; gap: 28px; }
+  .eyebrow { display: inline-block; background: var(--orange); color: #000; font: 700 12px var(--display); letter-spacing: .3em; text-transform: uppercase; padding: 6px 14px 6px 18px; border-radius: 16px 4px 4px 16px; }
+  h1 { font: 700 clamp(40px, 7vw, 76px)/1.02 var(--display); letter-spacing: .02em; margin: 14px 0 12px; text-wrap: balance; }
+  h1 em { font-style: normal; color: var(--orange); }
+  .lede { max-width: 62ch; color: #d9cfc4; font-size: 18px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font: 700 14px var(--font); letter-spacing: .08em; text-transform: uppercase; padding: 12px 20px; border-radius: 22px; color: #000; }
+  .btn.orange { background: var(--orange); } .btn.lilac { background: var(--lilac); } .btn.sky { background: var(--sky); }
+  .btn:hover { filter: brightness(1.12); }
+  .shot { margin: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0,0,0,.6); background: #000; }
+  .shot img { display: block; width: 100%; height: auto; max-width: 100%; }
+  figcaption { font-size: 13px; color: var(--muted); padding: 10px 14px; background: var(--panel); }
+
+  section { padding-block: 44px; }
+  .bar { font: 700 14px var(--display); letter-spacing: .24em; text-transform: uppercase; color: #000; padding: 8px 18px; border-radius: 18px 4px 4px 18px; display: inline-block; margin-bottom: 18px; }
+  h2 { font: 700 clamp(26px, 3.6vw, 36px)/1.15 var(--display); margin: 0 0 14px; text-wrap: balance; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-left: 10px solid var(--accent, var(--lilac)); border-radius: 0 12px 12px 0; padding: 16px 18px; }
+  .card h3 { margin: 0 0 6px; font: 700 17px var(--display); letter-spacing: .06em; text-transform: uppercase; }
+  .card p { margin: 0; color: #d4cabf; font-size: 15px; }
+  .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; padding: 0; list-style: none; margin: 0; }
+  .rules li { padding-left: 18px; position: relative; color: #d9cfc4; }
+  .rules li::before { content: ""; position: absolute; left: 0; top: .7em; width: 8px; height: 8px; border-radius: 2px; background: var(--orange); }
+  code, pre { font-family: var(--mono); }
+  code { background: #1a1530; padding: 1px 6px; border-radius: 4px; font-size: .9em; color: var(--peach); }
+  pre { background: #0b0916; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.5; color: #e9ddcd; margin: 8px 0 16px; }
+  .steps h3 { font: 700 16px var(--display); letter-spacing: .08em; text-transform: uppercase; margin: 18px 0 4px; color: var(--peach); }
+  .note { color: var(--muted); font-size: 14px; }
+  footer { border-top: 1px solid var(--line); padding-block: 26px 40px; color: var(--muted); font-size: 14px; }
+  footer p { margin: 6px 0; max-width: 80ch; }
+
+  @media (min-width: 900px) { .hero { grid-template-columns: 0.9fr 1.1fr; align-items: center; } }
+  @media (max-width: 860px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { .grid, .two, .rules { grid-template-columns: 1fr; } header nav a.hide-sm { display: none; } .hero { padding-block: 32px 24px; } }
+  @media (prefers-reduced-motion: no-preference) { .shot img { transition: transform .6s ease; } .shot:hover img { transform: scale(1.015); } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="assets/icon.png" alt="">Tri-D Chess</a>
+    <nav>
+      <a class="hide-sm" href="#features"><span lang="it">Caratteristiche</span><span lang="en">Features</span></a>
+      <a class="hide-sm" href="#rules"><span lang="it">Regole</span><span lang="en">Rules</span></a>
+      <a href="#install"><span lang="it">Installa</span><span lang="en">Install</span></a>
+      <a href="https://github.com/nicolorisitano82/tri-d-chess">GitHub</a>
+      <button class="lang" id="lang" type="button" aria-label="Language / Lingua">IT</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <span class="eyebrow"><span lang="it">Scacchi su sette livelli</span><span lang="en">Chess on seven levels</span></span>
+      <h1><span lang="it">Gli scacchi <em>tridimensionali</em>, giocabili davvero.</span><span lang="en"><em>Three-dimensional</em> chess, for real.</span></h1>
+      <p class="lede">
+        <span lang="it">Tre tavole fisse, quattro tavole d'attacco che si spostano con i pezzi sopra, le regole da torneo di Jens Meder. Gioca contro il computer, contro un amico in rete senza server, oppure lascia giocare un'AI tramite MCP.</span>
+        <span lang="en">Three fixed boards, four attack boards that move with the pieces on them, and Jens Meder's tournament rules. Play the computer, a friend online with no game server, or let an AI play through MCP.</span>
+      </p>
+      <div class="cta">
+        <a class="btn orange" href="play/"><span lang="it">Gioca nel browser</span><span lang="en">Play in your browser</span></a>
+        <a class="btn lilac" href="https://github.com/nicolorisitano82/tri-d-chess/releases"><span lang="it">Scarica per macOS</span><span lang="en">Download for macOS</span></a>
+        <a class="btn sky" href="https://github.com/nicolorisitano82/tri-d-chess"><span lang="it">Codice sorgente</span><span lang="en">Source code</span></a>
+      </div>
+    </div>
+    <figure class="shot">
+      <img src="assets/board.jpg" width="1600" height="964" alt="The 3D board in mid-game: three main levels, attack boards, move log and statistics panel">
+      <figcaption><span lang="it">Partita in corso: registro mosse, statistiche e tavole d'attacco ai quattro angoli.</span><span lang="en">A game in progress: move log, statistics and attack boards at the four corners.</span></figcaption>
+    </figure>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <span class="bar" style="background:var(--lilac)"><span lang="it">Caratteristiche</span><span lang="en">Features</span></span>
+      <div class="grid">
+        <div class="card" style="--accent:var(--orange)"><h3><span lang="it">Regole ufficiali</span><span lang="en">Official rules</span></h3><p><span lang="it">Le regole da torneo di Meder: arrocco, en passant, promozione a scelta per colonna, patte per ripetizione e materiale.</span><span lang="en">Meder's tournament rules: castling, en passant, per-file promotion with a choice of piece, draws by repetition and material.</span></p></div>
+        <div class="card" style="--accent:var(--sky)"><h3><span lang="it">Tavole mobili</span><span lang="en">Movable boards</span></h3><p><span lang="it">Dodici agganci, spostamenti in avanti, di lato e all'indietro: le tavole d'attacco portano con sé i pezzi.</span><span lang="en">Twelve pins; boards move forward, sideways or back, carrying their pieces with them.</span></p></div>
+        <div class="card" style="--accent:var(--peach)"><h3><span lang="it">Computer</span><span lang="en">Computer</span></h3><p><span lang="it">Cinque livelli, da Principiante a Maestro, e tre stili: equilibrato, aggressivo, prudente. Diversi per Bianco e Nero.</span><span lang="en">Five levels from Beginner to Master and three styles: balanced, aggressive, cautious, set per side.</span></p></div>
+        <div class="card" style="--accent:var(--lilac)"><h3><span lang="it">In rete, senza server</span><span lang="en">Online, serverless</span></h3><p><span lang="it">Condividi un codice stanza: la partita viaggia direttamente tra i due browser via WebRTC, cifrata.</span><span lang="en">Share a room code: the game travels directly between the two browsers over encrypted WebRTC.</span></p></div>
+        <div class="card" style="--accent:var(--red)"><h3><span lang="it">Chat e reaction</span><span lang="en">Chat and reactions</span></h3><p><span lang="it">Messaggi brevi con emoticon e reaction animate, con limiti al minuto contro lo spam.</span><span lang="en">Short messages with emoji and animated reactions, rate-limited per minute against spam.</span></p></div>
+        <div class="card" style="--accent:var(--orange)"><h3><span lang="it">AI via MCP</span><span lang="en">AI via MCP</span></h3><p><span lang="it">Un server MCP integrato: collega Claude o un'altra AI a un colore, o due AI una contro l'altra.</span><span lang="en">A built-in MCP server: connect Claude or another AI to one colour, or let two AIs play each other.</span></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap two">
+      <figure class="shot">
+        <img src="assets/online.jpg" width="1600" height="964" alt="An online game with the chat panel open and a fire reaction rising over the board" loading="lazy">
+        <figcaption><span lang="it">Partita in rete con chat e reaction.</span><span lang="en">Online game with chat and a reaction.</span></figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="assets/victory.jpg" width="1600" height="964" alt="Victory screen: the winning king turns gold under a beam of light" loading="lazy">
+        <figcaption><span lang="it">Scacco matto: il re vincente diventa d'oro.</span><span lang="en">Checkmate: the winning king turns gold.</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="rules">
+    <div class="wrap">
+      <span class="bar" style="background:var(--orange)"><span lang="it">Regole in breve</span><span lang="en">Rules at a glance</span></span>
+      <h2><span lang="it">Una scacchiera, sette livelli</span><span lang="en">One chessboard, seven levels</span></h2>
+      <ul class="rules">
+        <li><span lang="it">Tre tavole 4×4 fisse (W, N, B) e quattro tavole d'attacco 2×2 su dodici agganci (QL1–QL6, KL1–KL6).</span><span lang="en">Three fixed 4×4 boards (W, N, B) and four 2×2 attack boards on twelve pins (QL1–QL6, KL1–KL6).</span></li>
+        <li><span lang="it">Una mossa è valida se lo è vista dall'alto; il pezzo sceglie su quale livello atterrare.</span><span lang="en">A move is legal if it is legal seen from above; the piece chooses the level it lands on.</span></li>
+        <li><span lang="it">Un pezzo blocca il passaggio su tutti i livelli; il cavallo salta.</span><span lang="en">A piece blocks movement on every level; knights jump.</span></li>
+        <li><span lang="it">Spostare una tavola d'attacco è una mossa: vuota o con un solo pezzo, avanti o di lato (indietro solo se vuota).</span><span lang="en">Moving an attack board is a move: empty or with one piece, forward or sideways (backwards only when empty).</span></li>
+        <li><span lang="it">Arrocco corto e lungo, en passant anche tra livelli, promozione sull'ultima traversa di ogni colonna.</span><span lang="en">King- and queen-side castling, en passant across levels, promotion on each file's last rank.</span></li>
+        <li><span lang="it">Patta per stallo, triplice ripetizione, materiale insufficiente e regola delle 50 mosse.</span><span lang="en">Draws by stalemate, threefold repetition, insufficient material and the 50-move rule.</span></li>
+      </ul>
+      <p class="note"><span lang="it">Riferimento:</span><span lang="en">Reference:</span> <a href="https://meder.spacechess.org/3dschach/chess3d.htm">Jens Meder — Tournament Rules for Three-Dimensional Chess</a>.</p>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap steps">
+      <span class="bar" style="background:var(--sky)"><span lang="it">Installa</span><span lang="en">Install</span></span>
+      <h2><span lang="it">Tre modi per giocare</span><span lang="en">Three ways to play</span></h2>
+
+      <h3><span lang="it">1 · Nel browser</span><span lang="en">1 · In the browser</span></h3>
+      <p><span lang="it">Apri la <a href="play/">demo</a>: computer, partite in rete con chat, italiano e inglese. Niente MCP, che richiede l'app.</span><span lang="en">Open the <a href="play/">demo</a>: computer, online games with chat, Italian and English. No MCP, which needs the app.</span></p>
+
+      <h3><span lang="it">2 · App per macOS</span><span lang="en">2 · macOS app</span></h3>
+      <p><span lang="it">Scarica il DMG dalle <a href="https://github.com/nicolorisitano82/tri-d-chess/releases">Release</a> e trascina l'app in Applicazioni. Non è firmata con un Developer ID: al primo avvio usa clic destro → Apri.</span><span lang="en">Download the DMG from <a href="https://github.com/nicolorisitano82/tri-d-chess/releases">Releases</a> and drag the app to Applications. It is not signed with a Developer ID: the first time, right-click → Open.</span></p>
+
+      <h3><span lang="it">3 · Dal codice sorgente</span><span lang="en">3 · From source</span></h3>
+      <pre><code>git clone https://github.com/nicolorisitano82/tri-d-chess.git
+cd tri-d-chess
+npm install
+npm start        # http://localhost:47321
+npm run app      # Electron app
+npm run dist     # macOS DMG in dist/</code></pre>
+
+      <h3><span lang="it">Collega un'AI (MCP)</span><span lang="en">Connect an AI (MCP)</span></h3>
+      <p><span lang="it">Con l'app o il server avviati, registra un endpoint per colore in Claude Code:</span><span lang="en">With the app or server running, register one endpoint per colour in Claude Code:</span></p>
+      <pre><code>claude mcp add --transport http tri-d-chess-white "http://localhost:47321/mcp?color=white"
+claude mcp add --transport http tri-d-chess-black "http://localhost:47321/mcp?color=black"</code></pre>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><span lang="it">Progetto amatoriale, non affiliato ad alcun marchio di fantascienza. Pezzi dal design originale.</span><span lang="en">A fan project, not affiliated with any science-fiction franchise. Original piece designs.</span></p>
+    <p><span lang="it">Realizzato con</span><span lang="en">Built with</span> <a href="https://threejs.org">Three.js</a>, <a href="https://github.com/dmotz/trystero">Trystero</a>, <a href="https://www.electronjs.org">Electron</a> <span lang="it">e il</span><span lang="en">and the</span> <a href="https://modelcontextprotocol.io">Model Context Protocol</a>.</p>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var KEY = 'tridchess.lang';
+    var saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) {}
+    var lang = saved === 'it' || saved === 'en' ? saved : ((navigator.language || 'en').toLowerCase().indexOf('it') === 0 ? 'it' : 'en');
+    var btn = document.getElementById('lang');
+    function apply() {
+      document.documentElement.dataset.lang = lang;
+      document.documentElement.lang = lang;
+      btn.textContent = lang === 'it' ? 'EN' : 'IT';
+    }
+    btn.addEventListener('click', function () {
+      lang = lang === 'it' ? 'en' : 'it';
+      try { localStorage.setItem(KEY, lang); } catch (e) {}
+      apply();
+    });
+    apply();
+  })();
+</script>
+</body>
+</html>

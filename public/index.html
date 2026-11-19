@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tri-D Chess</title>
+  <style>
+    :root {
+      --bg: #000006;
+      --orange: #ff9c33;
+      --peach: #ffcc99;
+      --lilac: #cc99cc;
+      --blue: #9999ff;
+      --sky: #66ccff;
+      --red: #ff5555;
+      --text: #f2e6d9;
+      --muted: #a89a8c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+      font-family: "Helvetica Neue", "Avenir Next Condensed", -apple-system, sans-serif; overflow: hidden; }
+    #scene { position: fixed; inset: 0; }
+    #panel { position: fixed; top: 16px; left: 16px; bottom: 16px; width: 300px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    #panel > * { pointer-events: auto; }
+    .bar { border-radius: 22px 6px 6px 22px; padding: 8px 16px; color: #000; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
+    .bar.title { background: var(--orange); font-size: 20px; border-radius: 30px 6px 6px 6px; padding: 14px 18px; }
+    .block { background: rgba(10, 8, 20, .78); border-left: 14px solid var(--lilac); border-radius: 0 10px 10px 0; padding: 10px 12px; backdrop-filter: blur(6px); }
+    .block.blue { border-left-color: var(--blue); }
+    .block.peach { border-left-color: var(--peach); }
+    .row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 2px 0; }
+    .row span:first-child { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+    #status { font-size: 17px; font-weight: 700; color: var(--peach); }
+    #status.alert { color: var(--red); }
+    #log { flex: 1; min-height: 80px; overflow-y: auto; font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.6; }
+    #log ol { margin: 0; padding-left: 28px; }
+    #log li.black { color: var(--lilac); }
+    #log li.white { color: var(--text); }
+    label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    select, button { font: inherit; font-size: 13px; }
+    select { background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 6px; padding: 4px 6px; }
+    button { border: 0; border-radius: 14px; padding: 7px 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; color: #000; }
+    button.orange { background: var(--orange); } button.blue { background: var(--blue); } button.lilac { background: var(--lilac); } button.red { background: var(--red); }
+    button:hover { filter: brightness(1.15); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; align-items: center; }
+    .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    code { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--sky); word-break: break-all; }
+    #hover { position: fixed; right: 16px; bottom: 16px; background: rgba(10,8,20,.78); border-right: 14px solid var(--orange); border-radius: 10px 0 0 10px; padding: 8px 12px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; min-width: 120px; text-align: right; }
+    #toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--red); color: #000; font-weight: 700; padding: 8px 18px; border-radius: 16px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    #toast.show { opacity: 1; }
+    .cpu { grid-column: 1 / -1; display: grid; grid-template-columns: 1.2fr 1fr; gap: 6px; margin: -2px 0 4px; padding-left: 10px; border-left: 2px solid var(--sky); }
+    .cpu[hidden] { display: none; }
+    #dragbar { display: none; }
+    body.app #dragbar { display: block; position: fixed; top: 0; left: 0; right: 0; height: 38px; -webkit-app-region: drag; z-index: 10; }
+    body.app #panel { top: 44px; }
+    body.app #toast { top: 44px; }
+
+    /* --- stats panel --- */
+    #stats { position: fixed; top: 16px; right: 16px; width: 290px; max-height: calc(100vh - 90px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+      transition: transform .35s ease, opacity .35s ease; z-index: 5; }
+    #stats.hidden { transform: translateX(calc(100% + 32px)); opacity: 0; pointer-events: none; }
+    #stats .bar { display: flex; justify-content: space-between; align-items: center; background: var(--sky); border-radius: 6px 22px 22px 6px; }
+    #stats .bar button { background: rgba(0,0,0,.25); color: #000; padding: 0 9px; border-radius: 10px; font-size: 15px; line-height: 20px; }
+    #statsTab { position: fixed; right: 0; top: 50%; transform: translateY(-50%); writing-mode: vertical-rl; background: var(--sky); color: #000; border-radius: 12px 0 0 12px;
+      padding: 14px 6px; font-weight: 700; letter-spacing: .15em; font-size: 11px; cursor: pointer; z-index: 4; transition: opacity .3s; }
+    #statsTab.gone { opacity: 0; pointer-events: none; }
+    .pcard { background: rgba(10, 8, 20, .82); border-right: 14px solid #c8d0dc; border-radius: 10px 0 0 10px; padding: 10px 12px; backdrop-filter: blur(6px); }
+    .pcard.black { border-right-color: #b0203a; }
+    .pcard.turn { box-shadow: 0 0 0 1px var(--peach) inset; }
+    .pcard .head { display: flex; justify-content: space-between; align-items: baseline; }
+    .pcard .name { font-size: 16px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .pcard .who { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+    .pcard .mat { display: flex; align-items: baseline; gap: 8px; margin: 4px 0 6px; }
+    .pcard .mat b { font-size: 26px; color: var(--peach); font-variant-numeric: tabular-nums; }
+    .pcard .adv { font-size: 12px; font-weight: 700; color: #66ffcc; }
+    .caps { min-height: 26px; font-size: 22px; line-height: 26px; letter-spacing: 1px; word-break: break-all; }
+    .caps .w { color: #e8eef6; text-shadow: 0 0 6px rgba(150,190,255,.6); } .caps .b { color: #d23a55; text-shadow: 0 0 6px rgba(255,60,90,.5); }
+    .caps .none { font-size: 12px; color: var(--muted); }
+    .sgrid { display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; font-size: 12px; margin-top: 6px; }
+    .sgrid span:nth-child(odd) { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: 10.5px; align-self: center; }
+    .sgrid span:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
+    .balance { height: 8px; border-radius: 4px; background: #b0203a; overflow: hidden; margin-top: 2px; }
+    .balance div { height: 100%; background: #e8eef6; transition: width .5s; }
+    body.app #stats { top: 44px; }
+    /* --- mcp commands --- */
+    .mcpline { margin-top: 6px; cursor: pointer; }
+    .mcpline .who { font-size: 11px; color: var(--peach); letter-spacing: .08em; text-transform: uppercase; }
+    .mcpline:hover code { color: #fff; }
+    .mcpnone { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .bar.title { display: flex; justify-content: space-between; align-items: center; }
+    button.lang { background: rgba(0,0,0,.22); color: #000; padding: 3px 10px; border-radius: 10px; font-size: 12px; letter-spacing: .12em; }
+    /* --- network play --- */
+    .netjoin { display: flex; gap: 6px; margin-top: 8px; }
+    .netjoin input { flex: 1; min-width: 0; background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 6px; padding: 6px 8px; font: 14px ui-monospace, Menlo, monospace; letter-spacing: .12em; text-transform: uppercase; }
+    button.mini { padding: 2px 8px; font-size: 10px; border-radius: 8px; }
+    #netRoom { font-size: 14px; letter-spacing: .14em; color: var(--peach); }
+    #netStatus.ok { color: #66ffcc; } #netStatus.warn { color: var(--peach); } #netStatus.err { color: var(--red); }
+    /* --- chat --- */
+    #chat { position: fixed; right: 16px; bottom: 64px; width: 300px; z-index: 8; display: flex; flex-direction: column; }
+    #chat[hidden] { display: none; }
+    .chatbar { align-self: flex-end; display: flex; gap: 8px; align-items: center; background: var(--sky); border-radius: 14px; }
+    #chatBadge { background: var(--red); color: #000; border-radius: 9px; padding: 0 7px; font-size: 11px; }
+    #chatBody { display: none; flex-direction: column; gap: 6px; margin-top: 6px; background: rgba(10,8,20,.9); border-right: 14px solid var(--sky); border-radius: 10px 0 0 10px; padding: 10px; backdrop-filter: blur(6px); }
+    #chat.open #chatBody { display: flex; }
+    #chatLog { height: 170px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.35; }
+    .cl { overflow-wrap: anywhere; } .cl .who { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin-right: 6px; }
+    .cl.me .who { color: var(--peach); } .cl.them .who { color: var(--sky); } .cl.sys { color: var(--muted); font-size: 11px; font-style: italic; }
+    .reacts { display: flex; gap: 4px; justify-content: space-between; position: relative; }
+    .reacts button { flex: 1; font-size: 20px; padding: 4px 0; background: #1a1428; border: 1px solid #443a5a; border-radius: 10px; }
+    .reacts button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(1); }
+    .reacts[data-wait]:not([data-wait=""])::after { content: attr(data-wait); position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: var(--peach); pointer-events: none; }
+    .chatin { display: flex; gap: 6px; }
+    .chatin input { flex: 1; min-width: 0; background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+    #emojiBtn { background: #1a1428; border: 1px solid #443a5a; padding: 4px 8px; font-size: 16px; }
+    #chatSend:disabled { opacity: .45; cursor: not-allowed; }
+    #emojiPicker { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; }
+    #emojiPicker[hidden] { display: none; }
+    #emojiPicker button { background: none; padding: 2px; font-size: 18px; }
+    .chatmeta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+    #chatCount.over { color: var(--red); } #chatLimit { color: var(--peach); }
+    body.chat-open #stats { max-height: calc(100vh - 430px); }
+    #reactLayer { position: fixed; inset: 0; pointer-events: none; z-index: 25; overflow: hidden; }
+    .react-pop { position: absolute; bottom: 8vh; font-size: 72px; line-height: 1; transform: translateX(-50%); animation: reactRise 2.6s cubic-bezier(.2,.8,.3,1) forwards; text-align: center; }
+    .react-pop.theirs { filter: drop-shadow(0 0 14px rgba(102,204,255,.8)); } .react-pop.mine { filter: drop-shadow(0 0 14px rgba(255,156,51,.8)); }
+    .react-tag { display: block; font-size: 11px; letter-spacing: .15em; text-transform: uppercase; color: var(--text); margin-top: 4px; }
+    .react-spark { position: absolute; bottom: 14vh; font-size: 22px; transform: translateX(-50%); animation: reactSpark 1.4s ease-out forwards; }
+    @keyframes reactRise { 0% { transform: translate(-50%, 40px) scale(.3); opacity: 0; } 15% { transform: translate(-50%, 0) scale(1.15); opacity: 1; } 30% { transform: translate(-50%, -20px) scale(1) rotate(-6deg); } 50% { transform: translate(-50%, -18vh) rotate(6deg); } 100% { transform: translate(-50%, -46vh) scale(.9) rotate(0); opacity: 0; } }
+    @keyframes reactSpark { 0% { transform: translate(-50%, 0) scale(.4); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), var(--dy)) scale(.9); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .react-pop, .react-spark { animation-duration: .01s; } }
+    @media (max-width: 700px) { #chat { left: 8px; right: 8px; width: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); } #chatLog { height: 22vh; } }
+    /* --- promotion picker --- */
+    #promo { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(0,0,6,.55); }
+    #promo[hidden] { display: none; }
+    .promocard { background: rgba(10,8,20,.95); border-left: 14px solid var(--orange); border-radius: 0 16px 16px 0; padding: 16px 20px; text-align: center; display: grid; gap: 10px; }
+    .promocard .eyebrow { font-size: 11px; letter-spacing: .4em; color: var(--peach); text-transform: uppercase; }
+    .promocard .ptitle { font-size: 16px; font-weight: 700; }
+    .prow { display: flex; gap: 10px; justify-content: center; }
+    .prow .pp { width: 60px; height: 60px; border-radius: 14px; font-size: 38px; line-height: 1; padding: 0; background: #1a1428; border: 1px solid #443a5a; }
+    .prow .pp.w { color: #e8eef6; } .prow .pp.b { color: #d23a55; }
+    .prow .pp:hover, .prow .pp:focus-visible { border-color: var(--orange); outline: none; }
+    /* --- victory overlay --- */
+    #victory { position: fixed; inset: 0; display: none; align-items: flex-end; justify-content: center; padding-bottom: 5vh; z-index: 20; pointer-events: none;
+      background: radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0) 35%, rgba(0,0,0,.6) 100%); }
+    #victory.show { display: flex; }
+    #victory .card { position: relative; text-align: center; padding: 34px 56px 26px; pointer-events: auto; animation: vin 1.1s cubic-bezier(.2,1.4,.4,1) both; }
+    #victory .rays { position: absolute; left: 50%; top: 50%; width: 900px; height: 900px; margin: -450px 0 0 -450px; border-radius: 50%; z-index: -1; opacity: .55;
+      background: repeating-conic-gradient(from 0deg, var(--vc) 0deg 5deg, transparent 5deg 15deg);
+      -webkit-mask: radial-gradient(circle, #000 0%, transparent 62%); mask: radial-gradient(circle, #000 0%, transparent 62%); animation: spin 24s linear infinite; }
+    #victory .eyebrow { font-size: 14px; letter-spacing: .5em; color: var(--peach); text-transform: uppercase; }
+    #victory h1 { margin: 6px 0 4px; font-size: clamp(40px, 8vw, 92px); letter-spacing: .14em; line-height: 1; text-transform: uppercase;
+      background: linear-gradient(180deg, #fff6d8 0%, #ffd36b 45%, #ff9c33 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(0 0 18px rgba(255,190,80,.65)); animation: glow 2.4s ease-in-out infinite; }
+    #victory .king { font-size: 70px; line-height: 1; color: var(--vk); filter: drop-shadow(0 0 22px var(--vc)); animation: float 3s ease-in-out infinite; }
+    #victory .sub { font-size: 17px; color: var(--text); letter-spacing: .06em; margin-top: 6px; }
+    #victory .meta { font-size: 13px; color: var(--muted); margin-top: 4px; letter-spacing: .08em; }
+    #victory .btns { justify-content: center; margin-top: 18px; }
+    #victory.draw h1 { background: linear-gradient(180deg, #e6ecf5, #9999ff); -webkit-background-clip: text; background-clip: text; filter: none; animation: none; }
+    #victory.draw .rays { display: none; }
+    @keyframes vin { 0% { transform: scale(.3); opacity: 0; filter: blur(12px); } 100% { transform: scale(1); opacity: 1; filter: blur(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes glow { 50% { filter: drop-shadow(0 0 34px rgba(255,210,120,.95)); } }
+    @keyframes float { 50% { transform: translateY(-8px); } }
+    @media (prefers-reduced-motion: reduce) { #victory .rays, #victory h1, #victory .king, #victory .card { animation: none; } }
+    @media (max-width: 700px) {
+      #stats { top: 16px; left: 16px; right: 16px; width: auto; max-height: 50vh; }
+      #panel { top: auto; left: 16px; right: 16px; width: auto; height: 44vh; bottom: 16px; }
+      .bar.title { font-size: 15px; padding: 8px 14px; }
+      #mcpblock { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <script>if (new URLSearchParams(location.search).has('app')) document.body.classList.add('app');</script>
+  <div id="dragbar"></div>
+  <div id="scene"></div>
+
+  <div id="panel">
+    <div class="bar title">Tri-D Chess <button id="langBtn" class="lang" data-i18n-title="ui.lang" data-i18n-aria="ui.lang">EN</button></div>
+    <div class="block">
+      <div id="status" data-i18n="status.connecting">Connessione…</div>
+      <div class="row"><span data-i18n="ui.turn">Turno</span><span id="turn">—</span></div>
+      <div class="row"><span data-i18n="name.white">Bianco</span><span id="pw">—</span></div>
+      <div class="row"><span data-i18n="name.black">Nero</span><span id="pb">—</span></div>
+    </div>
+    <div class="bar" style="background:var(--lilac)" data-i18n="ui.log">Registro mosse</div>
+    <div class="block blue" id="log"><ol id="moves"></ol></div>
+    <div class="block peach">
+      <div class="grid2">
+        <label for="selW" data-i18n="name.white">Bianco</label>
+        <select id="selW"><option value="human" data-i18n="name.human">Umano</option><option value="ai" data-i18n="opt.ai">AI (MCP)</option><option value="computer" data-i18n="name.computer">Computer</option><option value="remote" hidden data-i18n="name.remote">In rete</option></select>
+        <div class="cpu" id="cpuW" hidden>
+          <select id="lvlW" data-i18n-aria="ui.levelW"><option value="1" data-i18n="level.1">1</option><option value="2" data-i18n="level.2">2</option><option value="3" selected data-i18n="level.3">3</option><option value="4" data-i18n="level.4">4</option><option value="5" data-i18n="level.5">5</option></select>
+          <select id="styW" data-i18n-aria="ui.styleW"><option value="balanced" data-i18n="style.balanced">Equilibrato</option><option value="aggressive" data-i18n="style.aggressive">Aggressivo</option><option value="cautious" data-i18n="style.cautious">Prudente</option></select>
+        </div>
+        <label for="selB" data-i18n="name.black">Nero</label>
+        <select id="selB"><option value="human" data-i18n="name.human">Umano</option><option value="ai" data-i18n="opt.ai">AI (MCP)</option><option value="computer" data-i18n="name.computer">Computer</option><option value="remote" hidden data-i18n="name.remote">In rete</option></select>
+        <div class="cpu" id="cpuB" hidden>
+          <select id="lvlB" data-i18n-aria="ui.levelB"><option value="1" data-i18n="level.1">1</option><option value="2" data-i18n="level.2">2</option><option value="3" selected data-i18n="level.3">3</option><option value="4" data-i18n="level.4">4</option><option value="5" data-i18n="level.5">5</option></select>
+          <select id="styB" data-i18n-aria="ui.styleB"><option value="balanced" data-i18n="style.balanced">Equilibrato</option><option value="aggressive" data-i18n="style.aggressive">Aggressivo</option><option value="cautious" data-i18n="style.cautious">Prudente</option></select>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="orange" id="btnNew" data-i18n="ui.newGame">Nuova partita</button>
+        <button class="red" id="btnResign" data-i18n="ui.resign">Abbandona</button>
+        <button class="blue" id="btnCam" data-i18n="ui.view">Vista</button>
+        <button class="lilac" id="btnStats" data-i18n="ui.stats">Statistiche</button>
+      </div>
+    </div>
+    <div class="block blue" id="netblock">
+      <label data-i18n="net.title">Gioco in rete (P2P)</label>
+      <div id="netIdle">
+        <div class="grid2">
+          <label for="netColor" data-i18n="net.iPlay">Io gioco</label>
+          <select id="netColor"><option value="white" data-i18n="name.white">Bianco</option><option value="black" data-i18n="name.black">Nero</option><option value="random" data-i18n="net.random">Casuale</option></select>
+        </div>
+        <div class="btns"><button class="orange" id="netHost" data-i18n="net.host">Crea stanza</button></div>
+        <div class="netjoin">
+          <input id="netCode" data-i18n-placeholder="net.code" data-i18n-aria="net.code" placeholder="Codice stanza" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <button class="blue" id="netJoin" data-i18n="net.join">Entra</button>
+        </div>
+      </div>
+      <div id="netActive" hidden>
+        <div class="row"><span data-i18n="net.room">Stanza</span><span><code id="netRoom">—</code> <button class="lilac mini" id="netCopy" data-i18n="net.copy">Copia</button></span></div>
+        <div class="row"><span data-i18n="net.state">Stato</span><span id="netStatus">—</span></div>
+        <div class="row"><span data-i18n="net.you">Tu giochi</span><span id="netMe">—</span></div>
+        <div class="btns"><button class="red" id="netLeave" data-i18n="net.leave">Esci dalla stanza</button></div>
+      </div>
+    </div>
+    <div class="block" id="mcpblock">
+      <label data-i18n="mcp.title">Collega l'AI (MCP) · clic per copiare</label>
+      <div id="mcpcmd"></div>
+    </div>
+  </div>
+
+  <div id="stats" class="hidden" data-i18n-aria="ui.stats">
+    <div class="bar"><span data-i18n="ui.stats">Statistiche</span> <button id="statsClose" data-i18n-title="ui.statsHide">×</button></div>
+    <div class="pcard" id="card-white"></div>
+    <div class="pcard black" id="card-black"></div>
+  </div>
+  <div id="statsTab" data-i18n="ui.stats" data-i18n-title="ui.statsShow">Statistiche</div>
+
+  <div id="victory">
+    <div class="card">
+      <div class="rays"></div>
+      <div class="king" id="vKing">♚&#xFE0E;</div>
+      <div class="eyebrow" id="vEyebrow">Trionfo</div>
+      <h1 id="vTitle">Vittoria</h1>
+      <div class="sub" id="vSub"></div>
+      <div class="meta" id="vMeta"></div>
+      <div class="btns">
+        <button class="orange" id="vNew" data-i18n="ui.newGame">Nuova partita</button>
+        <button class="blue" id="vClose" data-i18n="victory.watch">Guarda la scacchiera</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="promo" hidden>
+    <div class="promocard">
+      <div class="eyebrow" data-i18n="promo.eyebrow">Promozione</div>
+      <div class="ptitle" data-i18n="promo.title">Scegli il nuovo pezzo</div>
+      <div class="prow">
+        <button data-p="Q" data-i18n-title="piece.Q" data-i18n-aria="piece.Q"></button>
+        <button data-p="R" data-i18n-title="piece.R" data-i18n-aria="piece.R"></button>
+        <button data-p="B" data-i18n-title="piece.B" data-i18n-aria="piece.B"></button>
+        <button data-p="N" data-i18n-title="piece.N" data-i18n-aria="piece.N"></button>
+      </div>
+      <button class="blue" id="promoCancel" data-i18n="promo.cancel">Annulla</button>
+    </div>
+  </div>
+
+  <div id="chat" hidden>
+    <button id="chatToggle" class="chatbar" type="button"><span data-i18n="chat.title">Chat</span><span id="chatBadge" hidden>0</span></button>
+    <div id="chatBody">
+      <div id="chatLog" aria-live="polite"></div>
+      <div class="reacts" id="reacts" data-i18n-aria="chat.reactions"></div>
+      <div class="chatin">
+        <button id="emojiBtn" type="button" data-i18n-title="chat.emoji" data-i18n-aria="chat.emoji">😊</button>
+        <input id="chatInput" maxlength="512" autocomplete="off" data-i18n-placeholder="chat.placeholder" data-i18n-aria="chat.placeholder">
+        <button id="chatSend" class="orange" type="button" data-i18n="chat.send">Invia</button>
+      </div>
+      <div id="emojiPicker" hidden></div>
+      <div class="chatmeta"><span id="chatLimit"></span><span id="chatCount">0/512</span></div>
+    </div>
+  </div>
+  <div id="reactLayer" aria-hidden="true"></div>
+
+  <div id="hover">—</div>
+  <div id="toast"></div>
+
+  <script type="importmap">
+    { "imports": {
+        "three": "/vendor/three/build/three.module.js",
+        "three/addons/": "/vendor/three/examples/jsm/",
+        "@trystero-p2p/core": "/vendor/trystero-core/index.mjs",
+        "@trystero-p2p/nostr": "/vendor/trystero-nostr/index.mjs",
+        "@noble/secp256k1": "/vendor/noble-secp256k1/index.js"
+    } }
+  </script>
+  <script type="module" src="/app.js"></script>
+  <script type="module" src="/net.js"></script>
+</body>
+</html>

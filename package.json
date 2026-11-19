@@ -1,0 +1,63 @@
+{
+  "name": "tri-d-chess",
+  "version": "0.8.0",
+  "description": "Three-dimensional chess on seven levels: Meder rules, computer opponent, P2P online play with chat, AI via MCP",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "app": "electron .",
+    "dist": "electron-builder --mac dmg --arm64",
+    "pack": "electron-builder --mac dir --arm64",
+    "test": "node test/engine.test.js && node test/rules.test.js",
+    "postinstall": "node scripts/vendor.mjs",
+    "predist": "node scripts/vendor.mjs",
+    "prepack": "node scripts/vendor.mjs",
+    "preapp": "node scripts/vendor.mjs",
+    "prestart": "node scripts/vendor.mjs",
+    "web": "node scripts/build-web.mjs",
+    "pages": "node scripts/vendor.mjs && node scripts/build-web.mjs --target=pages"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "express": "^4.22.3",
+    "three": "^0.170.0",
+    "trystero": "0.26.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0"
+  },
+  "productName": "Tri-D Chess",
+  "author": "Tri-D Chess",
+  "build": {
+    "appId": "local.tridchess.app",
+    "productName": "Tri-D Chess",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**",
+      "server.js",
+      "src/**",
+      "public/**",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.board-games",
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.png",
+      "identity": "-",
+      "hardenedRuntime": false
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicolorisitano82/tri-d-chess.git"
+  },
+  "homepage": "https://nicolorisitano82.github.io/tri-d-chess/"
+}

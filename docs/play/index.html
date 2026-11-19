@@ -1,0 +1,2547 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Tri-D Chess: 3D chess on seven levels, Meder rules, computer opponent and peer-to-peer online play.">
+<link rel="icon" href="../assets/icon.png">
+</head>
+<body>
+<title>Tri-D Chess</title>
+<style>
+    :root {
+      color-scheme: dark;
+      --bg: #000006;
+      --orange: #ff9c33;
+      --peach: #ffcc99;
+      --lilac: #cc99cc;
+      --blue: #9999ff;
+      --sky: #66ccff;
+      --red: #ff5555;
+      --text: #f2e6d9;
+      --muted: #a89a8c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+      font-family: "Helvetica Neue", "Avenir Next Condensed", -apple-system, sans-serif; overflow: hidden; }
+    #scene { position: fixed; inset: 0; }
+    #panel { position: fixed; top: 16px; left: 16px; bottom: 16px; width: 300px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    #panel > * { pointer-events: auto; }
+    .bar { border-radius: 22px 6px 6px 22px; padding: 8px 16px; color: #000; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
+    .bar.title { background: var(--orange); font-size: 20px; border-radius: 30px 6px 6px 6px; padding: 14px 18px; }
+    .block { background: rgba(10, 8, 20, .78); border-left: 14px solid var(--lilac); border-radius: 0 10px 10px 0; padding: 10px 12px; backdrop-filter: blur(6px); }
+    .block.blue { border-left-color: var(--blue); }
+    .block.peach { border-left-color: var(--peach); }
+    .row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 2px 0; }
+    .row span:first-child { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+    #status { font-size: 17px; font-weight: 700; color: var(--peach); }
+    #status.alert { color: var(--red); }
+    #log { flex: 1; min-height: 80px; overflow-y: auto; font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.6; }
+    #log ol { margin: 0; padding-left: 28px; }
+    #log li.black { color: var(--lilac); }
+    #log li.white { color: var(--text); }
+    label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    select, button { font: inherit; font-size: 13px; }
+    select { background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 6px; padding: 4px 6px; }
+    button { border: 0; border-radius: 14px; padding: 7px 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; color: #000; }
+    button.orange { background: var(--orange); } button.blue { background: var(--blue); } button.lilac { background: var(--lilac); } button.red { background: var(--red); }
+    button:hover { filter: brightness(1.15); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; align-items: center; }
+    .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    code { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--sky); word-break: break-all; }
+    #hover { position: fixed; right: 16px; bottom: 16px; background: rgba(10,8,20,.78); border-right: 14px solid var(--orange); border-radius: 10px 0 0 10px; padding: 8px 12px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; min-width: 120px; text-align: right; }
+    #toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--red); color: #000; font-weight: 700; padding: 8px 18px; border-radius: 16px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+    #toast.show { opacity: 1; }
+    .cpu { grid-column: 1 / -1; display: grid; grid-template-columns: 1.2fr 1fr; gap: 6px; margin: -2px 0 4px; padding-left: 10px; border-left: 2px solid var(--sky); }
+    .cpu[hidden] { display: none; }
+    #dragbar { display: none; }
+    body.app #dragbar { display: block; position: fixed; top: 0; left: 0; right: 0; height: 38px; -webkit-app-region: drag; z-index: 10; }
+    body.app #panel { top: 44px; }
+    body.app #toast { top: 44px; }
+
+    /* --- stats panel --- */
+    #stats { position: fixed; top: 16px; right: 16px; width: 290px; max-height: calc(100vh - 90px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+      transition: transform .35s ease, opacity .35s ease; z-index: 5; }
+    #stats.hidden { transform: translateX(calc(100% + 32px)); opacity: 0; pointer-events: none; }
+    #stats .bar { display: flex; justify-content: space-between; align-items: center; background: var(--sky); border-radius: 6px 22px 22px 6px; }
+    #stats .bar button { background: rgba(0,0,0,.25); color: #000; padding: 0 9px; border-radius: 10px; font-size: 15px; line-height: 20px; }
+    #statsTab { position: fixed; right: 0; top: 50%; transform: translateY(-50%); writing-mode: vertical-rl; background: var(--sky); color: #000; border-radius: 12px 0 0 12px;
+      padding: 14px 6px; font-weight: 700; letter-spacing: .15em; font-size: 11px; cursor: pointer; z-index: 4; transition: opacity .3s; }
+    #statsTab.gone { opacity: 0; pointer-events: none; }
+    .pcard { background: rgba(10, 8, 20, .82); border-right: 14px solid #c8d0dc; border-radius: 10px 0 0 10px; padding: 10px 12px; backdrop-filter: blur(6px); }
+    .pcard.black { border-right-color: #b0203a; }
+    .pcard.turn { box-shadow: 0 0 0 1px var(--peach) inset; }
+    .pcard .head { display: flex; justify-content: space-between; align-items: baseline; }
+    .pcard .name { font-size: 16px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .pcard .who { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+    .pcard .mat { display: flex; align-items: baseline; gap: 8px; margin: 4px 0 6px; }
+    .pcard .mat b { font-size: 26px; color: var(--peach); font-variant-numeric: tabular-nums; }
+    .pcard .adv { font-size: 12px; font-weight: 700; color: #66ffcc; }
+    .caps { min-height: 26px; font-size: 22px; line-height: 26px; letter-spacing: 1px; word-break: break-all; }
+    .caps .w { color: #e8eef6; text-shadow: 0 0 6px rgba(150,190,255,.6); } .caps .b { color: #d23a55; text-shadow: 0 0 6px rgba(255,60,90,.5); }
+    .caps .none { font-size: 12px; color: var(--muted); }
+    .sgrid { display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; font-size: 12px; margin-top: 6px; }
+    .sgrid span:nth-child(odd) { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: 10.5px; align-self: center; }
+    .sgrid span:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
+    .balance { height: 8px; border-radius: 4px; background: #b0203a; overflow: hidden; margin-top: 2px; }
+    .balance div { height: 100%; background: #e8eef6; transition: width .5s; }
+    body.app #stats { top: 44px; }
+    /* --- mcp commands --- */
+    .mcpline { margin-top: 6px; cursor: pointer; }
+    .mcpline .who { font-size: 11px; color: var(--peach); letter-spacing: .08em; text-transform: uppercase; }
+    .mcpline:hover code { color: #fff; }
+    .mcpnone { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .bar.title { display: flex; justify-content: space-between; align-items: center; }
+    button.lang { background: rgba(0,0,0,.22); color: #000; padding: 3px 10px; border-radius: 10px; font-size: 12px; letter-spacing: .12em; }
+    /* --- network play --- */
+    .netjoin { display: flex; gap: 6px; margin-top: 8px; }
+    .netjoin input { flex: 1; min-width: 0; background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 6px; padding: 6px 8px; font: 14px ui-monospace, Menlo, monospace; letter-spacing: .12em; text-transform: uppercase; }
+    button.mini { padding: 2px 8px; font-size: 10px; border-radius: 8px; }
+    #netRoom { font-size: 14px; letter-spacing: .14em; color: var(--peach); }
+    #netStatus.ok { color: #66ffcc; } #netStatus.warn { color: var(--peach); } #netStatus.err { color: var(--red); }
+    /* --- chat --- */
+    #chat { position: fixed; right: 16px; bottom: 64px; width: 300px; z-index: 8; display: flex; flex-direction: column; }
+    #chat[hidden] { display: none; }
+    .chatbar { align-self: flex-end; display: flex; gap: 8px; align-items: center; background: var(--sky); border-radius: 14px; }
+    #chatBadge { background: var(--red); color: #000; border-radius: 9px; padding: 0 7px; font-size: 11px; }
+    #chatBody { display: none; flex-direction: column; gap: 6px; margin-top: 6px; background: rgba(10,8,20,.9); border-right: 14px solid var(--sky); border-radius: 10px 0 0 10px; padding: 10px; backdrop-filter: blur(6px); }
+    #chat.open #chatBody { display: flex; }
+    #chatLog { height: 170px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.35; }
+    .cl { overflow-wrap: anywhere; } .cl .who { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin-right: 6px; }
+    .cl.me .who { color: var(--peach); } .cl.them .who { color: var(--sky); } .cl.sys { color: var(--muted); font-size: 11px; font-style: italic; }
+    .reacts { display: flex; gap: 4px; justify-content: space-between; position: relative; }
+    .reacts button { flex: 1; font-size: 20px; padding: 4px 0; background: #1a1428; border: 1px solid #443a5a; border-radius: 10px; }
+    .reacts button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(1); }
+    .reacts[data-wait]:not([data-wait=""])::after { content: attr(data-wait); position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: var(--peach); pointer-events: none; }
+    .chatin { display: flex; gap: 6px; }
+    .chatin input { flex: 1; min-width: 0; background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+    #emojiBtn { background: #1a1428; border: 1px solid #443a5a; padding: 4px 8px; font-size: 16px; }
+    #chatSend:disabled { opacity: .45; cursor: not-allowed; }
+    #emojiPicker { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; }
+    #emojiPicker[hidden] { display: none; }
+    #emojiPicker button { background: none; padding: 2px; font-size: 18px; }
+    .chatmeta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+    #chatCount.over { color: var(--red); } #chatLimit { color: var(--peach); }
+    body.chat-open #stats { max-height: calc(100vh - 430px); }
+    #reactLayer { position: fixed; inset: 0; pointer-events: none; z-index: 25; overflow: hidden; }
+    .react-pop { position: absolute; bottom: 8vh; font-size: 72px; line-height: 1; transform: translateX(-50%); animation: reactRise 2.6s cubic-bezier(.2,.8,.3,1) forwards; text-align: center; }
+    .react-pop.theirs { filter: drop-shadow(0 0 14px rgba(102,204,255,.8)); } .react-pop.mine { filter: drop-shadow(0 0 14px rgba(255,156,51,.8)); }
+    .react-tag { display: block; font-size: 11px; letter-spacing: .15em; text-transform: uppercase; color: var(--text); margin-top: 4px; }
+    .react-spark { position: absolute; bottom: 14vh; font-size: 22px; transform: translateX(-50%); animation: reactSpark 1.4s ease-out forwards; }
+    @keyframes reactRise { 0% { transform: translate(-50%, 40px) scale(.3); opacity: 0; } 15% { transform: translate(-50%, 0) scale(1.15); opacity: 1; } 30% { transform: translate(-50%, -20px) scale(1) rotate(-6deg); } 50% { transform: translate(-50%, -18vh) rotate(6deg); } 100% { transform: translate(-50%, -46vh) scale(.9) rotate(0); opacity: 0; } }
+    @keyframes reactSpark { 0% { transform: translate(-50%, 0) scale(.4); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), var(--dy)) scale(.9); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .react-pop, .react-spark { animation-duration: .01s; } }
+    @media (max-width: 700px) { #chat { left: 8px; right: 8px; width: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); } #chatLog { height: 22vh; } }
+    /* --- promotion picker --- */
+    #promo { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(0,0,6,.55); }
+    #promo[hidden] { display: none; }
+    .promocard { background: rgba(10,8,20,.95); border-left: 14px solid var(--orange); border-radius: 0 16px 16px 0; padding: 16px 20px; text-align: center; display: grid; gap: 10px; }
+    .promocard .eyebrow { font-size: 11px; letter-spacing: .4em; color: var(--peach); text-transform: uppercase; }
+    .promocard .ptitle { font-size: 16px; font-weight: 700; }
+    .prow { display: flex; gap: 10px; justify-content: center; }
+    .prow .pp { width: 60px; height: 60px; border-radius: 14px; font-size: 38px; line-height: 1; padding: 0; background: #1a1428; border: 1px solid #443a5a; }
+    .prow .pp.w { color: #e8eef6; } .prow .pp.b { color: #d23a55; }
+    .prow .pp:hover, .prow .pp:focus-visible { border-color: var(--orange); outline: none; }
+    /* --- victory overlay --- */
+    #victory { position: fixed; inset: 0; display: none; align-items: flex-end; justify-content: center; padding-bottom: 5vh; z-index: 20; pointer-events: none;
+      background: radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0) 35%, rgba(0,0,0,.6) 100%); }
+    #victory.show { display: flex; }
+    #victory .card { position: relative; text-align: center; padding: 34px 56px 26px; pointer-events: auto; animation: vin 1.1s cubic-bezier(.2,1.4,.4,1) both; }
+    #victory .rays { position: absolute; left: 50%; top: 50%; width: 900px; height: 900px; margin: -450px 0 0 -450px; border-radius: 50%; z-index: -1; opacity: .55;
+      background: repeating-conic-gradient(from 0deg, var(--vc) 0deg 5deg, transparent 5deg 15deg);
+      -webkit-mask: radial-gradient(circle, #000 0%, transparent 62%); mask: radial-gradient(circle, #000 0%, transparent 62%); animation: spin 24s linear infinite; }
+    #victory .eyebrow { font-size: 14px; letter-spacing: .5em; color: var(--peach); text-transform: uppercase; }
+    #victory h1 { margin: 6px 0 4px; font-size: clamp(40px, 8vw, 92px); letter-spacing: .14em; line-height: 1; text-transform: uppercase;
+      background: linear-gradient(180deg, #fff6d8 0%, #ffd36b 45%, #ff9c33 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(0 0 18px rgba(255,190,80,.65)); animation: glow 2.4s ease-in-out infinite; }
+    #victory .king { font-size: 70px; line-height: 1; color: var(--vk); filter: drop-shadow(0 0 22px var(--vc)); animation: float 3s ease-in-out infinite; }
+    #victory .sub { font-size: 17px; color: var(--text); letter-spacing: .06em; margin-top: 6px; }
+    #victory .meta { font-size: 13px; color: var(--muted); margin-top: 4px; letter-spacing: .08em; }
+    #victory .btns { justify-content: center; margin-top: 18px; }
+    #victory.draw h1 { background: linear-gradient(180deg, #e6ecf5, #9999ff); -webkit-background-clip: text; background-clip: text; filter: none; animation: none; }
+    #victory.draw .rays { display: none; }
+    @keyframes vin { 0% { transform: scale(.3); opacity: 0; filter: blur(12px); } 100% { transform: scale(1); opacity: 1; filter: blur(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes glow { 50% { filter: drop-shadow(0 0 34px rgba(255,210,120,.95)); } }
+    @keyframes float { 50% { transform: translateY(-8px); } }
+    @media (prefers-reduced-motion: reduce) { #victory .rays, #victory h1, #victory .king, #victory .card { animation: none; } }
+    @media (max-width: 700px) {
+      #stats { top: 16px; left: 16px; right: 16px; width: auto; max-height: 50vh; }
+      #panel { top: auto; left: 16px; right: 16px; width: auto; height: 44vh; bottom: 16px; }
+      .bar.title { font-size: 15px; padding: 8px 14px; }
+      #mcpblock { display: none; }
+    }
+  
+    /* --- standalone / phone layout --- */
+    #btnMore { display: none; }
+    #mcpblock, #dragbar { display: none !important; }
+    @media (max-width: 700px) {
+      #panel { top: auto; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: auto; height: auto; max-height: 64vh; overflow-y: auto; gap: 6px; }
+      #panel .bar.title, #panel .logbar, #log, #panel .grid2 { display: none; }
+      #panel.open .logbar { display: block; }
+      #panel.open #log { display: block; flex: none; max-height: 20vh; }
+      #panel.open .grid2 { display: grid; margin-bottom: 4px; }
+      #panel .block { padding: 8px 10px; }
+      #status { font-size: 15px; }
+      #btnMore { display: inline-block; }
+      .btns { margin-top: 0; }
+      button { padding: 9px 12px; font-size: 12px; }
+      select { padding: 7px 6px; font-size: 14px; }
+      #hover { display: none; }
+      #stats { top: calc(8px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px; max-height: 46vh; }
+      #statsTab { padding: 12px 5px; }
+      #victory { padding-bottom: 12vh; }
+      #statusBlock { cursor: pointer; }
+      #status::after { content: " ▾"; color: var(--muted); font-size: 12px; }
+      #panel.mini { left: auto; right: max(8px, env(safe-area-inset-right, 0px)); max-width: 78vw; overflow: visible; }
+      #panel.mini > :not(#statusBlock) { display: none !important; }
+      #panel.mini #statusBlock { padding: 7px 14px 7px 12px; border-left-width: 8px; border-radius: 0 20px 20px 0; box-shadow: 0 4px 18px rgba(0,0,0,.5); }
+      #panel.mini #statusBlock .row { display: none; }
+      #panel.mini #status { font-size: 13px; }
+      #panel.mini #status::after { content: " ▴"; }
+      #panel:not(.mini) ~ #statsTab { display: none; }
+      #victory .card { padding: 18px 12px; }
+      #victory .rays { width: 560px; height: 560px; margin: -280px 0 0 -280px; }
+      #victory .king { font-size: 48px; }
+      #victory .sub { font-size: 14px; }
+    }</style>
+
+    <div id="dragbar"></div>
+  <div id="scene"></div>
+
+  <div id="panel">
+    <div class="bar title">Tri-D Chess <button id="langBtn" class="lang" data-i18n-title="ui.lang" data-i18n-aria="ui.lang">EN</button></div>
+    <div class="block" id="statusBlock">
+      <div id="status" data-i18n="status.connecting">Connessione…</div>
+      <div class="row"><span data-i18n="ui.turn">Turno</span><span id="turn">—</span></div>
+      <div class="row"><span data-i18n="name.white">Bianco</span><span id="pw">—</span></div>
+      <div class="row"><span data-i18n="name.black">Nero</span><span id="pb">—</span></div>
+    </div>
+    <div class="bar logbar" style="background:var(--lilac)" data-i18n="ui.log">Registro mosse</div>
+    <div class="block blue" id="log"><ol id="moves"></ol></div>
+    <div class="block peach">
+      <div class="grid2">
+        <label for="selW" data-i18n="name.white">Bianco</label>
+        <select id="selW"><option value="human" data-i18n="name.human">Umano</option><option value="computer" data-i18n="name.computer">Computer</option><option value="remote" hidden data-i18n="name.remote">In rete</option></select>
+        <div class="cpu" id="cpuW" hidden>
+          <select id="lvlW" data-i18n-aria="ui.levelW"><option value="1" data-i18n="level.1">1</option><option value="2" data-i18n="level.2">2</option><option value="3" selected data-i18n="level.3">3</option><option value="4" data-i18n="level.4">4</option><option value="5" data-i18n="level.5">5</option></select>
+          <select id="styW" data-i18n-aria="ui.styleW"><option value="balanced" data-i18n="style.balanced">Equilibrato</option><option value="aggressive" data-i18n="style.aggressive">Aggressivo</option><option value="cautious" data-i18n="style.cautious">Prudente</option></select>
+        </div>
+        <label for="selB" data-i18n="name.black">Nero</label>
+        <select id="selB"><option value="human" data-i18n="name.human">Umano</option><option value="computer" selected data-i18n="name.computer">Computer</option><option value="remote" hidden data-i18n="name.remote">In rete</option></select>
+        <div class="cpu" id="cpuB" hidden>
+          <select id="lvlB" data-i18n-aria="ui.levelB"><option value="1" data-i18n="level.1">1</option><option value="2" data-i18n="level.2">2</option><option value="3" selected data-i18n="level.3">3</option><option value="4" data-i18n="level.4">4</option><option value="5" data-i18n="level.5">5</option></select>
+          <select id="styB" data-i18n-aria="ui.styleB"><option value="balanced" data-i18n="style.balanced">Equilibrato</option><option value="aggressive" data-i18n="style.aggressive">Aggressivo</option><option value="cautious" data-i18n="style.cautious">Prudente</option></select>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="orange" id="btnNew" data-i18n="ui.newGame">Nuova partita</button>
+        <button class="red" id="btnResign" data-i18n="ui.resign">Abbandona</button>
+        <button class="blue" id="btnCam" data-i18n="ui.view">Vista</button>
+        <button class="lilac" id="btnStats" data-i18n="ui.stats">Statistiche</button>
+        <button class="peach" id="btnMore" style="background:var(--peach)" data-i18n="ui.options">Opzioni</button>
+      </div>
+    </div>
+    <div class="block blue" id="netblock">
+      <label data-i18n="net.title">Gioco in rete (P2P)</label>
+      <div id="netIdle">
+        <div class="grid2">
+          <label for="netColor" data-i18n="net.iPlay">Io gioco</label>
+          <select id="netColor"><option value="white" data-i18n="name.white">Bianco</option><option value="black" data-i18n="name.black">Nero</option><option value="random" data-i18n="net.random">Casuale</option></select>
+        </div>
+        <div class="btns"><button class="orange" id="netHost" data-i18n="net.host">Crea stanza</button></div>
+        <div class="netjoin">
+          <input id="netCode" data-i18n-placeholder="net.code" data-i18n-aria="net.code" placeholder="Codice stanza" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <button class="blue" id="netJoin" data-i18n="net.join">Entra</button>
+        </div>
+      </div>
+      <div id="netActive" hidden>
+        <div class="row"><span data-i18n="net.room">Stanza</span><span><code id="netRoom">—</code> <button class="lilac mini" id="netCopy" data-i18n="net.copy">Copia</button></span></div>
+        <div class="row"><span data-i18n="net.state">Stato</span><span id="netStatus">—</span></div>
+        <div class="row"><span data-i18n="net.you">Tu giochi</span><span id="netMe">—</span></div>
+        <div class="btns"><button class="red" id="netLeave" data-i18n="net.leave">Esci dalla stanza</button></div>
+      </div>
+    </div>
+    <div class="block" id="mcpblock">
+      <label data-i18n="mcp.title">Collega l'AI (MCP) · clic per copiare</label>
+      <div id="mcpcmd"></div>
+    </div>
+  </div>
+
+  <div id="stats" class="hidden" data-i18n-aria="ui.stats">
+    <div class="bar"><span data-i18n="ui.stats">Statistiche</span> <button id="statsClose" data-i18n-title="ui.statsHide">×</button></div>
+    <div class="pcard" id="card-white"></div>
+    <div class="pcard black" id="card-black"></div>
+  </div>
+  <div id="statsTab" data-i18n="ui.stats" data-i18n-title="ui.statsShow">Statistiche</div>
+
+  <div id="victory">
+    <div class="card">
+      <div class="rays"></div>
+      <div class="king" id="vKing">♚&#xFE0E;</div>
+      <div class="eyebrow" id="vEyebrow">Trionfo</div>
+      <h1 id="vTitle">Vittoria</h1>
+      <div class="sub" id="vSub"></div>
+      <div class="meta" id="vMeta"></div>
+      <div class="btns">
+        <button class="orange" id="vNew" data-i18n="ui.newGame">Nuova partita</button>
+        <button class="blue" id="vClose" data-i18n="victory.watch">Guarda la scacchiera</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="promo" hidden>
+    <div class="promocard">
+      <div class="eyebrow" data-i18n="promo.eyebrow">Promozione</div>
+      <div class="ptitle" data-i18n="promo.title">Scegli il nuovo pezzo</div>
+      <div class="prow">
+        <button data-p="Q" data-i18n-title="piece.Q" data-i18n-aria="piece.Q"></button>
+        <button data-p="R" data-i18n-title="piece.R" data-i18n-aria="piece.R"></button>
+        <button data-p="B" data-i18n-title="piece.B" data-i18n-aria="piece.B"></button>
+        <button data-p="N" data-i18n-title="piece.N" data-i18n-aria="piece.N"></button>
+      </div>
+      <button class="blue" id="promoCancel" data-i18n="promo.cancel">Annulla</button>
+    </div>
+  </div>
+
+  <div id="chat" hidden>
+    <button id="chatToggle" class="chatbar" type="button"><span data-i18n="chat.title">Chat</span><span id="chatBadge" hidden>0</span></button>
+    <div id="chatBody">
+      <div id="chatLog" aria-live="polite"></div>
+      <div class="reacts" id="reacts" data-i18n-aria="chat.reactions"></div>
+      <div class="chatin">
+        <button id="emojiBtn" type="button" data-i18n-title="chat.emoji" data-i18n-aria="chat.emoji">😊</button>
+        <input id="chatInput" maxlength="512" autocomplete="off" data-i18n-placeholder="chat.placeholder" data-i18n-aria="chat.placeholder">
+        <button id="chatSend" class="orange" type="button" data-i18n="chat.send">Invia</button>
+      </div>
+      <div id="emojiPicker" hidden></div>
+      <div class="chatmeta"><span id="chatLimit"></span><span id="chatCount">0/512</span></div>
+    </div>
+  </div>
+  <div id="reactLayer" aria-hidden="true"></div>
+
+  <div id="hover">—</div>
+  <div id="toast"></div>
+
+<script type="importmap">
+  {"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/examples/jsm/","@trystero-p2p/core":"./vendor/trystero-core/index.mjs","@trystero-p2p/nostr":"./vendor/trystero-nostr/index.mjs","@noble/secp256k1":"./vendor/noble-secp256k1/index.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const ENG = (() => {
+
+// Tri-dimensional chess engine following Jens Meder's tournament rules
+// (https://meder.spacechess.org/3dschach/chess3d.htm), with movable attack boards.
+//
+// Geometry: every square is identified by file + rank + level, e.g. "a1W", "z0QL1".
+//   files  z a b c d e   -> x 0..5
+//   ranks  0..9          -> y 0..9
+//   main levels (fixed): W (white), N (neutral), B (black)
+//   attack-board pins:   QL1..QL6 (queen side, files z-a) and KL1..KL6 (king side, files d-e).
+//     An attack board is a 2x2 board sitting on one pin; its squares are named after the pin
+//     it currently occupies. Four attack boards exist; when one moves, the pieces on it ride along.
+//
+// A position is { pieces, boards, ep } where boards maps an occupied pin to the board's owner
+// and ep describes a pawn that has just made a double step (en passant target) or is null.
+//
+// Piece movement is evaluated on the 2D projection (x, y). A move whose projection is legal
+// may land on ANY existing level square at the target projection (empty or enemy).
+// A piece blocks movement through its file+rank on every level (Meder 3.1c).
+
+const FILES = ['z', 'a', 'b', 'c', 'd', 'e'];
+
+const MAIN_LEVELS = {
+  W: { x: [1, 4], y: [1, 4], height: 0 },
+  N: { x: [1, 4], y: [3, 6], height: 1 },
+  B: { x: [1, 4], y: [5, 8], height: 2 },
+};
+
+// Pin n on each side: [main level it hangs from, first rank, height]
+const PIN_SPECS = {
+  1: ['W', 0, 0.5], 2: ['W', 4, 0.5],
+  3: ['N', 2, 1.5], 4: ['N', 6, 1.5],
+  5: ['B', 4, 2.5], 6: ['B', 8, 2.5],
+};
+const PINS = {};
+for (const [n, [main, y0, height]] of Object.entries(PIN_SPECS)) {
+  PINS[`QL${n}`] = { x: [0, 1], y: [y0, y0 + 1], height, main, side: 'Q', n: Number(n) };
+  PINS[`KL${n}`] = { x: [4, 5], y: [y0, y0 + 1], height, main, side: 'K', n: Number(n) };
+}
+// Pins linked along one side: the next pins of the same or the next main board (Meder 3.6).
+// With the sideways link QLn <-> KLn this gives 3/4/5/5/4/3 reachable pins for levels 1..6.
+const PIN_LINKS = [[1, 2], [1, 3], [2, 3], [2, 4], [3, 4], [3, 5], [4, 5], [4, 6], [5, 6]];
+
+const LEVELS = { ...MAIN_LEVELS, ...PINS };
+const LEVEL_NAMES = Object.keys(LEVELS);
+const PIECE_NAMES = { K: 'king', Q: 'queen', R: 'rook', B: 'bishop', N: 'knight', P: 'pawn' };
+const PROMOTION_PIECES = ['Q', 'R', 'B', 'N'];
+
+const isPin = (name) => Object.prototype.hasOwnProperty.call(PINS, name);
+
+function pinNeighbours(pin) {
+  const { side, n } = PINS[pin];
+  const out = [];
+  for (const [a, b] of PIN_LINKS) {
+    if (a === n) out.push(`${side}L${b}`);
+    if (b === n) out.push(`${side}L${a}`);
+  }
+  out.push(`${side === 'Q' ? 'K' : 'Q'}L${n}`); // sideways
+  return out;
+}
+
+function levelHas(level, x, y) {
+  const l = LEVELS[level];
+  return !!l && x >= l.x[0] && x <= l.x[1] && y >= l.y[0] && y <= l.y[1];
+}
+
+function activeLevels(boards) {
+  return ['W', 'N', 'B', ...Object.keys(boards)];
+}
+
+function levelsAt(x, y, boards) {
+  return activeLevels(boards).filter((lv) => levelHas(lv, x, y));
+}
+
+function sqKey(x, y, level) {
+  return `${FILES[x]}${y}${level}`;
+}
+
+// Parses a square name against the static geometry (whether that level is in play is checked separately).
+function parseSquare(str) {
+  if (typeof str !== 'string') return null;
+  const m = /^([zabcde])([0-9])(W|N|B|[QK]L[1-6])$/i.exec(str.trim());
+  if (!m) return null;
+  const x = FILES.indexOf(m[1].toLowerCase());
+  const y = Number(m[2]);
+  const level = m[3].toUpperCase();
+  if (!levelHas(level, x, y)) return null;
+  return { x, y, level, key: sqKey(x, y, level) };
+}
+
+function squaresOf(level) {
+  const l = LEVELS[level], out = [];
+  for (let x = l.x[0]; x <= l.x[1]; x++)
+    for (let y = l.y[0]; y <= l.y[1]; y++) out.push({ x, y, level, key: sqKey(x, y, level) });
+  return out;
+}
+
+// Every square of the given boards configuration (or of the whole geometry when omitted).
+function allSquares(boards = null) {
+  return (boards ? activeLevels(boards) : LEVEL_NAMES).flatMap(squaresOf);
+}
+
+const other = (c) => (c === 'white' ? 'black' : 'white');
+
+function initialBoards() {
+  return { QL1: 'white', KL1: 'white', QL6: 'black', KL6: 'black' };
+}
+
+function initialPieces() {
+  const p = {};
+  const put = (sq, type, color) => { p[sq] = { type, color, moved: false }; };
+  // White
+  put('z0QL1', 'R', 'white'); put('a0QL1', 'Q', 'white');
+  put('z1QL1', 'P', 'white'); put('a1QL1', 'P', 'white');
+  put('d0KL1', 'K', 'white'); put('e0KL1', 'R', 'white');
+  put('d1KL1', 'P', 'white'); put('e1KL1', 'P', 'white');
+  put('a1W', 'N', 'white'); put('b1W', 'B', 'white'); put('c1W', 'B', 'white'); put('d1W', 'N', 'white');
+  for (const f of 'abcd') put(`${f}2W`, 'P', 'white');
+  // Black
+  put('z9QL6', 'R', 'black'); put('a9QL6', 'Q', 'black');
+  put('z8QL6', 'P', 'black'); put('a8QL6', 'P', 'black');
+  put('d9KL6', 'K', 'black'); put('e9KL6', 'R', 'black');
+  put('d8KL6', 'P', 'black'); put('e8KL6', 'P', 'black');
+  put('a8B', 'N', 'black'); put('b8B', 'B', 'black'); put('c8B', 'B', 'black'); put('d8B', 'N', 'black');
+  for (const f of 'abcd') put(`${f}7B`, 'P', 'black');
+  return p;
+}
+
+// --- low level helpers -------------------------------------------------------
+
+function columnOccupied(pos, x, y) {
+  for (const lv of levelsAt(x, y, pos.boards)) if (pos.pieces[sqKey(x, y, lv)]) return true;
+  return false;
+}
+
+function inGrid(x, y) {
+  return x >= 0 && x <= 5 && y >= 0 && y <= 9;
+}
+
+const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+const KNIGHT = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];
+
+// Destinations at projection (tx,ty): empty or enemy squares on any level in play.
+function landings(pos, color, tx, ty, { captureOnly = false, quietOnly = false } = {}) {
+  const out = [];
+  for (const lv of levelsAt(tx, ty, pos.boards)) {
+    const k = sqKey(tx, ty, lv);
+    const occ = pos.pieces[k];
+    if (!occ && !captureOnly) out.push(k);
+    else if (occ && occ.color !== color && !quietOnly) out.push(k);
+  }
+  return out;
+}
+
+// Furthest rank a pawn of `color` can reach on file x (Meder 3.4e).
+function promotionRank(pos, color, x) {
+  if (x === 2 || x === 3) return color === 'white' ? 8 : 1;          // files b, c
+  if (x === 0 || x === 5) return color === 'white' ? 9 : 0;          // files z, e
+  // files a, d: the far corner counts only while an attack board overhangs it
+  const pin = color === 'white' ? (x === 1 ? 'QL6' : 'KL6') : (x === 1 ? 'QL1' : 'KL1');
+  const overhang = !!pos.boards[pin];
+  return color === 'white' ? (overhang ? 9 : 8) : (overhang ? 0 : 1);
+}
+
+// Piece moves (no castling). Each move is { from, to } plus { ep: victimKey } for en passant.
+function pieceMovesFrom(pos, fromKey) {
+  const piece = pos.pieces[fromKey];
+  if (!piece) return [];
+  const { x, y } = parseSquare(fromKey);
+  const color = piece.color;
+  const targets = [];
+  const extra = [];
+
+  const slide = (dirs, maxSteps) => {
+    for (const [dx, dy] of dirs) {
+      let cx = x, cy = y;
+      for (let s = 1; s <= maxSteps; s++) {
+        cx += dx; cy += dy;
+        if (!inGrid(cx, cy)) break;
+        targets.push(...landings(pos, color, cx, cy));
+        if (columnOccupied(pos, cx, cy)) break;
+      }
+    }
+  };
+
+  switch (piece.type) {
+    case 'R': slide(ORTHO, 10); break;
+    case 'B': slide(DIAG, 10); break;
+    case 'Q': slide([...ORTHO, ...DIAG], 10); break;
+    case 'K': slide([...ORTHO, ...DIAG], 1); break;
+    case 'N':
+      for (const [dx, dy] of KNIGHT) {
+        const tx = x + dx, ty = y + dy;
+        if (inGrid(tx, ty)) targets.push(...landings(pos, color, tx, ty));
+      }
+      break;
+    case 'P': {
+      const dir = color === 'white' ? 1 : -1;
+      const y1 = y + dir;
+      if (inGrid(x, y1)) {
+        targets.push(...landings(pos, color, x, y1, { quietOnly: true }));
+        const y2 = y + 2 * dir;
+        if (!piece.moved && !columnOccupied(pos, x, y1) && inGrid(x, y2))
+          targets.push(...landings(pos, color, x, y2, { quietOnly: true }));
+        for (const dx of [-1, 1])
+          if (inGrid(x + dx, y1)) targets.push(...landings(pos, color, x + dx, y1, { captureOnly: true }));
+        // en passant: capture the pawn that just double-stepped past (ep.x, ep.y), landing on any level
+        const ep = pos.ep;
+        if (ep && ep.color !== color && Math.abs(ep.x - x) === 1 && ep.y === y1 && pos.pieces[ep.victim])
+          for (const k of landings(pos, color, ep.x, ep.y, { quietOnly: true })) extra.push({ from: fromKey, to: k, ep: ep.victim });
+      }
+      break;
+    }
+  }
+  return [...targets.filter((t) => t !== fromKey).map((to) => ({ from: fromKey, to })), ...extra];
+}
+
+// Castling (Meder 3.5a): king and rook unmoved on the same rank, nothing between them.
+// King side: king and rook exchange places. Queen side: the king goes next to the rook
+// and the rook goes to the square the king left.
+function castlingMoves(pos, color) {
+  const kingKey = findKing(pos.pieces, color);
+  if (!kingKey) return [];
+  const king = pos.pieces[kingKey];
+  if (king.moved) return [];
+  const k = parseSquare(kingKey);
+  const out = [];
+  for (const [rKey, rook] of Object.entries(pos.pieces)) {
+    if (rook.type !== 'R' || rook.color !== color || rook.moved) continue;
+    const r = parseSquare(rKey);
+    if (r.y !== k.y) continue;
+    const step = Math.sign(r.x - k.x);
+    let clear = true;
+    for (let x = k.x + step; x !== r.x; x += step) if (columnOccupied(pos, x, k.y)) { clear = false; break; }
+    if (!clear) continue;
+    if (step > 0) {
+      out.push({ from: kingKey, to: rKey, castle: 'K', rookFrom: rKey, rookTo: kingKey });
+    } else {
+      const lvls = levelsAt(r.x + 1, r.y, pos.boards);
+      const lv = lvls.includes(r.level) ? r.level : lvls[0];
+      if (!lv) continue;
+      const kingTo = sqKey(r.x + 1, r.y, lv);
+      if (kingTo === kingKey || pos.pieces[kingTo]) continue;
+      out.push({ from: kingKey, to: kingTo, castle: 'Q', rookFrom: rKey, rookTo: kingKey });
+    }
+  }
+  return out;
+}
+
+// Pieces standing on the attack board at `pin`.
+function piecesOnBoard(pos, pin) {
+  return squaresOf(pin).map((s) => s.key).filter((k) => pos.pieces[k]);
+}
+
+// Who may move the board on `pin`: its owner when empty, the owner of the single piece on it otherwise.
+function boardController(pos, pin) {
+  const on = piecesOnBoard(pos, pin);
+  if (on.length === 0) return pos.boards[pin];
+  if (on.length === 1) return pos.pieces[on[0]].color;
+  return null;
+}
+
+// Board moves (Meder 3.6): to a linked empty pin; an occupied board only forward or sideways,
+// an empty board also backwards ("inverted").
+function boardMovesFor(pos, color) {
+  const out = [];
+  for (const pin of Object.keys(pos.boards)) {
+    if (boardController(pos, pin) !== color) continue;
+    const occupied = piecesOnBoard(pos, pin).length > 0;
+    for (const to of pinNeighbours(pin)) {
+      if (pos.boards[to]) continue;
+      const dy = PINS[to].y[0] - PINS[pin].y[0];
+      const backward = color === 'white' ? dy < 0 : dy > 0;
+      if (occupied && backward) continue;
+      out.push({ from: pin, to, board: true });
+    }
+  }
+  return out;
+}
+
+// Pawns that stand on their furthest rank (e.g. after an overhanging board left) are promoted
+// before the next move (Meder 3.4e-iii); here automatically to a queen.
+function promoteStranded(pos) {
+  for (const [k, pc] of Object.entries(pos.pieces)) {
+    if (pc.type !== 'P') continue;
+    const s = parseSquare(k);
+    if (s.y === promotionRank(pos, pc.color, s.x)) pos.pieces[k] = { ...pc, type: 'Q', moved: true };
+  }
+}
+
+function applyMove(pos, move) {
+  const r = applyMoveInner(pos, move);
+  const mover = move.board ? boardController(pos, move.from) : pos.pieces[move.from].color;
+  r.pos.firstMove = { ...(pos.firstMove || {}), [mover]: false };
+  return r;
+}
+
+function applyMoveInner(pos, move) {
+  if (move.board) {
+    const boards = { ...pos.boards };
+    boards[move.to] = boards[move.from];
+    delete boards[move.from];
+    const pieces = { ...pos.pieces };
+    const dx = PINS[move.to].x[0] - PINS[move.from].x[0];
+    const dy = PINS[move.to].y[0] - PINS[move.from].y[0];
+    for (const s of squaresOf(move.from)) {
+      const pc = pos.pieces[s.key];
+      if (!pc) continue;
+      delete pieces[s.key];
+      // a pawn moved by an attack board loses its double step (Meder 3.4b)
+      pieces[sqKey(s.x + dx, s.y + dy, move.to)] = pc.type === 'P' ? { ...pc, moved: true } : pc;
+    }
+    const next = { pieces, boards, ep: null };
+    promoteStranded(next);
+    return { pos: next, captured: null };
+  }
+  const pieces = { ...pos.pieces };
+  const piece = pieces[move.from];
+  if (move.castle) {
+    const rook = pieces[move.rookFrom];
+    delete pieces[move.from];
+    delete pieces[move.rookFrom];
+    pieces[move.to] = { ...piece, moved: true };
+    pieces[move.rookTo] = { ...rook, moved: true };
+    return { pos: { pieces, boards: pos.boards, ep: null }, captured: null };
+  }
+  let captured = pieces[move.to] || null;
+  if (move.ep) { captured = pieces[move.ep]; delete pieces[move.ep]; }
+  delete pieces[move.from];
+  const moved = { ...piece, moved: true };
+  if (move.promotion) moved.type = move.promotion;
+  pieces[move.to] = moved;
+  let ep = null;
+  if (piece.type === 'P') {
+    const f = parseSquare(move.from), t = parseSquare(move.to);
+    if (Math.abs(t.y - f.y) === 2) ep = { x: f.x, y: (f.y + t.y) / 2, victim: move.to, color: piece.color };
+  }
+  return { pos: { pieces, boards: pos.boards, ep }, captured };
+}
+
+function findKing(pieces, color) {
+  return Object.keys(pieces).find((k) => pieces[k].type === 'K' && pieces[k].color === color);
+}
+
+function isAttacked(pos, targetKey, byColor) {
+  for (const k of Object.keys(pos.pieces)) {
+    if (pos.pieces[k].color !== byColor) continue;
+    if (pieceMovesFrom(pos, k).some((m) => m.to === targetKey)) return true;
+  }
+  return false;
+}
+
+function inCheck(pos, color) {
+  const king = findKing(pos.pieces, color);
+  return king ? isAttacked(pos, king, other(color)) : false;
+}
+
+// Legal moves for `color`. `from` may be a square (piece moves) or a pin (board moves).
+function legalMoves(pos, color, from = null) {
+  const candidates = [];
+  const pinFrom = from && isPin(from);
+  if (!pinFrom) {
+    const keys = from ? [from] : Object.keys(pos.pieces);
+    for (const k of keys) {
+      const p = pos.pieces[k];
+      if (!p || p.color !== color) continue;
+      for (const m of pieceMovesFrom(pos, k)) {
+        // promotion: one move per piece the pawn may become
+        const t = p.type === 'P' && parseSquare(m.to);
+        if (t && t.y === promotionRank(pos, color, t.x)) for (const pr of PROMOTION_PIECES) candidates.push({ ...m, promotion: pr });
+        else candidates.push(m);
+      }
+    }
+    const kingKey = findKing(pos.pieces, color);
+    // Meder 3.5a: castling is not allowed as a player's first move
+    if ((!from || from === kingKey) && !pos.firstMove?.[color] && !inCheck(pos, color)) candidates.push(...castlingMoves(pos, color));
+  }
+  if (!from || pinFrom) candidates.push(...boardMovesFor(pos, color).filter((m) => !from || m.from === from));
+  const out = [];
+  for (const m of candidates) {
+    const { pos: after } = applyMove(pos, m);
+    if (inCheck(after, color)) continue;
+    if (m.board) out.push({ ...m, piece: null, capture: null, promotion: null });
+    else {
+      const p = pos.pieces[m.from];
+      const capt = m.ep ? 'P' : !m.castle && pos.pieces[m.to] ? pos.pieces[m.to].type : null;
+      out.push({ ...m, piece: p.type, capture: capt, promotion: m.promotion || null });
+    }
+  }
+  return out;
+}
+
+// No sequence of legal moves can mate (Meder 1.3): bare kings, or only one minor piece,
+// or only bishops all on squares of one colour.
+function deadPosition(pos) {
+  const minors = [];
+  for (const [k, pc] of Object.entries(pos.pieces)) {
+    if (pc.type === 'K') continue;
+    if (pc.type !== 'B' && pc.type !== 'N') return false;
+    minors.push({ type: pc.type, sq: parseSquare(k) });
+  }
+  if (minors.length <= 1) return true;
+  if (minors.every((m) => m.type === 'B')) {
+    const colours = new Set(minors.map((m) => (m.sq.x + m.sq.y) % 2));
+    return colours.size === 1;
+  }
+  return false;
+}
+
+// Key identifying a position for repetition: pieces with castling/double-step rights,
+// boards, side to move and en passant target (Meder 9.2).
+function positionKey(pos, turn) {
+  const pcs = Object.keys(pos.pieces).sort().map((k) => {
+    const p = pos.pieces[k];
+    return `${k}${p.color[0]}${p.type}${p.moved ? '' : '*'}`;
+  }).join(',');
+  const boards = Object.keys(pos.boards).sort().map((p) => `${p}${pos.boards[p][0]}`).join(',');
+  return `${turn}|${pcs}|${boards}|${pos.ep ? pos.ep.victim : '-'}`;
+}
+
+// --- game object -------------------------------------------------------------
+
+class Game {
+  constructor(opts = {}) {
+    this.reset(opts);
+  }
+
+  // computer: per-color settings for the built-in engine, e.g. { white: { level: 4, style: 'aggressive' } }
+  reset({ white = 'human', black = 'ai', computer = {} } = {}) {
+    const cfg = (c) => ({ level: computer[c]?.level ?? 3, style: computer[c]?.style ?? 'balanced' });
+    this.computer = { white: cfg('white'), black: cfg('black') };
+    this.id = Math.random().toString(36).slice(2, 10);
+    this.pieces = initialPieces();
+    this.boards = initialBoards();
+    this.ep = null;
+    this.turn = 'white';
+    this.players = { white, black };
+    this.history = [];
+    this.status = 'playing'; // playing | checkmate | stalemate | draw | resigned
+    this.drawReason = null;  // fifty | repetition | material
+    this.winner = null;
+    this.halfmoveClock = 0;
+    this.repetitions = { [positionKey(this.pos, 'white')]: 1 };
+    this.version = 0;
+    this.startedAt = Date.now();
+  }
+
+  get pos() {
+    const moved = (c) => this.history.some((h) => h.color === c);
+    return { pieces: this.pieces, boards: this.boards, ep: this.ep, firstMove: { white: !moved('white'), black: !moved('black') } };
+  }
+
+  legal(from = null) {
+    if (this.status !== 'playing') return [];
+    return legalMoves(this.pos, this.turn, from);
+  }
+
+  // from/to: squares, pins (attack-board move) or "0-0" / "0-0-0" (castling).
+  // promotion: Q, R, B or N when a pawn reaches its furthest rank (default Q).
+  move(fromStr, toStr, promotion = null) {
+    if (this.status !== 'playing') throw new Error(`Game is over (${this.status}).`);
+    const f = String(fromStr || '').trim().toUpperCase().replace(/O/g, '0');
+    const castleSide = f === '0-0' ? 'K' : f === '0-0-0' ? 'Q' : null;
+    let mv;
+    if (castleSide) {
+      mv = this.legal().find((m) => m.castle === castleSide);
+      if (!mv) throw new Error(`Castling ${castleSide === 'K' ? 'king' : 'queen'}-side is not legal now.`);
+    } else {
+      const boardMove = isPin(f);
+      let from, to;
+      if (boardMove) {
+        from = f; to = String(toStr || '').trim().toUpperCase();
+        if (!this.boards[from]) throw new Error(`No attack board on pin ${from}.`);
+        if (!isPin(to)) throw new Error(`Invalid pin "${toStr}". Pins are QL1..QL6 and KL1..KL6.`);
+      } else {
+        const fs = parseSquare(String(fromStr)), ts = parseSquare(String(toStr));
+        if (!fs) throw new Error(`Invalid square "${fromStr}". Format: file+rank+level, e.g. a2W, d0KL1 — a pin (e.g. QL1) to move an attack board, or 0-0 / 0-0-0 to castle.`);
+        if (!ts) throw new Error(`Invalid square "${toStr}". Format: file+rank+level, e.g. a3N, z1QL1.`);
+        from = fs.key; to = ts.key;
+        const piece = this.pieces[from];
+        if (!piece) throw new Error(`No piece on ${from}.`);
+        if (piece.color !== this.turn) throw new Error(`Piece on ${from} is ${piece.color}, but it is ${this.turn}'s turn.`);
+      }
+      const cands = legalMoves(this.pos, this.turn, from).filter((m) => m.to === to);
+      if (!cands.length) throw new Error(`Illegal move ${from} -> ${to}.`);
+      if (cands.some((m) => m.promotion)) {
+        const pr = String(promotion || 'Q').toUpperCase();
+        mv = cands.find((m) => m.promotion === pr);
+        if (!mv) throw new Error(`Invalid promotion "${promotion}". Choose Q, R, B or N.`);
+      } else mv = cands[0];
+    }
+
+    const boardMove = !!mv.board;
+    const piece = boardMove ? null : this.pieces[mv.from];
+    const carried = boardMove ? piecesOnBoard(this.pos, mv.from).map((k) => this.pieces[k].type) : [];
+    const { pos, captured } = applyMove(this.pos, mv);
+    this.pieces = pos.pieces;
+    this.boards = pos.boards;
+    this.ep = pos.ep;
+    this.halfmoveClock = captured || piece?.type === 'P' ? 0 : this.halfmoveClock + 1;
+    const mover = this.turn;
+    this.turn = other(this.turn);
+    const check = inCheck(this.pos, this.turn);
+    const replies = legalMoves(this.pos, this.turn);
+    let notation;
+    if (mv.castle) notation = mv.castle === 'K' ? '0-0' : '0-0-0';
+    else if (boardMove) notation = `${mv.from}→${mv.to}${carried.length ? ` (${carried.join('')})` : ''}`;
+    else notation = `${piece.type === 'P' ? '' : piece.type}${mv.from}${captured ? 'x' : '-'}${mv.to}${mv.promotion ? `=${mv.promotion}` : ''}${mv.ep ? ' e.p.' : ''}`;
+    const key = positionKey(this.pos, this.turn);
+    this.repetitions[key] = (this.repetitions[key] || 0) + 1;
+    if (replies.length === 0) {
+      if (check) { this.status = 'checkmate'; this.winner = mover; notation += '#'; }
+      else this.status = 'stalemate';
+    } else {
+      if (check) notation += '+';
+      if (deadPosition(this.pos)) { this.status = 'draw'; this.drawReason = 'material'; }
+      else if (this.repetitions[key] >= 3) { this.status = 'draw'; this.drawReason = 'repetition'; }
+      else if (this.halfmoveClock >= 100) { this.status = 'draw'; this.drawReason = 'fifty'; }
+    }
+    const record = {
+      n: this.history.length + 1, color: mover, from: mv.from, to: mv.to, board: boardMove || undefined,
+      castle: mv.castle || undefined, rookFrom: mv.rookFrom, rookTo: mv.rookTo, ep: mv.ep ? true : undefined,
+      piece: piece ? piece.type : null, captured: captured ? captured.type : null,
+      promotion: mv.promotion || null, check, notation, at: Date.now(),
+    };
+    this.history.push(record);
+    this.version++;
+    return record;
+  }
+
+  resign(color) {
+    if (this.status !== 'playing') throw new Error('Game is already over.');
+    this.status = 'resigned';
+    this.winner = other(color);
+    this.version++;
+  }
+
+  snapshot() {
+    return {
+      id: this.id,
+      version: this.version,
+      turn: this.turn,
+      players: this.players,
+      startedAt: this.startedAt,
+      computer: this.computer,
+      status: this.status,
+      drawReason: this.drawReason,
+      winner: this.winner,
+      check: this.status === 'playing' && inCheck(this.pos, this.turn),
+      pieces: this.pieces,
+      boards: this.boards,
+      history: this.history,
+      lastMove: this.history[this.history.length - 1] || null,
+      legalMoves: this.legal().map(({ from, to, capture, promotion, board, castle, ep }) => ({
+        from, to, capture, promotion,
+        ...(board ? { board: true } : {}), ...(castle ? { castle } : {}), ...(ep ? { ep: true } : {}),
+      })),
+    };
+  }
+
+  // Text rendering for AI clients: one grid per level in play, from top to bottom.
+  render() {
+    const order = activeLevels(this.boards).sort((a, b) => LEVELS[b].height - LEVELS[a].height || LEVELS[b].y[0] - LEVELS[a].y[0]);
+    const sym = (p) => (p ? (p.color === 'white' ? p.type : p.type.toLowerCase()) : '.');
+    const lines = [];
+    for (const lv of order) {
+      const L = LEVELS[lv];
+      const tag = isPin(lv) ? ` — attack board owned by ${this.boards[lv]}, movable by ${boardController(this.pos, lv) || 'nobody (2+ pieces)'}` : '';
+      lines.push(`Level ${lv} (files ${FILES[L.x[0]]}-${FILES[L.x[1]]}, ranks ${L.y[0]}-${L.y[1]})${tag}:`);
+      for (let y = L.y[1]; y >= L.y[0]; y--) {
+        let row = `  ${y} `;
+        for (let x = L.x[0]; x <= L.x[1]; x++) row += ' ' + sym(this.pieces[sqKey(x, y, lv)]);
+        lines.push(row);
+      }
+      let foot = '    ';
+      for (let x = L.x[0]; x <= L.x[1]; x++) foot += ' ' + FILES[x];
+      lines.push(foot);
+    }
+    const free = Object.keys(PINS).filter((p) => !this.boards[p]);
+    lines.push(`Empty pins: ${free.join(' ')}`);
+    if (this.ep) lines.push(`En passant possible on file ${FILES[this.ep.x]} rank ${this.ep.y} (pawn ${this.ep.victim})`);
+    return lines.join('\n');
+  }
+}
+
+const RULES_TEXT = `TRI-D CHESS (Jens Meder's tournament rules)
+
+BOARD: 3 fixed main boards + 4 movable attack boards.
+  Main boards (4x4, files a-d): W = white (ranks 1-4, lowest), N = neutral (ranks 3-6), B = black (ranks 5-8, highest).
+  Attack boards (2x2) sit on pins. There are 12 pins:
+    queen side (files z-a): QL1..QL6, king side (files d-e): KL1..KL6
+    pin 1: ranks 0-1 (by W)   pin 2: ranks 4-5 (by W)   pin 3: ranks 2-3 (by N)
+    pin 4: ranks 6-7 (by N)   pin 5: ranks 4-5 (by B)   pin 6: ranks 8-9 (by B)
+  Start: white boards on QL1 and KL1, black boards on QL6 and KL6. Squares of an attack board are named after its current pin.
+  Files from left to right: z a b c d e. Ranks 0 (white side) .. 9 (black side).
+
+SQUARE NAMES: file + rank + level, e.g. "a2W", "c5N", "d0KL1", "z9QL6". The same file+rank can exist on several levels.
+
+PIECE MOVES: project the board flat onto a 6x10 grid. A move is legal if it is a legal chess move on that projection;
+  the piece may then land on ANY level in play that has a square at the target file+rank (empty or enemy).
+  A piece blocks movement through its file+rank on every level. Knights jump. Purely vertical moves are not allowed.
+  Pawns: forward one (two on their first move, path empty), capture diagonally forward. White moves towards rank 9.
+  En passant: a pawn that has just made a double step may be captured by an adjacent pawn as if it had moved one square,
+    on the very next move only; the capturing pawn may land on either level.
+  A pawn carried by an attack board loses its double step.
+  Promotion (to Q, R, B or N, pass promotion in make_move): on the furthest rank of the file —
+    files b,c: rank 8 (white) / 1 (black); files z,e: 9 / 0; files a,d: 9 / 0 if an attack board overhangs that corner, else 8 / 1.
+    A pawn left on its furthest rank when an overhanging board moves away is promoted to a queen.
+
+CASTLING (not as a player's first move; king and rook unmoved, same rank, nothing between them, king not in check and not landing in check):
+  king side "0-0": king and rook exchange places. Queen side "0-0-0": the king goes next to the rook, the rook to the king's square.
+  make_move with from "0-0" or "0-0-0" (to is ignored), or move the king onto its castling square.
+
+ATTACK BOARD MOVES (a whole turn): make_move with from = current pin, to = target pin (e.g. from "QL1" to "QL3").
+  Linked pins on the same side: 1-2, 1-3, 2-3, 2-4, 3-4, 3-5, 4-5, 4-6, 5-6; plus sideways QLn <-> KLn.
+  The target pin must be empty. The board carries the pieces on it.
+  It may be moved when empty (by its owner) or carrying exactly ONE piece (by that piece's owner).
+  An occupied board moves only forward or sideways; only an empty board may move backwards. The move must not leave your own king in check.
+
+END: check, checkmate and stalemate as in normal chess. Draws: threefold repetition, no mating material, 50-move rule.
+PIECES in text render: uppercase = white, lowercase = black. K king, Q queen, R rook, B bishop, N knight, P pawn.`;
+
+return { FILES, MAIN_LEVELS, PINS, LEVELS, LEVEL_NAMES, PIECE_NAMES, PROMOTION_PIECES, isPin, pinNeighbours, levelHas, activeLevels, levelsAt, sqKey, parseSquare, squaresOf, allSquares, initialBoards, initialPieces, promotionRank, piecesOnBoard, boardController, applyMove, findKing, isAttacked, inCheck, legalMoves, deadPosition, Game, RULES_TEXT };
+})();
+const { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseSquare, PIECE_NAMES } = ENG;
+const { buildPiece } = (() => {
+
+// Faction-styled piece sets.
+//   white → "Federation": smooth pearl hulls, silver trim, blue running lights.
+//   black → "Klingon": faceted dark metal, bronze blades, red glow.
+// Original designs inspired by the factions — no official insignia.
+
+
+const FED = {
+  hull: new THREE.MeshStandardMaterial({ color: 0xeef2f7, metalness: 0.35, roughness: 0.25, emissive: 0x141c26 }),
+  trim: new THREE.MeshStandardMaterial({ color: 0xb4bfce, metalness: 0.55, roughness: 0.25, emissive: 0x0d1420 }),
+  glow: new THREE.MeshStandardMaterial({ color: 0x66ccff, emissive: 0x3ab0ff, emissiveIntensity: 2.2 }),
+};
+const KLI = {
+  metal: new THREE.MeshStandardMaterial({ color: 0x6a6470, metalness: 0.45, roughness: 0.4, emissive: 0x2a0a0c, flatShading: true }),
+  bronze: new THREE.MeshStandardMaterial({ color: 0xc8873f, metalness: 0.5, roughness: 0.3, emissive: 0x2a1404, flatShading: true }),
+  glow: new THREE.MeshStandardMaterial({ color: 0xff1020, emissive: 0xe0001a, emissiveIntensity: 1.5 }),
+};
+
+function add(g, geo, mat, [x, y, z] = [0, 0, 0], [rx, ry, rz] = [0, 0, 0], s = null) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, y, z);
+  m.rotation.set(rx, ry, rz);
+  if (s) m.scale.set(...s);
+  g.add(m);
+  return m;
+}
+const lathe = (pts, seg = 40) => new THREE.LatheGeometry(pts.map(([r, h]) => new THREE.Vector2(r, h)), seg);
+const torus = (r, t, rs = 12, ts = 48) => new THREE.TorusGeometry(r, t, rs, ts);
+const flat = [Math.PI / 2, 0, 0];
+
+// ---------------------------------------------------------------- Federation ---
+function fedBase(g) {
+  add(g, lathe([[0, 0], [0.3, 0], [0.3, 0.05], [0.26, 0.085], [0, 0.085]]), FED.trim);
+  add(g, torus(0.235, 0.014), FED.glow, [0, 0.09, 0], flat);
+}
+
+const FEDERATION = {
+  P(g) { // probe
+    fedBase(g);
+    add(g, lathe([[0, 0.08], [0.16, 0.08], [0.09, 0.28], [0, 0.3]]), FED.hull);
+    add(g, new THREE.SphereGeometry(0.12, 32, 20), FED.hull, [0, 0.38, 0]);
+    add(g, torus(0.121, 0.013), FED.glow, [0, 0.37, 0], flat);
+  },
+  R(g) { // station tower
+    fedBase(g);
+    add(g, new THREE.CylinderGeometry(0.17, 0.2, 0.42, 40), FED.hull, [0, 0.3, 0]);
+    add(g, torus(0.19, 0.014), FED.glow, [0, 0.2, 0], flat);
+    add(g, torus(0.175, 0.014), FED.glow, [0, 0.4, 0], flat);
+    add(g, lathe([[0, 0.5], [0.27, 0.5], [0.27, 0.54], [0.2, 0.6], [0.06, 0.62], [0, 0.66]]), FED.trim);
+    add(g, new THREE.SphereGeometry(0.035, 16, 12), FED.glow, [0, 0.68, 0]);
+  },
+  B(g) { // spire
+    fedBase(g);
+    add(g, lathe([[0, 0.08], [0.14, 0.08], [0.08, 0.4], [0.05, 0.7], [0, 0.8]]), FED.hull);
+    add(g, torus(0.1, 0.012), FED.glow, [0, 0.3, 0], flat);
+    add(g, torus(0.075, 0.03), FED.trim, [0, 0.5, 0], flat);
+    add(g, new THREE.SphereGeometry(0.045, 20, 14), FED.glow, [0, 0.83, 0]);
+  },
+  N(g) { // shuttle on a pylon
+    fedBase(g);
+    add(g, new THREE.CylinderGeometry(0.05, 0.1, 0.36, 24), FED.trim, [0, 0.27, 0]);
+    add(g, new THREE.CapsuleGeometry(0.11, 0.26, 8, 20), FED.hull, [0, 0.55, 0], [Math.PI / 2, 0, 0]);
+    add(g, new THREE.BoxGeometry(0.12, 0.05, 0.06), FED.glow, [0, 0.6, -0.2]);
+    for (const s of [-1, 1]) {
+      add(g, new THREE.CapsuleGeometry(0.035, 0.22, 6, 12), FED.trim, [s * 0.16, 0.6, 0.06], [Math.PI / 2, 0, 0]);
+      add(g, new THREE.CylinderGeometry(0.012, 0.012, 0.2, 8), FED.glow, [s * 0.16, 0.635, 0.06], [Math.PI / 2, 0, 0]);
+      add(g, new THREE.BoxGeometry(0.12, 0.02, 0.06), FED.hull, [s * 0.09, 0.58, 0.06]);
+    }
+  },
+  Q(g) { // starship: saucer + nacelles
+    fedBase(g);
+    add(g, new THREE.CylinderGeometry(0.045, 0.1, 0.4, 24), FED.trim, [0, 0.28, 0]);
+    add(g, new THREE.CapsuleGeometry(0.075, 0.2, 8, 16), FED.hull, [0, 0.5, 0.08], [Math.PI / 2 - 0.25, 0, 0]);
+    add(g, lathe([[0, 0], [0.33, 0], [0.31, 0.045], [0.14, 0.085], [0.06, 0.1], [0, 0.105]], 48), FED.hull, [0, 0.62, -0.05]);
+    add(g, torus(0.325, 0.011, 8, 64), FED.glow, [0, 0.625, -0.05], flat);
+    add(g, new THREE.SphereGeometry(0.05, 16, 10), FED.glow, [0, 0.725, -0.05], [0, 0, 0], [1, 0.5, 1]);
+    for (const s of [-1, 1]) {
+      add(g, new THREE.BoxGeometry(0.02, 0.16, 0.05), FED.hull, [s * 0.11, 0.66, 0.2], [0, 0, s * -0.5]);
+      add(g, new THREE.CapsuleGeometry(0.04, 0.34, 6, 14), FED.trim, [s * 0.17, 0.74, 0.24], [Math.PI / 2, 0, 0]);
+      add(g, new THREE.CylinderGeometry(0.014, 0.014, 0.32, 8), FED.glow, [s * 0.17, 0.778, 0.24], [Math.PI / 2, 0, 0]);
+      add(g, new THREE.SphereGeometry(0.03, 12, 8), new THREE.MeshStandardMaterial({ color: 0xff7755, emissive: 0xff3311, emissiveIntensity: 2 }), [s * 0.17, 0.74, 0.04]);
+    }
+  },
+  K(g) { // command spire
+    fedBase(g);
+    add(g, lathe([[0, 0.08], [0.19, 0.08], [0.1, 0.38], [0.15, 0.58], [0.08, 0.76], [0, 0.8]]), FED.hull);
+    add(g, torus(0.15, 0.02), FED.trim, [0, 0.58, 0], [Math.PI / 2 + 0.25, 0, 0]);
+    add(g, torus(0.11, 0.012), FED.glow, [0, 0.3, 0], flat);
+    add(g, new THREE.SphereGeometry(0.085, 24, 16), FED.glow, [0, 0.9, 0]);
+    add(g, torus(0.14, 0.01, 8, 48), FED.trim, [0, 0.9, 0], flat);
+    add(g, torus(0.14, 0.01, 8, 48), FED.trim, [0, 0.9, 0], [0, 0, Math.PI / 2]);
+  },
+};
+
+// ------------------------------------------------------------------- Klingon ---
+function kliBase(g) {
+  add(g, new THREE.CylinderGeometry(0.27, 0.31, 0.085, 6), KLI.bronze, [0, 0.042, 0]);
+  add(g, new THREE.TorusGeometry(0.24, 0.014, 4, 6), KLI.glow, [0, 0.09, 0], [Math.PI / 2, 0, Math.PI / 6]);
+}
+function spikes(g, n, r, y, h, tilt, mat = KLI.bronze, w = 0.035) {
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const sp = add(g, new THREE.ConeGeometry(w, h, 4), mat, [Math.cos(a) * r, y, Math.sin(a) * r]);
+    sp.rotation.set(0, -a, 0);
+    sp.rotateZ(-tilt);
+  }
+}
+
+const KLINGON = {
+  P(g) { // warrior
+    kliBase(g);
+    add(g, new THREE.CylinderGeometry(0.05, 0.16, 0.34, 5), KLI.metal, [0, 0.25, 0]);
+    add(g, new THREE.OctahedronGeometry(0.1), KLI.metal, [0, 0.46, 0], [0, 0, 0], [1, 1.3, 1]);
+    add(g, new THREE.BoxGeometry(0.14, 0.025, 0.02), KLI.glow, [0, 0.47, -0.075]);
+  },
+  R(g) { // fortress
+    kliBase(g);
+    add(g, new THREE.CylinderGeometry(0.19, 0.24, 0.44, 6), KLI.metal, [0, 0.3, 0]);
+    add(g, new THREE.TorusGeometry(0.205, 0.014, 4, 6), KLI.glow, [0, 0.38, 0], [Math.PI / 2, 0, Math.PI / 6]);
+    add(g, new THREE.CylinderGeometry(0.23, 0.19, 0.07, 6), KLI.bronze, [0, 0.55, 0]);
+    spikes(g, 6, 0.19, 0.66, 0.18, 0.35);
+  },
+  B(g) { // blade
+    kliBase(g);
+    add(g, new THREE.CylinderGeometry(0, 0.13, 0.72, 4), KLI.metal, [0, 0.45, 0], [0, Math.PI / 4, 0]);
+    add(g, new THREE.CylinderGeometry(0.17, 0.12, 0.05, 6), KLI.bronze, [0, 0.27, 0]);
+    add(g, new THREE.BoxGeometry(0.02, 0.32, 0.05), KLI.glow, [0, 0.47, -0.07], [0.08, 0, 0]);
+    spikes(g, 2, 0.13, 0.3, 0.18, 1.1);
+  },
+  N(g) { // beast head
+    kliBase(g);
+    add(g, new THREE.CylinderGeometry(0.09, 0.15, 0.3, 5), KLI.metal, [0, 0.23, 0]);
+    add(g, new THREE.BoxGeometry(0.17, 0.2, 0.36), KLI.metal, [0, 0.5, -0.06], [0.45, 0, 0]);
+    add(g, new THREE.ConeGeometry(0.08, 0.2, 4), KLI.metal, [0, 0.43, -0.28], [-Math.PI / 2 - 0.4, 0, 0]);
+    add(g, new THREE.BoxGeometry(0.02, 0.22, 0.3), KLI.bronze, [0, 0.66, 0.02], [0.5, 0, 0]);
+    for (const s of [-1, 1]) {
+      add(g, new THREE.BoxGeometry(0.035, 0.02, 0.03), KLI.glow, [s * 0.06, 0.55, -0.22]);
+      add(g, new THREE.ConeGeometry(0.03, 0.18, 4), KLI.bronze, [s * 0.1, 0.66, 0.06], [0.4, 0, s * -0.5]);
+    }
+  },
+  Q(g) { // bird of prey
+    kliBase(g);
+    add(g, new THREE.CylinderGeometry(0.05, 0.12, 0.42, 5), KLI.metal, [0, 0.3, 0]);
+    add(g, new THREE.CylinderGeometry(0.035, 0.07, 0.36, 5), KLI.metal, [0, 0.62, -0.12], [Math.PI / 2 - 0.2, 0, 0]);
+    add(g, new THREE.OctahedronGeometry(0.075), KLI.metal, [0, 0.66, -0.32], [0, 0, 0], [1, 0.7, 1.5]);
+    add(g, new THREE.BoxGeometry(0.06, 0.02, 0.03), KLI.glow, [0, 0.67, -0.42]);
+    add(g, new THREE.CylinderGeometry(0.12, 0.09, 0.12, 6), KLI.metal, [0, 0.6, 0.08]);
+    for (const s of [-1, 1]) {
+      const wing = add(g, new THREE.BoxGeometry(0.4, 0.025, 0.2), KLI.metal, [s * 0.24, 0.55, 0.1], [0, s * 0.15, s * 0.45]);
+      wing.scale.set(1, 1, 1);
+      add(g, new THREE.BoxGeometry(0.4, 0.03, 0.03), KLI.bronze, [s * 0.24, 0.555, 0.0], [0, s * 0.15, s * 0.45]);
+      add(g, new THREE.ConeGeometry(0.025, 0.14, 4), KLI.glow, [s * 0.42, 0.46, 0.0], [-Math.PI / 2, 0, 0]);
+    }
+  },
+  K(g) { // warlord
+    kliBase(g);
+    add(g, new THREE.CylinderGeometry(0.1, 0.19, 0.62, 6), KLI.metal, [0, 0.39, 0]);
+    add(g, new THREE.CylinderGeometry(0.15, 0.11, 0.08, 6), KLI.bronze, [0, 0.72, 0]);
+    add(g, new THREE.TorusGeometry(0.15, 0.013, 4, 6), KLI.glow, [0, 0.4, 0], [Math.PI / 2, 0, Math.PI / 6]);
+    spikes(g, 5, 0.12, 0.88, 0.28, 0.3, KLI.bronze, 0.04);
+    add(g, new THREE.OctahedronGeometry(0.07), KLI.glow, [0, 0.88, 0], [0, 0, 0], [1, 1.5, 1]);
+  },
+};
+
+function buildPiece(type, color) {
+  const g = new THREE.Group();
+  (color === 'white' ? FEDERATION : KLINGON)[type](g);
+  if (color === 'black') g.rotation.y = Math.PI; // face the opponent
+  g.scale.setScalar(0.85);
+  return g;
+}
+
+return { buildPiece };
+})();
+const { t, table, getLang, setLang, applyStatic, onLangChange } = (() => {
+
+// UI translations (Italian / English). Static markup uses data-i18n* attributes;
+// scripts call t('key', { vars }). The language follows the saved choice, else the system.
+
+const STRINGS = {
+  it: {
+    'name.white': 'Bianco', 'name.black': 'Nero',
+    'name.human': 'Umano', 'name.ai': 'AI', 'name.computer': 'Computer', 'name.remote': 'In rete',
+    'opt.ai': 'AI (MCP)',
+    'level.1': 'Principiante', 'level.2': 'Facile', 'level.3': 'Medio', 'level.4': 'Esperto', 'level.5': 'Maestro',
+    'style.balanced': 'Equilibrato', 'style.aggressive': 'Aggressivo', 'style.cautious': 'Prudente',
+    'draw.fifty': 'regola delle 50 mosse', 'draw.repetition': 'triplice ripetizione', 'draw.material': 'materiale insufficiente',
+    'piece.K': 'Re', 'piece.Q': 'Regina', 'piece.R': 'Torre', 'piece.B': 'Alfiere', 'piece.N': 'Cavallo', 'piece.P': 'Pedone',
+
+    'status.connecting': 'Connessione…', 'status.lost': 'Connessione persa, riprovo…',
+    'status.mate': 'Scacco matto — vince {c}', 'status.stalemate': 'Stallo — patta', 'status.draw': 'Patta ({r})',
+    'status.resigned': 'Abbandono — vince {c}',
+    'status.check': 'Scacco al {c}! {n} mosse per uscirne', 'status.check1': 'Scacco al {c}! 1 mossa per uscirne',
+    'status.computer': 'Il computer pensa ({c})…', 'status.remote': "Mossa dell'avversario in rete ({c})…",
+    'status.ai': "In attesa dell'AI ({c})…", 'status.you': 'Tocca a te ({c}) · {n} mosse',
+
+    'ui.turn': 'Turno', 'ui.log': 'Registro mosse', 'ui.newGame': 'Nuova partita', 'ui.resign': 'Abbandona',
+    'ui.confirm': 'Conferma?', 'ui.view': 'Vista', 'ui.stats': 'Statistiche', 'ui.statsHide': 'Nascondi (S)',
+    'ui.statsShow': 'Mostra statistiche (S)', 'ui.options': 'Opzioni', 'ui.close': 'Chiudi',
+    'ui.levelW': 'Livello Bianco', 'ui.levelB': 'Livello Nero', 'ui.styleW': 'Stile Bianco', 'ui.styleB': 'Stile Nero',
+    'ui.lang': 'Lingua', 'ui.resignConfirm': 'Abbandonare la partita?', 'ui.error': 'Errore {s}',
+
+    'mcp.title': "Collega l'AI (MCP) · clic per copiare", 'mcp.none': 'Nessun giocatore AI: imposta Bianco o Nero su AI.',
+    'mcp.unsaved': 'Premi “Nuova partita” per applicare i giocatori.', 'mcp.copied': 'Comando copiato',
+
+    'stats.noCaps': 'Nessun pezzo catturato', 'stats.winner': 'vincitore', 'stats.material': 'punti materiale',
+    'stats.balance': 'Equilibrio materiale', 'stats.captured': 'Pezzi mangiati', 'stats.moves': 'Mosse',
+    'stats.captures': 'Catture', 'stats.checks': 'Scacchi dati', 'stats.promotions': 'Promozioni',
+    'stats.pieces': 'Pezzi in gioco', 'stats.avg': 'Tempo medio', 'stats.total': 'Tempo totale', 'stats.thinking': 'Sta pensando',
+
+    'victory.triumph': 'Trionfo', 'victory.gameOver': 'Fine partita', 'victory.draw': 'Patta',
+    'victory.stalemate': 'Stallo: nessuna mossa legale', 'victory.drawBy': 'Patta per {r}', 'victory.plies': '{n} semimosse giocate',
+    'victory.glory': 'Gloria al {c}', 'victory.win': 'Vittoria', 'victory.sub': 'Il {c} ({who}) trionfa {how} alla mossa {n}',
+    'victory.byMate': 'per scacco matto', 'victory.byResign': 'per abbandono',
+    'victory.meta': '{caps} pezzi catturati · {checks} scacchi dati · materiale {mat}', 'victory.watch': 'Guarda la scacchiera',
+
+    'promo.eyebrow': 'Promozione', 'promo.title': 'Scegli il nuovo pezzo', 'promo.cancel': 'Annulla',
+
+    'hint.notYourTurn': 'Non è il tuo turno', 'hint.pin': 'Aggancio {p} · sposta qui la tavola', 'hint.movable': ' · tavola spostabile',
+    'hint.boardLocked': 'Tavola bloccata: si sposta solo se vuota o con un solo pezzo',
+    'hint.boardEnemy': "Questa tavola la controlla l'avversario (ha sopra un suo pezzo)",
+    'hint.boardEnemyEmpty': "Tavola vuota dell'avversario: solo lui può spostarla",
+    'hint.boardNoPin': 'Questa tavola non ha agganci liberi raggiungibili',
+    'hint.pawnStuck': 'Pedone bloccato: sposta la sua tavola (tocca una casella vuota della tavola) per farlo avanzare',
+    'hint.kingStuckCheck': 'Il re non può muoversi: para lo scacco con un pezzo evidenziato in verde',
+    'hint.kingStuck': 'Il re non può muoversi, ma hai altre {n} mosse',
+    'hint.notBlocking': 'Questo pezzo non para lo scacco: usa uno evidenziato in verde',
+    'hint.noMoves': 'Nessuna mossa legale per questo pezzo',
+
+    'net.title': 'Gioco in rete (P2P)', 'net.iPlay': 'Io gioco', 'net.random': 'Casuale', 'net.host': 'Crea stanza',
+    'net.code': 'Codice stanza', 'net.join': 'Entra', 'net.room': 'Stanza', 'net.state': 'Stato', 'net.you': 'Tu giochi',
+    'net.copy': 'Copia', 'net.leave': 'Esci dalla stanza', 'net.waiting': "In attesa dell'avversario…",
+    'net.searching': 'Cerco la stanza…', 'net.syncing': 'Allineamento partita…', 'net.connected': 'Connesso',
+    'net.desync': 'Partita non allineata', 'net.peerLeft': 'Avversario disconnesso: può rientrare con lo stesso codice',
+    'net.codeCopied': 'Codice copiato', 'net.needCode': 'Inserisci il codice della stanza', 'net.left': 'Sei uscito dalla stanza',
+    'net.busy': 'La stanza è già occupata da due giocatori', 'net.peerNew': "L'avversario ha avviato una nuova partita",
+    'net.peerAway': "L'avversario non è connesso", 'net.unavailable': 'Rete non disponibile: {e}',
+
+    'chat.title': 'Chat', 'chat.send': 'Invia', 'chat.placeholder': 'Scrivi un messaggio…', 'chat.emoji': 'Emoticon',
+    'chat.reactions': 'Reazioni', 'chat.me': 'Tu', 'chat.them': 'Avversario', 'chat.wait': 'attendi {s}s',
+    'chat.tooManyEmoji': 'Massimo {n} emoticon per messaggio', 'chat.joined': "L'avversario è nella stanza",
+    'chat.left': "L'avversario è uscito",
+    'react.clap': 'Applausi', 'react.fire': 'Fuoco', 'react.wow': 'Wow', 'react.laugh': 'Risata', 'react.gg': 'Bella partita', 'react.boom': 'Boom',
+  },
+  en: {
+    'name.white': 'White', 'name.black': 'Black',
+    'name.human': 'Human', 'name.ai': 'AI', 'name.computer': 'Computer', 'name.remote': 'Online',
+    'opt.ai': 'AI (MCP)',
+    'level.1': 'Beginner', 'level.2': 'Easy', 'level.3': 'Medium', 'level.4': 'Expert', 'level.5': 'Master',
+    'style.balanced': 'Balanced', 'style.aggressive': 'Aggressive', 'style.cautious': 'Cautious',
+    'draw.fifty': 'the 50-move rule', 'draw.repetition': 'threefold repetition', 'draw.material': 'insufficient material',
+    'piece.K': 'King', 'piece.Q': 'Queen', 'piece.R': 'Rook', 'piece.B': 'Bishop', 'piece.N': 'Knight', 'piece.P': 'Pawn',
+
+    'status.connecting': 'Connecting…', 'status.lost': 'Connection lost, retrying…',
+    'status.mate': 'Checkmate — {c} wins', 'status.stalemate': 'Stalemate — draw', 'status.draw': 'Draw ({r})',
+    'status.resigned': 'Resignation — {c} wins',
+    'status.check': '{c} in check! {n} moves to escape', 'status.check1': '{c} in check! 1 move to escape',
+    'status.computer': 'Computer thinking ({c})…', 'status.remote': 'Waiting for the online opponent ({c})…',
+    'status.ai': 'Waiting for the AI ({c})…', 'status.you': 'Your move ({c}) · {n} moves',
+
+    'ui.turn': 'Turn', 'ui.log': 'Move log', 'ui.newGame': 'New game', 'ui.resign': 'Resign',
+    'ui.confirm': 'Confirm?', 'ui.view': 'View', 'ui.stats': 'Stats', 'ui.statsHide': 'Hide (S)',
+    'ui.statsShow': 'Show stats (S)', 'ui.options': 'Options', 'ui.close': 'Close',
+    'ui.levelW': 'White level', 'ui.levelB': 'Black level', 'ui.styleW': 'White style', 'ui.styleB': 'Black style',
+    'ui.lang': 'Language', 'ui.resignConfirm': 'Resign the game?', 'ui.error': 'Error {s}',
+
+    'mcp.title': 'Connect an AI (MCP) · click to copy', 'mcp.none': 'No AI player: set White or Black to AI.',
+    'mcp.unsaved': 'Press “New game” to apply the players.', 'mcp.copied': 'Command copied',
+
+    'stats.noCaps': 'No captures yet', 'stats.winner': 'winner', 'stats.material': 'material points',
+    'stats.balance': 'Material balance', 'stats.captured': 'Captured pieces', 'stats.moves': 'Moves',
+    'stats.captures': 'Captures', 'stats.checks': 'Checks given', 'stats.promotions': 'Promotions',
+    'stats.pieces': 'Pieces left', 'stats.avg': 'Average time', 'stats.total': 'Total time', 'stats.thinking': 'Thinking',
+
+    'victory.triumph': 'Triumph', 'victory.gameOver': 'Game over', 'victory.draw': 'Draw',
+    'victory.stalemate': 'Stalemate: no legal moves', 'victory.drawBy': 'Draw by {r}', 'victory.plies': '{n} plies played',
+    'victory.glory': 'Glory to {c}', 'victory.win': 'Victory', 'victory.sub': '{c} ({who}) wins {how} on move {n}',
+    'victory.byMate': 'by checkmate', 'victory.byResign': 'by resignation',
+    'victory.meta': '{caps} pieces captured · {checks} checks · material {mat}', 'victory.watch': 'View the board',
+
+    'promo.eyebrow': 'Promotion', 'promo.title': 'Choose the new piece', 'promo.cancel': 'Cancel',
+
+    'hint.notYourTurn': "It's not your turn", 'hint.pin': 'Pin {p} · move the board here', 'hint.movable': ' · movable board',
+    'hint.boardLocked': 'Board locked: it moves only when empty or holding one piece',
+    'hint.boardEnemy': 'Your opponent controls this board (one of their pieces is on it)',
+    'hint.boardEnemyEmpty': "Opponent's empty board: only they can move it",
+    'hint.boardNoPin': 'No free pin within reach for this board',
+    'hint.pawnStuck': 'Pawn blocked: move its attack board (tap an empty square of the board) to advance it',
+    'hint.kingStuckCheck': "The king can't move: block the check with a piece highlighted in green",
+    'hint.kingStuck': "The king can't move, but you have {n} other moves",
+    'hint.notBlocking': "This piece can't stop the check: use one highlighted in green",
+    'hint.noMoves': 'No legal moves for this piece',
+
+    'net.title': 'Online play (P2P)', 'net.iPlay': 'I play', 'net.random': 'Random', 'net.host': 'Create room',
+    'net.code': 'Room code', 'net.join': 'Join', 'net.room': 'Room', 'net.state': 'Status', 'net.you': 'You play',
+    'net.copy': 'Copy', 'net.leave': 'Leave room', 'net.waiting': 'Waiting for your opponent…',
+    'net.searching': 'Looking for the room…', 'net.syncing': 'Syncing the game…', 'net.connected': 'Connected',
+    'net.desync': 'Game out of sync', 'net.peerLeft': 'Opponent disconnected: they can rejoin with the same code',
+    'net.codeCopied': 'Code copied', 'net.needCode': 'Enter the room code', 'net.left': 'You left the room',
+    'net.busy': 'This room already has two players', 'net.peerNew': 'Your opponent started a new game',
+    'net.peerAway': 'Your opponent is not connected', 'net.unavailable': 'Network unavailable: {e}',
+
+    'chat.title': 'Chat', 'chat.send': 'Send', 'chat.placeholder': 'Write a message…', 'chat.emoji': 'Emoji',
+    'chat.reactions': 'Reactions', 'chat.me': 'You', 'chat.them': 'Opponent', 'chat.wait': 'wait {s}s',
+    'chat.tooManyEmoji': 'At most {n} emoji per message', 'chat.joined': 'Your opponent is in the room',
+    'chat.left': 'Your opponent left',
+    'react.clap': 'Applause', 'react.fire': 'Fire', 'react.wow': 'Wow', 'react.laugh': 'Laugh', 'react.gg': 'Good game', 'react.boom': 'Boom',
+  },
+};
+
+const LANGS = ['it', 'en'];
+const KEY = 'tridchess.lang';
+const listeners = [];
+
+function detect() {
+  try { const saved = localStorage.getItem(KEY); if (LANGS.includes(saved)) return saved; } catch {}
+  const q = new URLSearchParams(location.search).get('lang');
+  if (LANGS.includes(q)) return q;
+  return (navigator.language || 'en').toLowerCase().startsWith('it') ? 'it' : 'en';
+}
+
+let lang = detect();
+const getLang = () => lang;
+
+function t(key, vars = {}) {
+  const s = STRINGS[lang][key] ?? STRINGS.it[key] ?? key;
+  return s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? `{${k}}`));
+}
+
+// Fill every element marked with data-i18n (text), data-i18n-title, data-i18n-placeholder, data-i18n-aria.
+function applyStatic(root = document) {
+  document.documentElement.lang = lang;
+  for (const el of root.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+  for (const el of root.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
+  for (const el of root.querySelectorAll('[data-i18n-placeholder]')) el.placeholder = t(el.dataset.i18nPlaceholder);
+  for (const el of root.querySelectorAll('[data-i18n-aria]')) el.setAttribute('aria-label', t(el.dataset.i18nAria));
+}
+
+function setLang(next) {
+  if (!LANGS.includes(next) || next === lang) return;
+  lang = next;
+  try { localStorage.setItem(KEY, lang); } catch {}
+  applyStatic();
+  for (const f of listeners) { try { f(lang); } catch (e) { console.error(e); } }
+}
+
+const onLangChange = (f) => listeners.push(f);
+
+// Lookup tables that read the current language on every access, e.g. NAMES.white.
+const table = (prefix) => new Proxy({}, { get: (_, k) => (typeof k === 'string' ? t(`${prefix}.${k}`) : undefined) });
+
+return { LANGS, getLang, t, applyStatic, setLang, onLangChange, table };
+})();
+
+
+
+
+
+
+// --- world mapping -------------------------------------------------------------
+const H = 2.0; // vertical spacing per level unit
+const SQ = 1.0;
+const worldPos = (x, y, level) => new THREE.Vector3((x - 2.5) * SQ, LEVELS[level].height * H, -(y - 4.5) * SQ);
+const posOfKey = (key) => { const s = parseSquare(key); return worldPos(s.x, s.y, s.level); };
+
+// --- renderer / scene ------------------------------------------------------------
+const container = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000006);
+scene.fog = new THREE.Fog(0x000006, 30, 90);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 300);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.minDistance = 5;
+controls.maxDistance = 40;
+controls.maxPolarAngle = Math.PI * 0.95;
+
+const CAM_VIEWS = {
+  white: { pos: [7, 11, 12], target: [-1.6, 2.2, 0] },
+  black: { pos: [-7, 11, -12], target: [-1.6, 2.2, 0] },
+  side: { pos: [14, 4, 0], target: [-1.6, 2.2, 0] },
+};
+let camIdx = 0;
+function setView(name) {
+  const v = CAM_VIEWS[name];
+  const narrow = window.innerWidth < 700;
+  const k = camera.aspect < 1 ? Math.min(1.8, 0.8 / camera.aspect) : 1;
+  const t = narrow ? [-0.5, 1.5, 0] : v.target;
+  camera.position.set(...v.pos.map((p, i) => t[i] + (p - v.target[i]) * k));
+  controls.target.set(...t);
+  controls.update();
+}
+let lastPortrait = camera.aspect < 1;
+setView('white');
+
+scene.add(new THREE.HemisphereLight(0x8899ff, 0x110818, 0.9));
+const key = new THREE.DirectionalLight(0xffffff, 2.2);
+key.position.set(6, 14, 8);
+scene.add(key);
+const rim = new THREE.PointLight(0x66ccff, 40, 30);
+rim.position.set(-6, 6, -6);
+scene.add(rim);
+const warm = new THREE.PointLight(0xff9c33, 30, 30);
+warm.position.set(6, -1, 6);
+scene.add(warm);
+
+// starfield
+{
+  const g = new THREE.BufferGeometry();
+  const n = 2500, arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const v = new THREE.Vector3().randomDirection().multiplyScalar(60 + Math.random() * 60);
+    arr.set([v.x, v.y, v.z], i * 3);
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+  const stars = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 0.25, sizeAttenuation: true, fog: false }));
+  stars.name = 'stars';
+  scene.add(stars);
+}
+
+// --- boards: one group per level; attack-board pins are shown only while a board sits on them ---
+const squareMeshes = new Map(); // key -> mesh
+const pickables = [];
+const levelGroups = {};          // level -> THREE.Group
+const pinFrames = {};            // pin -> frame (own material, recoloured when the board can move)
+const ghostGroup = new THREE.Group();
+scene.add(ghostGroup);
+const ghosts = {};               // pin -> group shown as a move target for a selected board
+const lightMat = () => new THREE.MeshStandardMaterial({ color: 0xb8d4ff, transparent: true, opacity: 0.42, metalness: 0.1, roughness: 0.2, emissive: 0x000000, depthWrite: false });
+const darkMat = () => new THREE.MeshStandardMaterial({ color: 0x14244a, transparent: true, opacity: 0.72, metalness: 0.3, roughness: 0.3, emissive: 0x000000, depthWrite: false });
+const squareGeo = new THREE.BoxGeometry(SQ * 0.97, 0.05, SQ * 0.97);
+const frameMat = new THREE.LineBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.9 });
+const metal = new THREE.MeshStandardMaterial({ color: 0x8a8f9c, metalness: 0.9, roughness: 0.3 });
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0x66ffcc, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide });
+const ghostLine = new THREE.LineBasicMaterial({ color: 0x66ffcc, transparent: true, opacity: 0.95 });
+
+function labelSprite(text, color = '#ff9c33') {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 96;
+  const ctx = c.getContext('2d');
+  ctx.font = 'bold 56px Helvetica Neue, sans-serif';
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 48);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+  sp.scale.set(1.0, 0.375, 1);
+  return sp;
+}
+
+function levelDims(L) {
+  return {
+    w: (L.x[1] - L.x[0] + 1) * SQ, d: (L.y[1] - L.y[0] + 1) * SQ,
+    cx: ((L.x[0] + L.x[1]) / 2 - 2.5) * SQ, cz: -((L.y[0] + L.y[1]) / 2 - 4.5) * SQ, y: L.height * H - 0.03,
+  };
+}
+const pinOrigin = (pin) => worldPos(PINS[pin].x[0], PINS[pin].y[0], pin);
+
+const BASE_Y = -2.2;
+for (const lv of LEVEL_NAMES) {
+  const L = LEVELS[lv];
+  const g = new THREE.Group();
+  levelGroups[lv] = g;
+  scene.add(g);
+  const { w, d, cx, cz, y } = levelDims(L);
+  for (const s of squaresOf(lv)) {
+    const m = new THREE.Mesh(squareGeo, (s.x + s.y) % 2 === 0 ? darkMat() : lightMat());
+    m.position.copy(worldPos(s.x, s.y, s.level));
+    m.position.y -= 0.03;
+    m.userData = { key: s.key, kind: 'square' };
+    m.renderOrder = 1;
+    g.add(m);
+    squareMeshes.set(s.key, m);
+    pickables.push(m);
+  }
+  const pin = isPin(lv);
+  const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w + 0.08, 0.1, d + 0.08)), pin ? frameMat.clone() : frameMat);
+  frame.position.set(cx, y, cz);
+  g.add(frame);
+  const label = labelSprite(lv, pin ? '#cc99cc' : '#ff9c33');
+  label.position.set(pin ? cx + (L.x[0] === 0 ? -1.4 : 1.4) : cx - w / 2 - 0.7, y + 0.25, cz);
+  g.add(label);
+  if (!pin) {
+    // arm to the central spine on the left
+    const armLen = 1.6;
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(armLen, 0.08, 0.2), metal);
+    arm.position.set(cx - w / 2 - armLen / 2, y - 0.08, cz);
+    g.add(arm);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, y - BASE_Y), metal);
+    post.position.set(cx - w / 2 - armLen, (y + BASE_Y) / 2, cz);
+    g.add(post);
+  } else {
+    pinFrames[lv] = frame;
+    // short post down to the main board it hangs from
+    const len = y - MAIN_LEVELS[L.main].height * H;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len), metal);
+    post.position.set(cx, y - len / 2, cz);
+    g.add(post);
+    // ghost outline shown when this pin is a legal destination for the selected board
+    const gg = new THREE.Group();
+    const plane = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), ghostMat);
+    plane.position.set(cx, y, cz);
+    plane.userData = { key: lv, kind: 'ghost' };
+    gg.add(plane);
+    const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w + 0.08, 0.1, d + 0.08)), ghostLine);
+    edge.position.set(cx, y, cz);
+    gg.add(edge);
+    const gl = labelSprite(lv, '#66ffcc');
+    gl.position.set(label.position.x, label.position.y, label.position.z);
+    gg.add(gl);
+    gg.visible = false;
+    ghosts[lv] = gg;
+    ghostGroup.add(gg);
+  }
+}
+function syncBoards() {
+  for (const pin of Object.keys(PINS)) {
+    levelGroups[pin].visible = !!state?.boards?.[pin];
+    levelGroups[pin].position.set(0, 0, 0);
+  }
+}
+// base plate
+{
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.0, 0.25, 48), metal);
+  base.position.set(-3.6, BASE_Y - 0.12, 0);
+  base.scale.set(0.6, 1, 2.2);
+  scene.add(base);
+}
+
+// --- pieces: faction sets in pieces.js ----------------------------------------------
+const pieceGroup = new THREE.Group();
+scene.add(pieceGroup);
+const pieceMeshes = new Map(); // key -> group
+
+// markers for legal targets
+const markerGroup = new THREE.Group();
+scene.add(markerGroup);
+const ringGeo = new THREE.RingGeometry(0.22, 0.34, 32);
+const ringMove = new THREE.MeshBasicMaterial({ color: 0x66ffcc, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
+const ringCap = new THREE.MeshBasicMaterial({ color: 0xff5555, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false });
+
+// --- state & UI ----------------------------------------------------------------------
+let state = null;
+let selected = null;
+let anim = null;
+const $ = (id) => document.getElementById(id);
+// localized lookup tables (read the current language on every access)
+const IT = table('name');
+const DRAW_IT = table('draw');
+const LEVEL_IT = table('level');
+const STYLE_IT = table('style');
+
+
+// --- MCP commands: only for the colors set to AI ----------------------------------
+function renderMcp() {
+  const box = $('mcpcmd');
+  const players = { white: $('selW').value, black: $('selB').value };
+  const ai = ['white', 'black'].filter((c) => players[c] === 'ai');
+  if (!ai.length) { box.innerHTML = `<div class="mcpnone">${t('mcp.none')}</div>`; return; }
+  box.innerHTML = '';
+  for (const c of ai) {
+    const cmd = `claude mcp add --transport http tri-d-chess-${c} "${location.origin}/mcp?color=${c}"`;
+    const div = document.createElement('div');
+    div.className = 'mcpline';
+    div.innerHTML = `<div class="who">${IT[c]} · AI</div><code></code>`;
+    div.querySelector('code').textContent = cmd;
+    div.onclick = () => navigator.clipboard?.writeText(cmd).then(() => toast(t('mcp.copied')), () => {});
+    box.appendChild(div);
+  }
+  const unsaved = state && (players.white !== state.players.white || players.black !== state.players.black);
+  if (unsaved) box.insertAdjacentHTML('beforeend', `<div class="mcpnone">${t('mcp.unsaved')}</div>`);
+}
+function syncLevel() { for (const c of ['W', 'B']) $('cpu' + c).hidden = $('sel' + c).value !== 'computer'; }
+const newGameBody = () => ({
+  white: $('selW').value, black: $('selB').value,
+  computer: {
+    white: { level: Number($('lvlW').value), style: $('styW').value },
+    black: { level: Number($('lvlB').value), style: $('styB').value },
+  },
+});
+$('selW').onchange = $('selB').onchange = () => { renderMcp(); syncLevel(); };
+syncLevel();
+
+// --- statistics panel -----------------------------------------------------------------
+const VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 0 };
+const GLYPH = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
+const glyph = (t) => GLYPH[t] + '\uFE0E';
+const fmtTime = (ms) => { if (ms == null || !isFinite(ms)) return '—'; const s = Math.round(ms / 1000); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+function statsFor(s, c) {
+  const mine = s.history.filter((m) => m.color === c);
+  const caps = mine.filter((m) => m.captured).map((m) => m.captured).sort((x, y) => VAL[y] - VAL[x]);
+  const material = Object.values(s.pieces).filter((p) => p.color === c).reduce((t, p) => t + VAL[p.type], 0);
+  const think = [];
+  s.history.forEach((m, i) => { if (m.color === c && m.at) { const prev = i ? s.history[i - 1].at : s.startedAt; if (prev) think.push(m.at - prev); } });
+  return {
+    moves: mine.length, caps, material,
+    checks: mine.filter((m) => m.check).length,
+    promotions: mine.filter((m) => m.promotion).length,
+    pieces: Object.values(s.pieces).filter((p) => p.color === c).length,
+    avg: think.length ? think.reduce((t, x) => t + x, 0) / think.length : null,
+    total: think.length ? think.reduce((t, x) => t + x, 0) : null,
+  };
+}
+
+function renderStats() {
+  if (!state) return;
+  const st = { white: statsFor(state, 'white'), black: statsFor(state, 'black') };
+  const totalMat = st.white.material + st.black.material || 1;
+  for (const c of ['white', 'black']) {
+    const o = c === 'white' ? 'black' : 'white';
+    const S = st[c], diff = S.material - st[o].material;
+    const card = $(`card-${c}`);
+    card.classList.toggle('turn', state.status === 'playing' && state.turn === c);
+    const capsHtml = S.caps.length ? S.caps.map((t) => `<span class="${o[0]}">${glyph(t)}</span>`).join('') : `<span class="none">${t('stats.noCaps')}</span>`;
+    const thinking = state.status === 'playing' && state.turn === c;
+    card.innerHTML = `
+      <div class="head"><span class="name">${IT[c]}</span><span class="who">${IT[state.players[c]]}${state.winner === c ? ` · ${t('stats.winner')}` : ''}</span></div>
+      <div class="mat"><b>${S.material}</b><span class="who">${t('stats.material')}</span>${diff > 0 ? `<span class="adv">+${diff}</span>` : ''}</div>
+      ${c === 'white' ? `<div class="balance" title="${t('stats.balance')}"><div style="width:${(S.material / totalMat) * 100}%"></div></div>` : ''}
+      <div class="who" style="margin-top:8px">${t('stats.captured')}</div>
+      <div class="caps">${capsHtml}</div>
+      <div class="sgrid">
+        <span>${t('stats.moves')}</span><span>${S.moves}</span>
+        <span>${t('stats.captures')}</span><span>${S.caps.length}</span>
+        <span>${t('stats.checks')}</span><span>${S.checks}</span>
+        <span>${t('stats.promotions')}</span><span>${S.promotions}</span>
+        <span>${t('stats.pieces')}</span><span>${S.pieces}/16</span>
+        <span>${t('stats.avg')}</span><span>${fmtTime(S.avg)}</span>
+        <span>${t('stats.total')}</span><span>${fmtTime(S.total)}</span>
+        ${thinking ? `<span>${t('stats.thinking')}</span><span class="thinking" data-c="${c}">—</span>` : ''}
+      </div>`;
+  }
+  tickThinking();
+}
+function tickThinking() {
+  const el = document.querySelector('.thinking');
+  if (!el || !state) return;
+  const since = state.lastMove?.at || state.startedAt;
+  el.textContent = since ? fmtTime(Date.now() - since) : '—';
+}
+setInterval(tickThinking, 1000);
+
+const statsEl = $('stats'), statsTab = $('statsTab');
+function setStats(open) {
+  statsEl.classList.toggle('hidden', !open);
+  statsTab.classList.toggle('gone', open);
+  try { localStorage.setItem('tridchess.stats', open ? '1' : '0'); } catch {}
+}
+let statsPref = null;
+try { statsPref = localStorage.getItem('tridchess.stats'); } catch {}
+setStats(statsPref ? statsPref === '1' : window.innerWidth > 1100);
+$('btnStats').onclick = () => setStats(statsEl.classList.contains('hidden'));
+$('statsClose').onclick = () => setStats(false);
+statsTab.onclick = () => setStats(true);
+window.addEventListener('keydown', (e) => {
+  if (e.target.closest('select, input, textarea') || e.metaKey || e.ctrlKey) return;
+  if (e.key === 's' || e.key === 'S') setStats(statsEl.classList.contains('hidden'));
+  if (e.key === 'Escape') hideVictory();
+});
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+const isHumanTurn = () => state && state.status === 'playing' && state.players[state.turn] === 'human';
+
+function setSquareGlow() {
+  for (const [k, m] of squareMeshes) m.material.emissive.setHex(0x000000);
+  if (state?.lastMove?.board) {
+    for (const s of squaresOf(state.lastMove.to)) squareMeshes.get(s.key)?.material.emissive.setHex(0x332000);
+  } else if (state?.lastMove) {
+    squareMeshes.get(state.lastMove.from)?.material.emissive.setHex(0x332000);
+    squareMeshes.get(state.lastMove.to)?.material.emissive.setHex(0x553300);
+  }
+  // attack-board frames: orange = you can move this board now, white = selected
+  const movable = new Set(isHumanTurn() ? state.legalMoves.filter((m) => m.board).map((m) => m.from) : []);
+  for (const [pin, f] of Object.entries(pinFrames)) f.material.color.setHex(selected === pin ? 0xffffff : movable.has(pin) ? 0xff9c33 : 0x66ccff);
+  if (state?.check) {
+    const kk = Object.keys(state.pieces).find((k) => state.pieces[k].type === 'K' && state.pieces[k].color === state.turn);
+    squareMeshes.get(kk)?.material.emissive.setHex(0x880000);
+  }
+  // under check, light up every piece that has a legal way out
+  if (state?.check && isHumanTurn()) {
+    for (const from of new Set(state.legalMoves.map((m) => m.from))) squareMeshes.get(from)?.material.emissive.setHex(0x0b5a3a);
+  }
+  if (selected && isPin(selected)) for (const s of squaresOf(selected)) squareMeshes.get(s.key)?.material.emissive.setHex(0x0066aa);
+  else if (selected) squareMeshes.get(selected)?.material.emissive.setHex(0x0066aa);
+}
+
+function targetsOf(from) {
+  return state ? state.legalMoves.filter((m) => m.from === from) : [];
+}
+
+function renderMarkers() {
+  markerGroup.clear();
+  for (const g of Object.values(ghosts)) g.visible = false;
+  if (!selected) return;
+  if (isPin(selected)) { for (const m of targetsOf(selected)) ghosts[m.to].visible = true; return; }
+  const seen = new Set();
+  for (const m of targetsOf(selected)) {
+    if (seen.has(m.to)) continue; // promotions: one ring per square
+    seen.add(m.to);
+    const r = new THREE.Mesh(ringGeo, m.capture ? ringCap : ringMove);
+    r.rotation.x = -Math.PI / 2;
+    r.position.copy(posOfKey(m.to));
+    r.position.y += 0.03;
+    r.userData = { key: m.to, kind: 'marker' };
+    markerGroup.add(r);
+  }
+}
+
+function renderPieces(prev) {
+  pieceGroup.clear();
+  pieceMeshes.clear();
+  for (const [k, p] of Object.entries(state.pieces)) {
+    const g = buildPiece(p.type, p.color);
+    g.position.copy(posOfKey(k));
+    g.traverse((o) => { o.userData.key = k; });
+    pieceGroup.add(g);
+    pieceMeshes.set(k, g);
+  }
+  // animate the last move if it is new
+  const lm = state.lastMove;
+  if (lm && prev && prev.id === state.id && prev.version === state.version - 1) {
+    if (lm.board) {
+      const dx = PINS[lm.to].x[0] - PINS[lm.from].x[0], dy = PINS[lm.to].y[0] - PINS[lm.from].y[0];
+      const items = squaresOf(lm.to).filter((s) => pieceMeshes.get(s.key)).map((s) => ({ g: pieceMeshes.get(s.key), from: posOfKey(sqKey(s.x - dx, s.y - dy, lm.from)), to: posOfKey(s.key), arc: 0.5 }));
+      anim = { items, board: { group: levelGroups[lm.to], delta: pinOrigin(lm.from).sub(pinOrigin(lm.to)) }, t0: performance.now(), dur: 900 };
+    } else {
+      const g = pieceMeshes.get(lm.to);
+      const items = g ? [{ g, from: posOfKey(lm.from), to: posOfKey(lm.to), arc: 1.2 }] : [];
+      const rook = lm.castle && pieceMeshes.get(lm.rookTo);
+      if (rook) items.push({ g: rook, from: posOfKey(lm.rookFrom), to: posOfKey(lm.rookTo), arc: 0.6 });
+      if (items.length) anim = { items, t0: performance.now(), dur: lm.castle ? 800 : 550 };
+    }
+  }
+}
+
+function renderPanel() {
+  const s = state;
+  let status;
+  if (s.status === 'checkmate') status = t('status.mate', { c: IT[s.winner] });
+  else if (s.status === 'stalemate') status = t('status.stalemate');
+  else if (s.status === 'draw') status = t('status.draw', { r: DRAW_IT[s.drawReason || 'fifty'] });
+  else if (s.status === 'resigned') status = t('status.resigned', { c: IT[s.winner] });
+  else if (s.check) status = t(s.legalMoves.length === 1 ? 'status.check1' : 'status.check', { c: IT[s.turn], n: s.legalMoves.length });
+  else if (s.players[s.turn] === 'computer') status = t('status.computer', { c: IT[s.turn] });
+  else if (s.players[s.turn] === 'remote') status = t('status.remote', { c: IT[s.turn] });
+  else status = s.players[s.turn] === 'ai' ? t('status.ai', { c: IT[s.turn] }) : t('status.you', { c: IT[s.turn], n: s.legalMoves.length });
+  $('status').textContent = status;
+  $('status').classList.toggle('alert', s.check || s.status !== 'playing');
+  $('turn').textContent = IT[s.turn];
+  const pl = (c) => IT[s.players[c]] + (s.players[c] === 'computer' && s.computer ? ` · ${LEVEL_IT[s.computer[c].level].toLowerCase()}, ${STYLE_IT[s.computer[c].style].toLowerCase()}` : '');
+  $('pw').textContent = pl('white');
+  $('pb').textContent = pl('black');
+  const ol = $('moves');
+  ol.innerHTML = '';
+  for (const m of s.history) {
+    const li = document.createElement('li');
+    li.className = m.color;
+    li.textContent = m.notation;
+    ol.appendChild(li);
+  }
+  $('log').scrollTop = $('log').scrollHeight;
+  renderStats();
+  renderMcp();
+  syncLevel();
+}
+
+function applyState(s) {
+  const prev = state;
+  state = s;
+  if (!prev || prev.id !== s.id) { $('selW').value = s.players.white; $('selB').value = s.players.black; if (s.computer) for (const [c, k] of [['white', 'W'], ['black', 'B']]) { $('lvl' + k).value = String(s.computer[c].level); $('sty' + k).value = s.computer[c].style; } }
+  if (selected && ((!isPin(selected) && !s.pieces[selected]) || (isPin(selected) && !s.boards[selected]) || !isHumanTurn())) selected = null;
+  syncBoards();
+  renderPieces(prev);
+  renderMarkers();
+  setSquareGlow();
+  renderPanel();
+  for (const f of window.TriD?.listeners || []) { try { f(s, prev); } catch (err) { console.error(err); } }
+  const over = s.status !== 'playing';
+  if (over && (!prev || prev.id !== s.id || prev.status === 'playing')) startVictory();
+  if (!over && victory) stopVictory();
+}
+
+// --- victory celebration -------------------------------------------------------------
+let victory = null;
+const fxGroup = new THREE.Group();
+scene.add(fxGroup);
+const goldMat = new THREE.MeshStandardMaterial({ color: 0xffd36b, metalness: 1, roughness: 0.18, emissive: 0x6a4300 });
+const beamMat = new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+const sparkTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+})();
+
+function kingKey(color) {
+  return Object.keys(state.pieces).find((k) => state.pieces[k].type === 'K' && state.pieces[k].color === color);
+}
+
+function victoryText(s) {
+  const n = Math.ceil(s.history.length / 2);
+  $('vKing').innerHTML = '♚&#xFE0E;';
+  if (!s.winner) {
+    $('vEyebrow').textContent = t('victory.gameOver');
+    $('vTitle').textContent = t('victory.draw');
+    $('vSub').textContent = s.status === 'stalemate' ? t('victory.stalemate') : t('victory.drawBy', { r: DRAW_IT[s.drawReason || 'fifty'] });
+    $('vMeta').textContent = t('victory.plies', { n: s.history.length });
+  } else {
+    const w = s.winner, st = statsFor(s, w);
+    $('vEyebrow').textContent = t('victory.glory', { c: IT[w] });
+    $('vTitle').textContent = t('victory.win');
+    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? 'victory.byMate' : 'victory.byResign'), n });
+    $('vMeta').textContent = t('victory.meta', { caps: st.caps.length, checks: st.checks, mat: st.material });
+  }
+}
+
+function startVictory() {
+  stopVictory();
+  const s = state;
+  const draw = !s.winner;
+  const ov = $('victory');
+  ov.classList.toggle('draw', draw);
+  const vc = s.winner === 'black' ? '#ff4d6d' : '#ffd36b';
+  ov.style.setProperty('--vc', vc);
+  ov.style.setProperty('--vk', s.winner === 'black' ? '#d23a55' : '#f4f7fb');
+  victoryText(s);
+  ov.classList.add('show');
+  if (draw) { victory = { draw: true }; return; }
+
+  const wk = kingKey(s.winner), lk = kingKey(s.winner === 'white' ? 'black' : 'white');
+  const king = pieceMeshes.get(wk), loser = pieceMeshes.get(lk);
+  if (!king) return;
+  king.traverse((o) => { if (o.isMesh) o.material = goldMat; });
+  const base = king.position.clone();
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.8, 30, 32, 1, true), beamMat);
+  beam.position.set(base.x, base.y + 15, base.z);
+  fxGroup.add(beam);
+  const light = new THREE.PointLight(0xffd36b, 0, 14);
+  light.position.copy(base).y += 2;
+  fxGroup.add(light);
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.04, 12, 64), new THREE.MeshBasicMaterial({ color: 0xffe9a8, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending }));
+  halo.rotation.x = Math.PI / 2;
+  fxGroup.add(halo);
+  victory = { king, loser, loserBase: loser?.position.clone(), base, beam, light, halo, t0: performance.now(), bursts: [], nextBurst: 0, savedTarget: controls.target.clone() };
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 1.6;
+}
+
+function burst(center, color) {
+  const n = 90, pos = new Float32Array(n * 3), vel = [];
+  for (let i = 0; i < n; i++) {
+    pos.set([center.x, center.y, center.z], i * 3);
+    vel.push(new THREE.Vector3().randomDirection().multiplyScalar(2 + Math.random() * 2.5));
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const m = new THREE.PointsMaterial({ color, size: 0.28, map: sparkTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const pts = new THREE.Points(g, m);
+  fxGroup.add(pts);
+  return { pts, vel, t0: performance.now() };
+}
+
+function updateVictory(t) {
+  const v = victory;
+  if (!v || v.draw) return;
+  const e = (performance.now() - v.t0) / 1000;
+  const rise = Math.min(1, e / 1.6), ease = 1 - Math.pow(1 - rise, 3);
+  v.king.position.set(v.base.x, v.base.y + ease * 1.8 + Math.sin(e * 2) * 0.08 * rise, v.base.z);
+  v.king.rotation.y = e * 1.4;
+  v.king.scale.setScalar(0.85 * (1 + 0.6 * ease));
+  goldMat.emissiveIntensity = 1 + Math.sin(e * 3) * 0.5;
+  v.beam.material.opacity = 0.12 + 0.12 * ease + Math.sin(e * 4) * 0.04;
+  v.light.intensity = 30 * ease;
+  v.halo.position.set(v.base.x, v.king.position.y + 1.55 * v.king.scale.y / 0.85 * 0.85, v.base.z);
+  v.halo.scale.setScalar(1 + Math.sin(e * 3) * 0.08);
+  if (v.loser) {
+    const k = Math.min(1, Math.max(0, (e - 0.4) / 1.2));
+    v.loser.rotation.z = (Math.PI / 2) * (1 - Math.pow(1 - k, 3));
+    v.loser.position.y = v.loserBase.y + 0.15 * k;
+  }
+  controls.target.lerp(new THREE.Vector3(v.base.x, v.base.y + 1.2, v.base.z), 0.03);
+  if (e > 0.8 && e > v.nextBurst) {
+    v.nextBurst = e + 0.45 + Math.random() * 0.4;
+    const c = v.base.clone().add(new THREE.Vector3((Math.random() - 0.5) * 6, 2.5 + Math.random() * 3, (Math.random() - 0.5) * 6));
+    const cols = state.winner === 'black' ? [0xff4d6d, 0xffd36b, 0xff9c33] : [0xffd36b, 0x9fd0ff, 0xffffff];
+    v.bursts.push(burst(c, cols[Math.floor(Math.random() * cols.length)]));
+  }
+  for (const b of v.bursts) {
+    const age = (performance.now() - b.t0) / 1000;
+    const p = b.pts.geometry.attributes.position;
+    for (let i = 0; i < b.vel.length; i++) {
+      b.vel[i].y -= 2.2 * 0.016;
+      b.vel[i].multiplyScalar(0.985);
+      p.setXYZ(i, p.getX(i) + b.vel[i].x * 0.016, p.getY(i) + b.vel[i].y * 0.016, p.getZ(i) + b.vel[i].z * 0.016);
+    }
+    p.needsUpdate = true;
+    b.pts.material.opacity = Math.max(0, 1 - age / 1.8);
+  }
+  v.bursts = v.bursts.filter((b) => {
+    if ((performance.now() - b.t0) / 1000 > 1.8) { fxGroup.remove(b.pts); b.pts.geometry.dispose(); b.pts.material.dispose(); return false; }
+    return true;
+  });
+}
+
+function hideVictory() { $('victory').classList.remove('show'); }
+function stopVictory() {
+  hideVictory();
+  if (victory && !victory.draw) {
+    controls.autoRotate = false;
+    controls.target.copy(victory.savedTarget);
+  }
+  fxGroup.clear();
+  victory = null;
+}
+$('vClose').onclick = hideVictory;
+$('vNew').onclick = () => { stopVictory(); selected = null; post('/api/new', newGameBody()); };
+
+
+// --- local game: replaces the server's REST + SSE ------------------------------------
+const STORE_KEY = 'tridchess.web.game.v3';
+const game = new ENG.Game({ white: 'human', black: 'computer', computer: { black: { level: 3, style: 'aggressive' } } });
+const recentMoves = { white: [], black: [] };
+const serialize = () => ({ id: game.id, pieces: game.pieces, boards: game.boards, turn: game.turn, players: game.players, history: game.history, status: game.status,
+  winner: game.winner, drawReason: game.drawReason, ep: game.ep, repetitions: game.repetitions, halfmoveClock: game.halfmoveClock, version: game.version, startedAt: game.startedAt, computer: game.computer });
+const worker = new Worker(URL.createObjectURL(new Blob(["\nconst ENG = (() => {\n\n// Tri-dimensional chess engine following Jens Meder's tournament rules\n// (https://meder.spacechess.org/3dschach/chess3d.htm), with movable attack boards.\n//\n// Geometry: every square is identified by file + rank + level, e.g. \"a1W\", \"z0QL1\".\n//   files  z a b c d e   -> x 0..5\n//   ranks  0..9          -> y 0..9\n//   main levels (fixed): W (white), N (neutral), B (black)\n//   attack-board pins:   QL1..QL6 (queen side, files z-a) and KL1..KL6 (king side, files d-e).\n//     An attack board is a 2x2 board sitting on one pin; its squares are named after the pin\n//     it currently occupies. Four attack boards exist; when one moves, the pieces on it ride along.\n//\n// A position is { pieces, boards, ep } where boards maps an occupied pin to the board's owner\n// and ep describes a pawn that has just made a double step (en passant target) or is null.\n//\n// Piece movement is evaluated on the 2D projection (x, y). A move whose projection is legal\n// may land on ANY existing level square at the target projection (empty or enemy).\n// A piece blocks movement through its file+rank on every level (Meder 3.1c).\n\nconst FILES = ['z', 'a', 'b', 'c', 'd', 'e'];\n\nconst MAIN_LEVELS = {\n  W: { x: [1, 4], y: [1, 4], height: 0 },\n  N: { x: [1, 4], y: [3, 6], height: 1 },\n  B: { x: [1, 4], y: [5, 8], height: 2 },\n};\n\n// Pin n on each side: [main level it hangs from, first rank, height]\nconst PIN_SPECS = {\n  1: ['W', 0, 0.5], 2: ['W', 4, 0.5],\n  3: ['N', 2, 1.5], 4: ['N', 6, 1.5],\n  5: ['B', 4, 2.5], 6: ['B', 8, 2.5],\n};\nconst PINS = {};\nfor (const [n, [main, y0, height]] of Object.entries(PIN_SPECS)) {\n  PINS[`QL${n}`] = { x: [0, 1], y: [y0, y0 + 1], height, main, side: 'Q', n: Number(n) };\n  PINS[`KL${n}`] = { x: [4, 5], y: [y0, y0 + 1], height, main, side: 'K', n: Number(n) };\n}\n// Pins linked along one side: the next pins of the same or the next main board (Meder 3.6).\n// With the sideways link QLn <-> KLn this gives 3/4/5/5/4/3 reachable pins for levels 1..6.\nconst PIN_LINKS = [[1, 2], [1, 3], [2, 3], [2, 4], [3, 4], [3, 5], [4, 5], [4, 6], [5, 6]];\n\nconst LEVELS = { ...MAIN_LEVELS, ...PINS };\nconst LEVEL_NAMES = Object.keys(LEVELS);\nconst PIECE_NAMES = { K: 'king', Q: 'queen', R: 'rook', B: 'bishop', N: 'knight', P: 'pawn' };\nconst PROMOTION_PIECES = ['Q', 'R', 'B', 'N'];\n\nconst isPin = (name) => Object.prototype.hasOwnProperty.call(PINS, name);\n\nfunction pinNeighbours(pin) {\n  const { side, n } = PINS[pin];\n  const out = [];\n  for (const [a, b] of PIN_LINKS) {\n    if (a === n) out.push(`${side}L${b}`);\n    if (b === n) out.push(`${side}L${a}`);\n  }\n  out.push(`${side === 'Q' ? 'K' : 'Q'}L${n}`); // sideways\n  return out;\n}\n\nfunction levelHas(level, x, y) {\n  const l = LEVELS[level];\n  return !!l && x >= l.x[0] && x <= l.x[1] && y >= l.y[0] && y <= l.y[1];\n}\n\nfunction activeLevels(boards) {\n  return ['W', 'N', 'B', ...Object.keys(boards)];\n}\n\nfunction levelsAt(x, y, boards) {\n  return activeLevels(boards).filter((lv) => levelHas(lv, x, y));\n}\n\nfunction sqKey(x, y, level) {\n  return `${FILES[x]}${y}${level}`;\n}\n\n// Parses a square name against the static geometry (whether that level is in play is checked separately).\nfunction parseSquare(str) {\n  if (typeof str !== 'string') return null;\n  const m = /^([zabcde])([0-9])(W|N|B|[QK]L[1-6])$/i.exec(str.trim());\n  if (!m) return null;\n  const x = FILES.indexOf(m[1].toLowerCase());\n  const y = Number(m[2]);\n  const level = m[3].toUpperCase();\n  if (!levelHas(level, x, y)) return null;\n  return { x, y, level, key: sqKey(x, y, level) };\n}\n\nfunction squaresOf(level) {\n  const l = LEVELS[level], out = [];\n  for (let x = l.x[0]; x <= l.x[1]; x++)\n    for (let y = l.y[0]; y <= l.y[1]; y++) out.push({ x, y, level, key: sqKey(x, y, level) });\n  return out;\n}\n\n// Every square of the given boards configuration (or of the whole geometry when omitted).\nfunction allSquares(boards = null) {\n  return (boards ? activeLevels(boards) : LEVEL_NAMES).flatMap(squaresOf);\n}\n\nconst other = (c) => (c === 'white' ? 'black' : 'white');\n\nfunction initialBoards() {\n  return { QL1: 'white', KL1: 'white', QL6: 'black', KL6: 'black' };\n}\n\nfunction initialPieces() {\n  const p = {};\n  const put = (sq, type, color) => { p[sq] = { type, color, moved: false }; };\n  // White\n  put('z0QL1', 'R', 'white'); put('a0QL1', 'Q', 'white');\n  put('z1QL1', 'P', 'white'); put('a1QL1', 'P', 'white');\n  put('d0KL1', 'K', 'white'); put('e0KL1', 'R', 'white');\n  put('d1KL1', 'P', 'white'); put('e1KL1', 'P', 'white');\n  put('a1W', 'N', 'white'); put('b1W', 'B', 'white'); put('c1W', 'B', 'white'); put('d1W', 'N', 'white');\n  for (const f of 'abcd') put(`${f}2W`, 'P', 'white');\n  // Black\n  put('z9QL6', 'R', 'black'); put('a9QL6', 'Q', 'black');\n  put('z8QL6', 'P', 'black'); put('a8QL6', 'P', 'black');\n  put('d9KL6', 'K', 'black'); put('e9KL6', 'R', 'black');\n  put('d8KL6', 'P', 'black'); put('e8KL6', 'P', 'black');\n  put('a8B', 'N', 'black'); put('b8B', 'B', 'black'); put('c8B', 'B', 'black'); put('d8B', 'N', 'black');\n  for (const f of 'abcd') put(`${f}7B`, 'P', 'black');\n  return p;\n}\n\n// --- low level helpers -------------------------------------------------------\n\nfunction columnOccupied(pos, x, y) {\n  for (const lv of levelsAt(x, y, pos.boards)) if (pos.pieces[sqKey(x, y, lv)]) return true;\n  return false;\n}\n\nfunction inGrid(x, y) {\n  return x >= 0 && x <= 5 && y >= 0 && y <= 9;\n}\n\nconst ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];\nconst DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];\nconst KNIGHT = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];\n\n// Destinations at projection (tx,ty): empty or enemy squares on any level in play.\nfunction landings(pos, color, tx, ty, { captureOnly = false, quietOnly = false } = {}) {\n  const out = [];\n  for (const lv of levelsAt(tx, ty, pos.boards)) {\n    const k = sqKey(tx, ty, lv);\n    const occ = pos.pieces[k];\n    if (!occ && !captureOnly) out.push(k);\n    else if (occ && occ.color !== color && !quietOnly) out.push(k);\n  }\n  return out;\n}\n\n// Furthest rank a pawn of `color` can reach on file x (Meder 3.4e).\nfunction promotionRank(pos, color, x) {\n  if (x === 2 || x === 3) return color === 'white' ? 8 : 1;          // files b, c\n  if (x === 0 || x === 5) return color === 'white' ? 9 : 0;          // files z, e\n  // files a, d: the far corner counts only while an attack board overhangs it\n  const pin = color === 'white' ? (x === 1 ? 'QL6' : 'KL6') : (x === 1 ? 'QL1' : 'KL1');\n  const overhang = !!pos.boards[pin];\n  return color === 'white' ? (overhang ? 9 : 8) : (overhang ? 0 : 1);\n}\n\n// Piece moves (no castling). Each move is { from, to } plus { ep: victimKey } for en passant.\nfunction pieceMovesFrom(pos, fromKey) {\n  const piece = pos.pieces[fromKey];\n  if (!piece) return [];\n  const { x, y } = parseSquare(fromKey);\n  const color = piece.color;\n  const targets = [];\n  const extra = [];\n\n  const slide = (dirs, maxSteps) => {\n    for (const [dx, dy] of dirs) {\n      let cx = x, cy = y;\n      for (let s = 1; s <= maxSteps; s++) {\n        cx += dx; cy += dy;\n        if (!inGrid(cx, cy)) break;\n        targets.push(...landings(pos, color, cx, cy));\n        if (columnOccupied(pos, cx, cy)) break;\n      }\n    }\n  };\n\n  switch (piece.type) {\n    case 'R': slide(ORTHO, 10); break;\n    case 'B': slide(DIAG, 10); break;\n    case 'Q': slide([...ORTHO, ...DIAG], 10); break;\n    case 'K': slide([...ORTHO, ...DIAG], 1); break;\n    case 'N':\n      for (const [dx, dy] of KNIGHT) {\n        const tx = x + dx, ty = y + dy;\n        if (inGrid(tx, ty)) targets.push(...landings(pos, color, tx, ty));\n      }\n      break;\n    case 'P': {\n      const dir = color === 'white' ? 1 : -1;\n      const y1 = y + dir;\n      if (inGrid(x, y1)) {\n        targets.push(...landings(pos, color, x, y1, { quietOnly: true }));\n        const y2 = y + 2 * dir;\n        if (!piece.moved && !columnOccupied(pos, x, y1) && inGrid(x, y2))\n          targets.push(...landings(pos, color, x, y2, { quietOnly: true }));\n        for (const dx of [-1, 1])\n          if (inGrid(x + dx, y1)) targets.push(...landings(pos, color, x + dx, y1, { captureOnly: true }));\n        // en passant: capture the pawn that just double-stepped past (ep.x, ep.y), landing on any level\n        const ep = pos.ep;\n        if (ep && ep.color !== color && Math.abs(ep.x - x) === 1 && ep.y === y1 && pos.pieces[ep.victim])\n          for (const k of landings(pos, color, ep.x, ep.y, { quietOnly: true })) extra.push({ from: fromKey, to: k, ep: ep.victim });\n      }\n      break;\n    }\n  }\n  return [...targets.filter((t) => t !== fromKey).map((to) => ({ from: fromKey, to })), ...extra];\n}\n\n// Castling (Meder 3.5a): king and rook unmoved on the same rank, nothing between them.\n// King side: king and rook exchange places. Queen side: the king goes next to the rook\n// and the rook goes to the square the king left.\nfunction castlingMoves(pos, color) {\n  const kingKey = findKing(pos.pieces, color);\n  if (!kingKey) return [];\n  const king = pos.pieces[kingKey];\n  if (king.moved) return [];\n  const k = parseSquare(kingKey);\n  const out = [];\n  for (const [rKey, rook] of Object.entries(pos.pieces)) {\n    if (rook.type !== 'R' || rook.color !== color || rook.moved) continue;\n    const r = parseSquare(rKey);\n    if (r.y !== k.y) continue;\n    const step = Math.sign(r.x - k.x);\n    let clear = true;\n    for (let x = k.x + step; x !== r.x; x += step) if (columnOccupied(pos, x, k.y)) { clear = false; break; }\n    if (!clear) continue;\n    if (step > 0) {\n      out.push({ from: kingKey, to: rKey, castle: 'K', rookFrom: rKey, rookTo: kingKey });\n    } else {\n      const lvls = levelsAt(r.x + 1, r.y, pos.boards);\n      const lv = lvls.includes(r.level) ? r.level : lvls[0];\n      if (!lv) continue;\n      const kingTo = sqKey(r.x + 1, r.y, lv);\n      if (kingTo === kingKey || pos.pieces[kingTo]) continue;\n      out.push({ from: kingKey, to: kingTo, castle: 'Q', rookFrom: rKey, rookTo: kingKey });\n    }\n  }\n  return out;\n}\n\n// Pieces standing on the attack board at `pin`.\nfunction piecesOnBoard(pos, pin) {\n  return squaresOf(pin).map((s) => s.key).filter((k) => pos.pieces[k]);\n}\n\n// Who may move the board on `pin`: its owner when empty, the owner of the single piece on it otherwise.\nfunction boardController(pos, pin) {\n  const on = piecesOnBoard(pos, pin);\n  if (on.length === 0) return pos.boards[pin];\n  if (on.length === 1) return pos.pieces[on[0]].color;\n  return null;\n}\n\n// Board moves (Meder 3.6): to a linked empty pin; an occupied board only forward or sideways,\n// an empty board also backwards (\"inverted\").\nfunction boardMovesFor(pos, color) {\n  const out = [];\n  for (const pin of Object.keys(pos.boards)) {\n    if (boardController(pos, pin) !== color) continue;\n    const occupied = piecesOnBoard(pos, pin).length > 0;\n    for (const to of pinNeighbours(pin)) {\n      if (pos.boards[to]) continue;\n      const dy = PINS[to].y[0] - PINS[pin].y[0];\n      const backward = color === 'white' ? dy < 0 : dy > 0;\n      if (occupied && backward) continue;\n      out.push({ from: pin, to, board: true });\n    }\n  }\n  return out;\n}\n\n// Pawns that stand on their furthest rank (e.g. after an overhanging board left) are promoted\n// before the next move (Meder 3.4e-iii); here automatically to a queen.\nfunction promoteStranded(pos) {\n  for (const [k, pc] of Object.entries(pos.pieces)) {\n    if (pc.type !== 'P') continue;\n    const s = parseSquare(k);\n    if (s.y === promotionRank(pos, pc.color, s.x)) pos.pieces[k] = { ...pc, type: 'Q', moved: true };\n  }\n}\n\nfunction applyMove(pos, move) {\n  const r = applyMoveInner(pos, move);\n  const mover = move.board ? boardController(pos, move.from) : pos.pieces[move.from].color;\n  r.pos.firstMove = { ...(pos.firstMove || {}), [mover]: false };\n  return r;\n}\n\nfunction applyMoveInner(pos, move) {\n  if (move.board) {\n    const boards = { ...pos.boards };\n    boards[move.to] = boards[move.from];\n    delete boards[move.from];\n    const pieces = { ...pos.pieces };\n    const dx = PINS[move.to].x[0] - PINS[move.from].x[0];\n    const dy = PINS[move.to].y[0] - PINS[move.from].y[0];\n    for (const s of squaresOf(move.from)) {\n      const pc = pos.pieces[s.key];\n      if (!pc) continue;\n      delete pieces[s.key];\n      // a pawn moved by an attack board loses its double step (Meder 3.4b)\n      pieces[sqKey(s.x + dx, s.y + dy, move.to)] = pc.type === 'P' ? { ...pc, moved: true } : pc;\n    }\n    const next = { pieces, boards, ep: null };\n    promoteStranded(next);\n    return { pos: next, captured: null };\n  }\n  const pieces = { ...pos.pieces };\n  const piece = pieces[move.from];\n  if (move.castle) {\n    const rook = pieces[move.rookFrom];\n    delete pieces[move.from];\n    delete pieces[move.rookFrom];\n    pieces[move.to] = { ...piece, moved: true };\n    pieces[move.rookTo] = { ...rook, moved: true };\n    return { pos: { pieces, boards: pos.boards, ep: null }, captured: null };\n  }\n  let captured = pieces[move.to] || null;\n  if (move.ep) { captured = pieces[move.ep]; delete pieces[move.ep]; }\n  delete pieces[move.from];\n  const moved = { ...piece, moved: true };\n  if (move.promotion) moved.type = move.promotion;\n  pieces[move.to] = moved;\n  let ep = null;\n  if (piece.type === 'P') {\n    const f = parseSquare(move.from), t = parseSquare(move.to);\n    if (Math.abs(t.y - f.y) === 2) ep = { x: f.x, y: (f.y + t.y) / 2, victim: move.to, color: piece.color };\n  }\n  return { pos: { pieces, boards: pos.boards, ep }, captured };\n}\n\nfunction findKing(pieces, color) {\n  return Object.keys(pieces).find((k) => pieces[k].type === 'K' && pieces[k].color === color);\n}\n\nfunction isAttacked(pos, targetKey, byColor) {\n  for (const k of Object.keys(pos.pieces)) {\n    if (pos.pieces[k].color !== byColor) continue;\n    if (pieceMovesFrom(pos, k).some((m) => m.to === targetKey)) return true;\n  }\n  return false;\n}\n\nfunction inCheck(pos, color) {\n  const king = findKing(pos.pieces, color);\n  return king ? isAttacked(pos, king, other(color)) : false;\n}\n\n// Legal moves for `color`. `from` may be a square (piece moves) or a pin (board moves).\nfunction legalMoves(pos, color, from = null) {\n  const candidates = [];\n  const pinFrom = from && isPin(from);\n  if (!pinFrom) {\n    const keys = from ? [from] : Object.keys(pos.pieces);\n    for (const k of keys) {\n      const p = pos.pieces[k];\n      if (!p || p.color !== color) continue;\n      for (const m of pieceMovesFrom(pos, k)) {\n        // promotion: one move per piece the pawn may become\n        const t = p.type === 'P' && parseSquare(m.to);\n        if (t && t.y === promotionRank(pos, color, t.x)) for (const pr of PROMOTION_PIECES) candidates.push({ ...m, promotion: pr });\n        else candidates.push(m);\n      }\n    }\n    const kingKey = findKing(pos.pieces, color);\n    // Meder 3.5a: castling is not allowed as a player's first move\n    if ((!from || from === kingKey) && !pos.firstMove?.[color] && !inCheck(pos, color)) candidates.push(...castlingMoves(pos, color));\n  }\n  if (!from || pinFrom) candidates.push(...boardMovesFor(pos, color).filter((m) => !from || m.from === from));\n  const out = [];\n  for (const m of candidates) {\n    const { pos: after } = applyMove(pos, m);\n    if (inCheck(after, color)) continue;\n    if (m.board) out.push({ ...m, piece: null, capture: null, promotion: null });\n    else {\n      const p = pos.pieces[m.from];\n      const capt = m.ep ? 'P' : !m.castle && pos.pieces[m.to] ? pos.pieces[m.to].type : null;\n      out.push({ ...m, piece: p.type, capture: capt, promotion: m.promotion || null });\n    }\n  }\n  return out;\n}\n\n// No sequence of legal moves can mate (Meder 1.3): bare kings, or only one minor piece,\n// or only bishops all on squares of one colour.\nfunction deadPosition(pos) {\n  const minors = [];\n  for (const [k, pc] of Object.entries(pos.pieces)) {\n    if (pc.type === 'K') continue;\n    if (pc.type !== 'B' && pc.type !== 'N') return false;\n    minors.push({ type: pc.type, sq: parseSquare(k) });\n  }\n  if (minors.length <= 1) return true;\n  if (minors.every((m) => m.type === 'B')) {\n    const colours = new Set(minors.map((m) => (m.sq.x + m.sq.y) % 2));\n    return colours.size === 1;\n  }\n  return false;\n}\n\n// Key identifying a position for repetition: pieces with castling/double-step rights,\n// boards, side to move and en passant target (Meder 9.2).\nfunction positionKey(pos, turn) {\n  const pcs = Object.keys(pos.pieces).sort().map((k) => {\n    const p = pos.pieces[k];\n    return `${k}${p.color[0]}${p.type}${p.moved ? '' : '*'}`;\n  }).join(',');\n  const boards = Object.keys(pos.boards).sort().map((p) => `${p}${pos.boards[p][0]}`).join(',');\n  return `${turn}|${pcs}|${boards}|${pos.ep ? pos.ep.victim : '-'}`;\n}\n\n// --- game object -------------------------------------------------------------\n\nclass Game {\n  constructor(opts = {}) {\n    this.reset(opts);\n  }\n\n  // computer: per-color settings for the built-in engine, e.g. { white: { level: 4, style: 'aggressive' } }\n  reset({ white = 'human', black = 'ai', computer = {} } = {}) {\n    const cfg = (c) => ({ level: computer[c]?.level ?? 3, style: computer[c]?.style ?? 'balanced' });\n    this.computer = { white: cfg('white'), black: cfg('black') };\n    this.id = Math.random().toString(36).slice(2, 10);\n    this.pieces = initialPieces();\n    this.boards = initialBoards();\n    this.ep = null;\n    this.turn = 'white';\n    this.players = { white, black };\n    this.history = [];\n    this.status = 'playing'; // playing | checkmate | stalemate | draw | resigned\n    this.drawReason = null;  // fifty | repetition | material\n    this.winner = null;\n    this.halfmoveClock = 0;\n    this.repetitions = { [positionKey(this.pos, 'white')]: 1 };\n    this.version = 0;\n    this.startedAt = Date.now();\n  }\n\n  get pos() {\n    const moved = (c) => this.history.some((h) => h.color === c);\n    return { pieces: this.pieces, boards: this.boards, ep: this.ep, firstMove: { white: !moved('white'), black: !moved('black') } };\n  }\n\n  legal(from = null) {\n    if (this.status !== 'playing') return [];\n    return legalMoves(this.pos, this.turn, from);\n  }\n\n  // from/to: squares, pins (attack-board move) or \"0-0\" / \"0-0-0\" (castling).\n  // promotion: Q, R, B or N when a pawn reaches its furthest rank (default Q).\n  move(fromStr, toStr, promotion = null) {\n    if (this.status !== 'playing') throw new Error(`Game is over (${this.status}).`);\n    const f = String(fromStr || '').trim().toUpperCase().replace(/O/g, '0');\n    const castleSide = f === '0-0' ? 'K' : f === '0-0-0' ? 'Q' : null;\n    let mv;\n    if (castleSide) {\n      mv = this.legal().find((m) => m.castle === castleSide);\n      if (!mv) throw new Error(`Castling ${castleSide === 'K' ? 'king' : 'queen'}-side is not legal now.`);\n    } else {\n      const boardMove = isPin(f);\n      let from, to;\n      if (boardMove) {\n        from = f; to = String(toStr || '').trim().toUpperCase();\n        if (!this.boards[from]) throw new Error(`No attack board on pin ${from}.`);\n        if (!isPin(to)) throw new Error(`Invalid pin \"${toStr}\". Pins are QL1..QL6 and KL1..KL6.`);\n      } else {\n        const fs = parseSquare(String(fromStr)), ts = parseSquare(String(toStr));\n        if (!fs) throw new Error(`Invalid square \"${fromStr}\". Format: file+rank+level, e.g. a2W, d0KL1 — a pin (e.g. QL1) to move an attack board, or 0-0 / 0-0-0 to castle.`);\n        if (!ts) throw new Error(`Invalid square \"${toStr}\". Format: file+rank+level, e.g. a3N, z1QL1.`);\n        from = fs.key; to = ts.key;\n        const piece = this.pieces[from];\n        if (!piece) throw new Error(`No piece on ${from}.`);\n        if (piece.color !== this.turn) throw new Error(`Piece on ${from} is ${piece.color}, but it is ${this.turn}'s turn.`);\n      }\n      const cands = legalMoves(this.pos, this.turn, from).filter((m) => m.to === to);\n      if (!cands.length) throw new Error(`Illegal move ${from} -> ${to}.`);\n      if (cands.some((m) => m.promotion)) {\n        const pr = String(promotion || 'Q').toUpperCase();\n        mv = cands.find((m) => m.promotion === pr);\n        if (!mv) throw new Error(`Invalid promotion \"${promotion}\". Choose Q, R, B or N.`);\n      } else mv = cands[0];\n    }\n\n    const boardMove = !!mv.board;\n    const piece = boardMove ? null : this.pieces[mv.from];\n    const carried = boardMove ? piecesOnBoard(this.pos, mv.from).map((k) => this.pieces[k].type) : [];\n    const { pos, captured } = applyMove(this.pos, mv);\n    this.pieces = pos.pieces;\n    this.boards = pos.boards;\n    this.ep = pos.ep;\n    this.halfmoveClock = captured || piece?.type === 'P' ? 0 : this.halfmoveClock + 1;\n    const mover = this.turn;\n    this.turn = other(this.turn);\n    const check = inCheck(this.pos, this.turn);\n    const replies = legalMoves(this.pos, this.turn);\n    let notation;\n    if (mv.castle) notation = mv.castle === 'K' ? '0-0' : '0-0-0';\n    else if (boardMove) notation = `${mv.from}→${mv.to}${carried.length ? ` (${carried.join('')})` : ''}`;\n    else notation = `${piece.type === 'P' ? '' : piece.type}${mv.from}${captured ? 'x' : '-'}${mv.to}${mv.promotion ? `=${mv.promotion}` : ''}${mv.ep ? ' e.p.' : ''}`;\n    const key = positionKey(this.pos, this.turn);\n    this.repetitions[key] = (this.repetitions[key] || 0) + 1;\n    if (replies.length === 0) {\n      if (check) { this.status = 'checkmate'; this.winner = mover; notation += '#'; }\n      else this.status = 'stalemate';\n    } else {\n      if (check) notation += '+';\n      if (deadPosition(this.pos)) { this.status = 'draw'; this.drawReason = 'material'; }\n      else if (this.repetitions[key] >= 3) { this.status = 'draw'; this.drawReason = 'repetition'; }\n      else if (this.halfmoveClock >= 100) { this.status = 'draw'; this.drawReason = 'fifty'; }\n    }\n    const record = {\n      n: this.history.length + 1, color: mover, from: mv.from, to: mv.to, board: boardMove || undefined,\n      castle: mv.castle || undefined, rookFrom: mv.rookFrom, rookTo: mv.rookTo, ep: mv.ep ? true : undefined,\n      piece: piece ? piece.type : null, captured: captured ? captured.type : null,\n      promotion: mv.promotion || null, check, notation, at: Date.now(),\n    };\n    this.history.push(record);\n    this.version++;\n    return record;\n  }\n\n  resign(color) {\n    if (this.status !== 'playing') throw new Error('Game is already over.');\n    this.status = 'resigned';\n    this.winner = other(color);\n    this.version++;\n  }\n\n  snapshot() {\n    return {\n      id: this.id,\n      version: this.version,\n      turn: this.turn,\n      players: this.players,\n      startedAt: this.startedAt,\n      computer: this.computer,\n      status: this.status,\n      drawReason: this.drawReason,\n      winner: this.winner,\n      check: this.status === 'playing' && inCheck(this.pos, this.turn),\n      pieces: this.pieces,\n      boards: this.boards,\n      history: this.history,\n      lastMove: this.history[this.history.length - 1] || null,\n      legalMoves: this.legal().map(({ from, to, capture, promotion, board, castle, ep }) => ({\n        from, to, capture, promotion,\n        ...(board ? { board: true } : {}), ...(castle ? { castle } : {}), ...(ep ? { ep: true } : {}),\n      })),\n    };\n  }\n\n  // Text rendering for AI clients: one grid per level in play, from top to bottom.\n  render() {\n    const order = activeLevels(this.boards).sort((a, b) => LEVELS[b].height - LEVELS[a].height || LEVELS[b].y[0] - LEVELS[a].y[0]);\n    const sym = (p) => (p ? (p.color === 'white' ? p.type : p.type.toLowerCase()) : '.');\n    const lines = [];\n    for (const lv of order) {\n      const L = LEVELS[lv];\n      const tag = isPin(lv) ? ` — attack board owned by ${this.boards[lv]}, movable by ${boardController(this.pos, lv) || 'nobody (2+ pieces)'}` : '';\n      lines.push(`Level ${lv} (files ${FILES[L.x[0]]}-${FILES[L.x[1]]}, ranks ${L.y[0]}-${L.y[1]})${tag}:`);\n      for (let y = L.y[1]; y >= L.y[0]; y--) {\n        let row = `  ${y} `;\n        for (let x = L.x[0]; x <= L.x[1]; x++) row += ' ' + sym(this.pieces[sqKey(x, y, lv)]);\n        lines.push(row);\n      }\n      let foot = '    ';\n      for (let x = L.x[0]; x <= L.x[1]; x++) foot += ' ' + FILES[x];\n      lines.push(foot);\n    }\n    const free = Object.keys(PINS).filter((p) => !this.boards[p]);\n    lines.push(`Empty pins: ${free.join(' ')}`);\n    if (this.ep) lines.push(`En passant possible on file ${FILES[this.ep.x]} rank ${this.ep.y} (pawn ${this.ep.victim})`);\n    return lines.join('\\n');\n  }\n}\n\nconst RULES_TEXT = `TRI-D CHESS (Jens Meder's tournament rules)\n\nBOARD: 3 fixed main boards + 4 movable attack boards.\n  Main boards (4x4, files a-d): W = white (ranks 1-4, lowest), N = neutral (ranks 3-6), B = black (ranks 5-8, highest).\n  Attack boards (2x2) sit on pins. There are 12 pins:\n    queen side (files z-a): QL1..QL6, king side (files d-e): KL1..KL6\n    pin 1: ranks 0-1 (by W)   pin 2: ranks 4-5 (by W)   pin 3: ranks 2-3 (by N)\n    pin 4: ranks 6-7 (by N)   pin 5: ranks 4-5 (by B)   pin 6: ranks 8-9 (by B)\n  Start: white boards on QL1 and KL1, black boards on QL6 and KL6. Squares of an attack board are named after its current pin.\n  Files from left to right: z a b c d e. Ranks 0 (white side) .. 9 (black side).\n\nSQUARE NAMES: file + rank + level, e.g. \"a2W\", \"c5N\", \"d0KL1\", \"z9QL6\". The same file+rank can exist on several levels.\n\nPIECE MOVES: project the board flat onto a 6x10 grid. A move is legal if it is a legal chess move on that projection;\n  the piece may then land on ANY level in play that has a square at the target file+rank (empty or enemy).\n  A piece blocks movement through its file+rank on every level. Knights jump. Purely vertical moves are not allowed.\n  Pawns: forward one (two on their first move, path empty), capture diagonally forward. White moves towards rank 9.\n  En passant: a pawn that has just made a double step may be captured by an adjacent pawn as if it had moved one square,\n    on the very next move only; the capturing pawn may land on either level.\n  A pawn carried by an attack board loses its double step.\n  Promotion (to Q, R, B or N, pass promotion in make_move): on the furthest rank of the file —\n    files b,c: rank 8 (white) / 1 (black); files z,e: 9 / 0; files a,d: 9 / 0 if an attack board overhangs that corner, else 8 / 1.\n    A pawn left on its furthest rank when an overhanging board moves away is promoted to a queen.\n\nCASTLING (not as a player's first move; king and rook unmoved, same rank, nothing between them, king not in check and not landing in check):\n  king side \"0-0\": king and rook exchange places. Queen side \"0-0-0\": the king goes next to the rook, the rook to the king's square.\n  make_move with from \"0-0\" or \"0-0-0\" (to is ignored), or move the king onto its castling square.\n\nATTACK BOARD MOVES (a whole turn): make_move with from = current pin, to = target pin (e.g. from \"QL1\" to \"QL3\").\n  Linked pins on the same side: 1-2, 1-3, 2-3, 2-4, 3-4, 3-5, 4-5, 4-6, 5-6; plus sideways QLn <-> KLn.\n  The target pin must be empty. The board carries the pieces on it.\n  It may be moved when empty (by its owner) or carrying exactly ONE piece (by that piece's owner).\n  An occupied board moves only forward or sideways; only an empty board may move backwards. The move must not leave your own king in check.\n\nEND: check, checkmate and stalemate as in normal chess. Draws: threefold repetition, no mating material, 50-move rule.\nPIECES in text render: uppercase = white, lowercase = black. K king, Q queen, R rook, B bishop, N knight, P pawn.`;\n\nreturn { FILES, MAIN_LEVELS, PINS, LEVELS, LEVEL_NAMES, PIECE_NAMES, PROMOTION_PIECES, isPin, pinNeighbours, levelHas, activeLevels, levelsAt, sqKey, parseSquare, squaresOf, allSquares, initialBoards, initialPieces, promotionRank, piecesOnBoard, boardController, applyMove, findKing, isAttacked, inCheck, legalMoves, deadPosition, Game, RULES_TEXT };\n})();\nconst AI = (() => {\nconst { legalMoves, inCheck, parseSquare, findKing, applyMove } = ENG;\n// Built-in computer player: alpha-beta search (+ capture quiescence at high levels)\n// on top of the rules engine, with selectable strength and playing style.\n\n\nconst V = { P: 100, N: 300, B: 320, R: 500, Q: 900, K: 0 };\n\n// Experience levels. depth = full-width plies, qdepth = extra capture-only plies,\n// noise = random score added per root move (higher = more mistakes).\nconst LEVELS = {\n  1: { name: 'Principiante', depth: 1, qdepth: 0, noise: 260 },\n  2: { name: 'Facile', depth: 1, qdepth: 0, noise: 70 },\n  3: { name: 'Medio', depth: 2, qdepth: 0, noise: 25, budget: 2000 },\n  4: { name: 'Esperto', depth: 2, qdepth: 2, noise: 8, budget: 2500 },\n  5: { name: 'Maestro', depth: 3, qdepth: 2, noise: 2, budget: 3500 },\n};\n\n// Playing styles: weights for the evaluation and root move bonuses.\nconst STYLES = {\n  balanced:   { name: 'Equilibrato', material: 1.0, center: 20, pawnAdv: 8,  attack: 4,  shelter: 4,  check: 15, capture: 0 },\n  aggressive: { name: 'Aggressivo',  material: 0.85, center: 12, pawnAdv: 14, attack: 16, shelter: 0, check: 60, capture: 25 },\n  cautious:   { name: 'Prudente',    material: 1.1, center: 10, pawnAdv: 4,  attack: 0,  shelter: 14, check: 0,  capture: -5 },\n};\n\nconst other = (c) => (c === 'white' ? 'black' : 'white');\n\n// Positions are { pieces, boards } (see engine.js); board moves carry pieces along.\nconst apply = (pos, m) => applyMove(pos, m).pos;\n\nconst dist = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));\n\nfunction evaluate(pos, me, st) {\n  const { pieces } = pos;\n  const kings = { white: findKing(pieces, 'white'), black: findKing(pieces, 'black') };\n  const kpos = { white: kings.white && parseSquare(kings.white), black: kings.black && parseSquare(kings.black) };\n  let s = 0;\n  for (const [k, pc] of Object.entries(pieces)) {\n    const sq = parseSquare(k);\n    const { x, y } = sq;\n    let v = V[pc.type] * st.material;\n    if (pc.type === 'P') v += (pc.color === 'white' ? y : 9 - y) * st.pawnAdv;\n    else if (pc.type !== 'K') {\n      if (x >= 1 && x <= 4 && y >= 3 && y <= 6) v += st.center;\n      const enemyK = kpos[other(pc.color)], ownK = kpos[pc.color];\n      if (enemyK) v += (9 - dist(sq, enemyK)) * st.attack;           // pressure on the enemy king\n      if (ownK && dist(sq, ownK) <= 2) v += st.shelter;               // pieces guarding own king\n    }\n    s += pc.color === me ? v : -v;\n  }\n  return s;\n}\n\nfunction orderMoves(moves) {\n  return moves.sort((a, b) => (b.capture ? V[b.capture] * 10 - V[b.piece] : 0) - (a.capture ? V[a.capture] * 10 - V[a.piece] : 0));\n}\n\n// Capture-only search to avoid stopping in the middle of an exchange.\nlet deadline = Infinity;\nclass Timeout extends Error {}\n\nfunction quiesce(pos, color, me, qdepth, alpha, beta, st) {\n  if (performance.now() > deadline) throw new Timeout();\n  const stand = evaluate(pos, me, st);\n  if (qdepth === 0) return stand;\n  const maximizing = color === me;\n  if (maximizing) { if (stand >= beta) return stand; alpha = Math.max(alpha, stand); }\n  else { if (stand <= alpha) return stand; beta = Math.min(beta, stand); }\n  const caps = orderMoves(legalMoves(pos, color).filter((m) => m.capture));\n  let best = stand;\n  for (const m of caps) {\n    const v = quiesce(apply(pos, m), other(color), me, qdepth - 1, alpha, beta, st);\n    if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, v); }\n    else { best = Math.min(best, v); beta = Math.min(beta, v); }\n    if (alpha >= beta) break;\n  }\n  return best;\n}\n\nfunction search(pos, color, me, depth, alpha, beta, lv, st) {\n  if (performance.now() > deadline) throw new Timeout();\n  const moves = legalMoves(pos, color);\n  if (!moves.length) return inCheck(pos, color) ? (color === me ? -1e6 - depth : 1e6 + depth) : 0;\n  if (depth === 0) return lv.qdepth ? quiesce(pos, color, me, lv.qdepth, alpha, beta, st) : evaluate(pos, me, st);\n  orderMoves(moves);\n  const maximizing = color === me;\n  let best = maximizing ? -Infinity : Infinity;\n  for (const m of moves) {\n    const v = search(apply(pos, m), other(color), me, depth - 1, alpha, beta, lv, st);\n    if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, v); }\n    else { best = Math.min(best, v); beta = Math.min(beta, v); }\n    if (alpha >= beta) break;\n  }\n  return best;\n}\n\n/**\n * Pick a move for `color`.\n * level: 1..5, style: 'balanced' | 'aggressive' | 'cautious'.\n * recent: the side's own recent moves reversed (\"to>from\"), discouraged to avoid shuffling.\n */\nfunction chooseMove(pos, color, level = 3, style = 'balanced', recent = []) {\n  const lv = LEVELS[level] || LEVELS[3];\n  const st = STYLES[style] || STYLES.balanced;\n  let moves = orderMoves(legalMoves(pos, color));\n  if (!moves.length) return null;\n  const bonus = new Map();\n  for (const m of moves) {\n    let b = Math.random() * lv.noise;\n    if (st.check && inCheck(apply(pos, m), other(color))) b += st.check;\n    if (m.capture) b += st.capture;\n    if (recent.includes(`${m.from}>${m.to}`)) b -= 30;\n    bonus.set(m, b);\n  }\n  // Iterative deepening with a time budget: keep the last fully searched depth.\n  deadline = lv.budget ? performance.now() + lv.budget : Infinity;\n  let best = moves[0];\n  try {\n    for (let d = 1; d <= lv.depth; d++) {\n      const scored = [];\n      for (const m of moves) {\n        const v = search(apply(pos, m), other(color), color, d - 1, -Infinity, Infinity, d === lv.depth ? lv : { ...lv, qdepth: 0 }, st);\n        scored.push({ m, s: v + bonus.get(m) });\n      }\n      scored.sort((a, b) => b.s - a.s);\n      best = scored[0].m;\n      moves = scored.map((x) => x.m); // best-first ordering for the next iteration\n    }\n  } catch (e) {\n    if (!(e instanceof Timeout)) throw e;\n  } finally {\n    deadline = Infinity;\n  }\n  return best;\n}\n\nreturn { LEVELS, STYLES, chooseMove };\n})();\nonmessage = (e) => {\n  const { id, pos, color, level, style, recent } = e.data;\n  const m = AI.chooseMove(pos, color, level, style, recent);\n  postMessage({ id, m: m && { from: m.from, to: m.to, promotion: m.promotion || null } });\n};"], { type: 'text/javascript' })));
+let thinkingId = 0;
+worker.onmessage = (e) => {
+  if (e.data.id !== thinkingId || !e.data.m) return;
+  const { from, to, promotion } = e.data.m, c = game.turn;
+  recentMoves[c].push(to + '>' + from); if (recentMoves[c].length > 4) recentMoves[c].shift();
+  try { game.move(from, to, promotion); } catch (err) { toast(err.message); return; }
+  publish();
+};
+function scheduleComputer() {
+  const id = ++thinkingId, ver = game.version;
+  if (game.status !== 'playing' || game.players[game.turn] !== 'computer') return;
+  setTimeout(() => {
+    if (id !== thinkingId || ver !== game.version) return;
+    const { level, style } = game.computer[game.turn];
+    worker.postMessage({ id, pos: game.pos, color: game.turn, level, style, recent: recentMoves[game.turn] });
+  }, 650);
+}
+function publish() {
+  applyState(game.snapshot());
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(serialize())); } catch {}
+  scheduleComputer();
+}
+async function post(url, body = {}) {
+  try {
+    if (url === '/api/new') {
+      game.reset({ white: body.white, black: body.black, computer: body.computer });
+      recentMoves.white = []; recentMoves.black = [];
+    } else if (url === '/api/move') {
+      if (game.players[game.turn] !== 'human') throw new Error(t('hint.notYourTurn'));
+      game.move(body.from, body.to, body.promotion);
+    } else if (url === '/api/resign') {
+      game.resign(body.color || game.turn);
+    } else if (url === '/api/remote-move') {
+      // move from the network opponent (net.js); n keeps both sides in step
+      if (game.players[game.turn] !== 'remote' || body.n !== game.history.length) return { error: 'out of sync', expected: game.history.length };
+      game.move(body.from, body.to, body.promotion);
+    } else if (url === '/api/net-sync') {
+      game.reset({ white: body.white, black: body.black });
+      recentMoves.white = []; recentMoves.black = [];
+      try { for (const m of body.moves || []) game.move(m.from, m.to, m.promotion); if (body.resigned && game.status === 'playing') game.resign(body.resigned); }
+      catch (err) { publish(); return { error: err.message }; }
+    }
+    publish();
+    return { ok: true };
+  } catch (err) {
+    if (!url.startsWith('/api/remote') && !url.startsWith('/api/net')) toast(err.message);
+    return { error: err.message };
+  }
+}
+const hot = window.claude?.hot;
+hot?.snapshot?.(() => ({ game: serialize() }));
+function boot(data) {
+  let saved = data?.game || null;
+  if (!saved) { try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch {} }
+  if (saved && saved.pieces && saved.players && saved.boards) Object.assign(game, saved);
+  publish();
+}
+hot?.ready ? hot.ready(boot) : boot(hot?.data ?? {});
+
+// --- phone: collapse the panel to a status pill so the board gets the whole screen ---
+const narrowMQ = window.matchMedia('(max-width: 700px)');
+function setMini(on) {
+  const p = $('panel');
+  p.classList.toggle('mini', on && narrowMQ.matches);
+  if (on) { p.classList.remove('open'); $('btnMore').textContent = t('ui.options'); }
+}
+$('statusBlock').addEventListener('click', () => { if (narrowMQ.matches) setMini(!$('panel').classList.contains('mini')); });
+renderer.domElement.addEventListener('pointerdown', () => { if (narrowMQ.matches && !$('panel').classList.contains('mini')) setMini(true); });
+for (const id of ['btnNew', 'vNew']) { const f = $(id).onclick; $(id).onclick = (e) => { f(e); setMini(true); }; }
+narrowMQ.addEventListener?.('change', () => setMini(narrowMQ.matches));
+setMini(true);
+
+
+
+$('btnNew').onclick = () => { selected = null; post('/api/new', newGameBody()); };
+$('btnResign').onclick = () => {
+  const b = $('btnResign');
+  if (!isHumanTurn()) return;
+  if (b.dataset.armed) { delete b.dataset.armed; b.textContent = t('ui.resign'); post('/api/resign'); return; }
+  b.dataset.armed = '1'; b.textContent = t('ui.confirm');
+  setTimeout(() => { delete b.dataset.armed; b.textContent = t('ui.resign'); }, 3000);
+};
+$('btnMore').onclick = () => { const p = $('panel'); p.classList.toggle('open'); $('btnMore').textContent = t(p.classList.contains('open') ? 'ui.close' : 'ui.options'); };
+$('btnCam').onclick = () => { camIdx = (camIdx + 1) % 3; setView(Object.keys(CAM_VIEWS)[camIdx]); };
+
+// --- promotion picker ------------------------------------------------------------------
+function askPromotion(color) {
+  return new Promise((resolve) => {
+    const box = $('promo');
+    box.querySelectorAll('button[data-p]').forEach((b) => {
+      b.innerHTML = GLYPH[b.dataset.p] + '\uFE0E';
+      b.className = 'pp ' + color[0];
+      b.onclick = () => { box.hidden = true; resolve(b.dataset.p); };
+    });
+    $('promoCancel').onclick = () => { box.hidden = true; resolve(null); };
+    box.hidden = false;
+  });
+}
+
+// --- picking -------------------------------------------------------------------------
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+function pick(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const shown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+  const hits = ray.intersectObjects([...markerGroup.children, ...ghostGroup.children, ...pieceGroup.children, ...pickables], true).filter((h) => shown(h.object));
+  // lines and labels have no key (and a wide raycast threshold): only keyed objects count
+  return hits.find((h) => h.object.userData.key)?.object.userData.key ?? null;
+}
+
+function describeKey(k) {
+  if (!k) return '—';
+  if (isPin(k)) return t('hint.pin', { p: k });
+  const p = state?.pieces[k];
+  const lv = parseSquare(k)?.level;
+  const extra = lv && isPin(lv) && targetsOf(lv).length && isHumanTurn() ? t('hint.movable') : '';
+  return (p ? `${k} · ${IT[p.color]} ${PIECE_IT[p.type]}` : k) + extra;
+}
+const PIECE_IT = table('piece');
+
+let down = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointermove', (e) => { $('hover').textContent = describeKey(pick(e)); });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+  down = null;
+  const k = pick(e);
+  if (!state || !isHumanTurn()) { if (k && state?.status === 'playing') toast(t('hint.notYourTurn')); return; }
+  if (selected && k && targetsOf(selected).some((m) => m.to === k)) {
+    const from = selected;
+    const promo = targetsOf(from).some((m) => m.to === k && m.promotion);
+    selected = null;
+    renderMarkers(); setSquareGlow();
+    if (promo) askPromotion(state.turn).then((p) => { if (p) post('/api/move', { from, to: k, promotion: p }); });
+    else post('/api/move', { from, to: k });
+    return;
+  }
+  const p = k && state.pieces[k];
+  if (selected && pieceMeshes.get(selected)) pieceMeshes.get(selected).position.copy(posOfKey(selected));
+  const lv = k && !isPin(k) ? parseSquare(k)?.level : null;
+  if (!p && lv && isPin(lv)) {
+    // empty square of an attack board: select the board itself
+    selected = targetsOf(lv).length ? lv : null;
+    if (!selected) {
+      const n = squaresOf(lv).filter((s) => state.pieces[s.key]).length;
+      toast(n > 1 ? t('hint.boardLocked')
+        : n === 1 && state.pieces[squaresOf(lv).find((s) => state.pieces[s.key]).key].color !== state.turn ? t('hint.boardEnemy')
+        : n === 0 && state.boards[lv] !== state.turn ? t('hint.boardEnemyEmpty')
+        : t('hint.boardNoPin'));
+    }
+    renderMarkers();
+    setSquareGlow();
+    return;
+  }
+  selected = p && p.color === state.turn && targetsOf(k).length ? k : null;
+  if (p && p.color === state.turn && !targetsOf(k).length && p.type === 'P' && lv && isPin(lv) && !state.check) {
+    toast(t('hint.pawnStuck'));
+  } else if (p && p.color === state.turn && !targetsOf(k).length) {
+    if (p.type === 'K' && state.check) toast(t('hint.kingStuckCheck'));
+    else if (p.type === 'K') toast(t('hint.kingStuck', { n: state.legalMoves.length }));
+    else toast(state.check ? t('hint.notBlocking') : t('hint.noMoves'));
+  }
+  renderMarkers();
+  setSquareGlow();
+});
+
+// --- loop ------------------------------------------------------------------------------
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  const portrait = camera.aspect < 1;
+  if (portrait !== lastPortrait) { lastPortrait = portrait; setView(Object.keys(CAM_VIEWS)[camIdx]); }
+});
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const t = clock.getElapsedTime();
+  scene.getObjectByName('stars').rotation.y = t * 0.004;
+  ringMove.opacity = 0.6 + 0.3 * Math.sin(t * 4);
+  if (anim) {
+    const k = Math.min(1, (performance.now() - anim.t0) / anim.dur);
+    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    for (const it of anim.items) {
+      it.g.position.lerpVectors(it.from, it.to, e);
+      it.g.position.y += Math.sin(Math.PI * k) * it.arc;
+    }
+    if (anim.board) {
+      anim.board.group.position.copy(anim.board.delta).multiplyScalar(1 - e);
+      anim.board.group.position.y += Math.sin(Math.PI * k) * 0.5;
+    }
+    if (k >= 1) { if (anim.board) anim.board.group.position.set(0, 0, 0); anim = null; }
+  }
+  updateVictory(t);
+  if (selected && pieceMeshes.get(selected)) {
+    pieceMeshes.get(selected).position.y = posOfKey(selected).y + 0.12 + Math.sin(t * 5) * 0.05;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+// --- hooks for optional modules (network play, net.js) ---------------------------------
+window.TriD = Object.assign(window.TriD || {}, { getState: () => state, post, toast, t, onLangChange, listeners: window.TriD?.listeners || [] });
+
+// --- language (IT / EN) -------------------------------------------------------------------
+function refreshLanguage() {
+  applyStatic();
+  $('langBtn').textContent = getLang() === 'it' ? 'EN' : 'IT';
+  if (state) { renderPanel(); renderMcp(); if ($('victory').classList.contains('show')) victoryText(state); }
+}
+$('langBtn').onclick = () => setLang(getLang() === 'it' ? 'en' : 'it');
+onLangChange(refreshLanguage);
+refreshLanguage();
+
+</script>
+<script type="module">
+// Network play: peer-to-peer over WebRTC, no game server.
+// Trystero finds the other player through public Nostr relays (only to exchange the WebRTC
+// connection details, encrypted with the room code); the game itself then flows directly
+// between the two browsers. Each side runs its own rules engine and validates every move.
+//
+// Protocol (one action "msg", JSON):
+//   host  → guest  {t:'sync', hostColor, moves:[{from,to,promotion}], resigned}   full game state
+//   either → other {t:'move', n, from, to, promotion}                             n = moves before it
+//   either → other {t:'resign'}
+//   guest → host   {t:'syncreq'}  |  {t:'newgame'}
+//   host  → guest  {t:'busy'}     (room already has two players)
+//   either → other {t:'chat', text} | {t:'react', r}   chat, see chat.js (rate-limited both ways)
+import { joinRoom } from '@trystero-p2p/nostr';
+const { createChat } = (() => {
+
+// Player-to-player chat for network games: short texts (≤512 chars) with emoji, and
+// reactions that play an animation on both screens. Anti-spam: per-minute limits on messages
+// and reactions, a minimum gap between reactions and a cap on emoji per message. The same
+// limits are applied to what we receive, so a modified client cannot flood the opponent.
+// Received text is always rendered as plain text (textContent), never as HTML.
+
+const LIMITS = {
+  maxLength: 512,
+  messagesPerMinute: 10,
+  reactionsPerMinute: 6,
+  reactionGapMs: 2500,
+  emojiPerMessage: 8,
+};
+const REACTIONS = { clap: '👏', fire: '🔥', wow: '😮', laugh: '😂', gg: '🤝', boom: '💥' };
+const PICKER = ['😀', '😄', '😉', '😎', '🤔', '😅', '😬', '😱', '🙃', '😏', '👍', '👎', '🙏', '💪', '♟️', '🖖', '⭐', '🚀', '❤️', '🎉'];
+
+const segmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+const EMOJI_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+
+function countEmoji(text) {
+  if (!segmenter) return [...text].filter((c) => EMOJI_RE.test(c)).length;
+  let n = 0;
+  for (const { segment } of segmenter.segment(text)) if (EMOJI_RE.test(segment)) n++;
+  return n;
+}
+
+// Remove control characters (keeps newlines out too: chat lines are single-line), trim, cap length.
+function cleanText(text) {
+  return String(text ?? '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, LIMITS.maxLength);
+}
+
+// Sliding one-minute window.
+class RateWindow {
+  constructor(perMinute, minGapMs = 0) { this.per = perMinute; this.gap = minGapMs; this.times = []; }
+  prune(now) { this.times = this.times.filter((t) => now - t < 60000); }
+  // ms to wait before the next send is allowed (0 = allowed now)
+  wait(now = Date.now()) {
+    this.prune(now);
+    const last = this.times[this.times.length - 1];
+    const gapWait = last != null && this.gap ? Math.max(0, this.gap - (now - last)) : 0;
+    const fullWait = this.times.length >= this.per ? 60000 - (now - this.times[0]) : 0;
+    return Math.max(gapWait, fullWait);
+  }
+  take(now = Date.now()) { if (this.wait(now) > 0) return false; this.times.push(now); return true; }
+}
+
+// UI + wire glue. `send(data)` delivers to the opponent; returns handlers for incoming data.
+function createChat({ t, send, onLangChange }) {
+  const $ = (id) => document.getElementById(id);
+  const box = $('chat');
+  const log = $('chatLog');
+  const input = $('chatInput');
+  const badge = $('chatBadge');
+  const out = { msg: new RateWindow(LIMITS.messagesPerMinute), react: new RateWindow(LIMITS.reactionsPerMinute, LIMITS.reactionGapMs) };
+  // incoming limits get a little slack for clock/latency jitter
+  const inn = { msg: new RateWindow(LIMITS.messagesPerMinute + 2), react: new RateWindow(LIMITS.reactionsPerMinute + 2, LIMITS.reactionGapMs / 2) };
+  let unread = 0;
+  let open = false;
+
+  // --- rendering -------------------------------------------------------------------------
+  function addLine(kind, text) {
+    const row = document.createElement('div');
+    row.className = `cl ${kind}`;
+    const who = document.createElement('span');
+    who.className = 'who';
+    who.textContent = kind === 'me' ? t('chat.me') : kind === 'them' ? t('chat.them') : '';
+    const body = document.createElement('span');
+    body.className = 'txt';
+    body.textContent = text;
+    if (kind !== 'sys') row.append(who);
+    row.append(body);
+    log.append(row);
+    while (log.children.length > 80) log.firstChild.remove();
+    log.scrollTop = log.scrollHeight;
+    if (kind === 'them' && !open) { unread++; badge.textContent = String(unread); badge.hidden = false; }
+  }
+
+  function setOpen(on) {
+    open = on;
+    box.classList.toggle('open', on);
+    document.body.classList.toggle('chat-open', on);
+    if (on) { unread = 0; badge.hidden = true; setTimeout(() => input.focus({ preventScroll: true }), 50); }
+  }
+
+  function updateMeta() {
+    const len = input.value.length;
+    $('chatCount').textContent = `${len}/${LIMITS.maxLength}`;
+    const em = countEmoji(input.value);
+    $('chatCount').classList.toggle('over', em > LIMITS.emojiPerMessage);
+    const w = out.msg.wait();
+    $('chatSend').disabled = !input.value.trim() || w > 0 || em > LIMITS.emojiPerMessage;
+    $('chatLimit').textContent = w > 0 ? t('chat.wait', { s: Math.ceil(w / 1000) }) : em > LIMITS.emojiPerMessage ? t('chat.tooManyEmoji', { n: LIMITS.emojiPerMessage }) : '';
+    const rw = out.react.wait();
+    for (const b of document.querySelectorAll('#reacts button')) b.disabled = rw > 0;
+    $('reacts').dataset.wait = rw > 0 ? t('chat.wait', { s: Math.ceil(rw / 1000) }) : '';
+  }
+  setInterval(updateMeta, 500);
+
+  // Reaction animation: a big emoji rising from the bottom with a burst of small copies.
+  function playReaction(id, mine) {
+    const glyph = REACTIONS[id];
+    if (!glyph) return;
+    const layer = $('reactLayer');
+    if (layer.children.length > 40) return;
+    const x = 30 + Math.random() * 40;
+    const el = document.createElement('div');
+    el.className = `react-pop ${mine ? 'mine' : 'theirs'}`;
+    el.style.left = `${x}vw`;
+    el.textContent = glyph;
+    const tag = document.createElement('span');
+    tag.className = 'react-tag';
+    tag.textContent = mine ? t('chat.me') : t('chat.them');
+    el.append(tag);
+    layer.append(el);
+    for (let i = 0; i < 8; i++) {
+      const p = document.createElement('div');
+      p.className = 'react-spark';
+      p.textContent = glyph;
+      const a = (i / 8) * Math.PI * 2;
+      p.style.left = `${x}vw`;
+      p.style.setProperty('--dx', `${Math.cos(a) * (60 + Math.random() * 50)}px`);
+      p.style.setProperty('--dy', `${Math.sin(a) * (60 + Math.random() * 50) - 120}px`);
+      layer.append(p);
+      setTimeout(() => p.remove(), 1400);
+    }
+    setTimeout(() => el.remove(), 2600);
+  }
+
+  // --- sending ------------------------------------------------------------------------------
+  function sendText() {
+    const text = cleanText(input.value);
+    if (!text) return;
+    if (countEmoji(text) > LIMITS.emojiPerMessage) return updateMeta();
+    if (!out.msg.take()) return updateMeta();
+    send({ t: 'chat', text });
+    addLine('me', text);
+    input.value = '';
+    updateMeta();
+  }
+
+  function sendReaction(id) {
+    if (!REACTIONS[id] || !out.react.take()) return updateMeta();
+    send({ t: 'react', r: id });
+    playReaction(id, true);
+    updateMeta();
+  }
+
+  // --- wiring -----------------------------------------------------------------------------
+  $('chatToggle').onclick = () => setOpen(!open);
+  $('chatSend').onclick = sendText;
+  input.addEventListener('input', updateMeta);
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation(); // keep game shortcuts (S, Esc) out of the text box
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
+  });
+  const reacts = $('reacts');
+  for (const [id, glyph] of Object.entries(REACTIONS)) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = glyph;
+    b.dataset.r = id;
+    b.title = t(`react.${id}`);
+    b.setAttribute('aria-label', t(`react.${id}`));
+    b.onclick = () => sendReaction(id);
+    reacts.append(b);
+  }
+  const picker = $('emojiPicker');
+  for (const e of PICKER) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = e;
+    b.onclick = () => {
+      if (input.value.length + e.length > LIMITS.maxLength) return;
+      const s = input.selectionStart ?? input.value.length, en = input.selectionEnd ?? s;
+      input.value = input.value.slice(0, s) + e + input.value.slice(en);
+      input.focus();
+      input.selectionStart = input.selectionEnd = s + e.length;
+      updateMeta();
+    };
+    picker.append(b);
+  }
+  $('emojiBtn').onclick = () => { picker.hidden = !picker.hidden; };
+  onLangChange?.(() => {
+    for (const b of reacts.children) { b.title = t(`react.${b.dataset.r}`); b.setAttribute('aria-label', b.title); }
+    updateMeta();
+  });
+  updateMeta();
+
+  return {
+    // called when a network game connects / ends
+    show(on) {
+      box.hidden = !on;
+      if (!on) { setOpen(false); }
+    },
+    system(text) { addLine('sys', text); },
+    clear() { log.textContent = ''; unread = 0; badge.hidden = true; },
+    // incoming data from the opponent (already checked to come from the connected peer)
+    receive(data) {
+      if (data.t === 'chat') {
+        if (typeof data.text !== 'string' || !inn.msg.take()) return;
+        const text = cleanText(data.text);
+        if (!text || countEmoji(text) > LIMITS.emojiPerMessage) return;
+        addLine('them', text);
+      } else if (data.t === 'react') {
+        if (!REACTIONS[data.r] || !inn.react.take()) return;
+        playReaction(data.r, false);
+      }
+    },
+  };
+}
+
+return { LIMITS, REACTIONS, countEmoji, cleanText, RateWindow, createChat };
+})();
+
+const T = window.TriD;
+const { t, onLangChange } = T;
+const $ = (id) => document.getElementById(id);
+const APP_ID = 'tri-d-chess-meder-v1';
+const IT = new Proxy({}, { get: (_, k) => t(`name.${String(k)}`) });
+let statusKey = null;
+const other = (c) => (c === 'white' ? 'black' : 'white');
+
+let room = null, msg = null;
+let role = null;          // 'host' | 'guest'
+let code = null;
+let myColor = null;
+let peer = null;          // connected opponent id
+let sent = 0;             // moves of ours already sent (by history length)
+let resignSent = false;
+
+function setStatus(key, cls = '') {
+  statusKey = key;
+  const el = $('netStatus');
+  el.textContent = t(key);
+  el.className = cls;
+}
+onLangChange(() => {
+  if (statusKey) $('netStatus').textContent = t(statusKey);
+  if (myColor) $('netMe').textContent = IT[myColor];
+});
+
+function showActive(on) {
+  $('netIdle').hidden = on;
+  $('netActive').hidden = !on;
+}
+
+const movesOf = (s) => s.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || null }));
+
+function newCode() {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const r = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(r, (b) => abc[b % abc.length]).join('');
+}
+
+// --- sending ----------------------------------------------------------------------------
+function send(data) {
+  if (msg && peer) msg.send(data, { target: peer }).catch(() => {});
+}
+
+function sendSync() {
+  const s = T.getState();
+  if (!s) return;
+  const resigned = s.status === 'resigned' ? other(s.winner) : null;
+  send({ t: 'sync', hostColor: myColor, moves: movesOf(s), resigned });
+}
+
+// After every state change: forward our own new moves / resignation to the opponent.
+function onState(s) {
+  if (!room || !myColor || s.players[myColor] !== 'human' || s.players[other(myColor)] !== 'remote') return;
+  if (s.history.length < sent) sent = s.history.length; // new game
+  while (sent < s.history.length) {
+    const h = s.history[sent];
+    if (h.color === myColor) send({ t: 'move', n: sent, from: h.from, to: h.to, promotion: h.promotion || null });
+    sent++;
+  }
+  if (s.status === 'resigned' && s.winner !== myColor && !resignSent) { resignSent = true; send({ t: 'resign' }); }
+  if (s.status === 'playing') resignSent = false;
+}
+
+// --- receiving --------------------------------------------------------------------------
+async function onMessage(data, peerId) {
+  if (peerId !== peer || !data || typeof data !== 'object') return;
+  switch (data.t) {
+    case 'sync': {
+      if (role !== 'guest') return;
+      myColor = other(data.hostColor);
+      $('netMe').textContent = IT[myColor];
+      const body = { [myColor]: 'human', [data.hostColor]: 'remote', moves: Array.isArray(data.moves) ? data.moves : [], resigned: data.resigned || null };
+      const r = await T.post('/api/net-sync', body);
+      sent = T.getState()?.history.length ?? 0;
+      resignSent = !!data.resigned;
+      if (r.error) setStatus('net.desync', 'err');
+      else setStatus('net.connected', 'ok');
+      break;
+    }
+    case 'move': {
+      const r = await T.post('/api/remote-move', { n: data.n, from: data.from, to: data.to, promotion: data.promotion });
+      if (r.error) {
+        // out of step: the host's game is the reference
+        if (role === 'guest') send({ t: 'syncreq' });
+        else sendSync();
+      } else sent = Math.max(sent, data.n + 1);
+      break;
+    }
+    case 'resign': {
+      const s = T.getState();
+      if (s?.status === 'playing') await T.post('/api/resign', { color: other(myColor) });
+      resignSent = true;
+      break;
+    }
+    case 'syncreq': if (role === 'host') sendSync(); break;
+    case 'newgame':
+      if (role === 'host') { T.toast(t('net.peerNew')); await startHostGame(); }
+      break;
+    case 'chat':
+    case 'react':
+      chat.receive(data);
+      break;
+    case 'busy':
+      T.toast(t('net.busy'));
+      leave();
+      break;
+  }
+}
+
+// --- rooms --------------------------------------------------------------------------------
+function open(roomCode) {
+  room = joinRoom({ appId: APP_ID }, roomCode);
+  msg = room.makeAction('msg');
+  msg.onMessage = (data, { peerId }) => onMessage(data, peerId);
+  room.onPeerJoin = (id) => {
+    if (peer && peer !== id) { msg.send({ t: 'busy' }, { target: id }).catch(() => {}); return; }
+    peer = id;
+    chat.show(true);
+    chat.system(t('chat.joined'));
+    if (role === 'host') { sendSync(); setStatus('net.connected', 'ok'); }
+    else setStatus('net.syncing', 'warn');
+  };
+  room.onPeerLeave = (id) => {
+    if (id !== peer) return;
+    peer = null;
+    setStatus('net.peerLeft', 'warn');
+    chat.system(t('chat.left'));
+  };
+}
+
+async function startHostGame() {
+  await T.post('/api/new', { [myColor]: 'human', [other(myColor)]: 'remote' });
+  sent = 0; resignSent = false;
+  sendSync();
+}
+
+async function host() {
+  const pick = $('netColor').value;
+  myColor = pick === 'random' ? (crypto.getRandomValues(new Uint8Array(1))[0] % 2 ? 'white' : 'black') : pick;
+  role = 'host';
+  code = newCode();
+  await startHostGame();
+  open(code);
+  $('netRoom').textContent = code;
+  $('netMe').textContent = IT[myColor];
+  setStatus('net.waiting', 'warn');
+  showActive(true);
+}
+
+function join() {
+  const c = $('netCode').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (c.length < 4) { T.toast(t('net.needCode')); return; }
+  role = 'guest';
+  code = c;
+  myColor = null;
+  open(code);
+  $('netRoom').textContent = code;
+  $('netMe').textContent = '—';
+  setStatus('net.searching', 'warn');
+  showActive(true);
+}
+
+function leave() {
+  try { room?.leave(); } catch {}
+  room = null; msg = null; peer = null; role = null; code = null; myColor = null; sent = 0;
+  showActive(false);
+  chat.show(false);
+  chat.clear();
+  T.toast(t('net.left'));
+}
+
+// "Nuova partita" while in a room: the host restarts the network game, the guest asks the host.
+function wrapNewGame(id) {
+  const btn = $(id);
+  const original = btn.onclick;
+  btn.onclick = (e) => {
+    if (!room) return original?.(e);
+    if (role === 'host') return startHostGame();
+    if (!peer) return T.toast(t('net.peerAway'));
+    send({ t: 'newgame' });
+  };
+}
+
+const chat = createChat({ t, send, onLangChange });
+
+$('netHost').onclick = () => host().catch((e) => T.toast(t('net.unavailable', { e: e.message })));
+$('netJoin').onclick = () => { try { join(); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
+$('netCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('netJoin').click(); });
+$('netLeave').onclick = leave;
+$('netCopy').onclick = () => navigator.clipboard?.writeText(code || '').then(() => T.toast(t('net.codeCopied')), () => {});
+wrapNewGame('btnNew');
+wrapNewGame('vNew');
+T.listeners.push((s) => onState(s));
+window.addEventListener('beforeunload', () => { try { room?.leave(); } catch {} });
+
+</script>
+
+</body>
+</html>
