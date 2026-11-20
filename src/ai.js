@@ -1,6 +1,7 @@
-// Built-in computer player: iterative-deepening alpha-beta (negamax) with a capture search at the
-// horizon, killer moves and a time budget, on top of the rules engine; selectable strength and style.
-import { legalMoves, pseudoMoves, inCheck, parseSquare, findKing, applyMove } from './engine.js';
+// Built-in computer player: iterative-deepening alpha-beta (negamax) with a transposition table,
+// a capture search at the horizon, killer moves and a time budget, on top of the rules engine;
+// selectable strength and style.
+import { legalMoves, pseudoMoves, inCheck, parseSquare, applyMove } from './engine.js';
 
 const V = { P: 100, N: 300, B: 320, R: 500, Q: 900, K: 0 };
 
@@ -27,32 +28,80 @@ const other = (c) => (c === 'white' ? 'black' : 'white');
 const apply = (pos, m) => applyMove(pos, m).pos;
 
 const dist = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+const SQ = new Map();
+const sqOf = (k) => { let q = SQ.get(k); if (!q) { q = parseSquare(k); SQ.set(k, q); } return q; };
+const FULL_PHASE = 2 * (2 * V.N + 2 * V.B + 2 * V.R + V.Q);       // non-pawn material at the start
 
+// Static evaluation from the point of view of `me`: material, piece placement, pressure on the
+// enemy king, bishop pair; in the endgame passed pawns and an active king.
+// (Pawn-structure and king-shield terms were tried and played weaker in engine matches.)
 function evaluate(pos, me, st) {
   const { pieces } = pos;
-  const kings = { white: findKing(pieces, 'white'), black: findKing(pieces, 'black') };
-  const kpos = { white: kings.white && parseSquare(kings.white), black: kings.black && parseSquare(kings.black) };
+  let kw = null, kb = null, phase = 0, bw = 0, bb = 0;
+  const pw = [], pb = [];
+  for (const k in pieces) {
+    const pc = pieces[k];
+    if (pc.type === 'K') { if (pc.color === 'white') kw = sqOf(k); else kb = sqOf(k); }
+    else if (pc.type === 'P') (pc.color === 'white' ? pw : pb).push(sqOf(k));
+    else { phase += V[pc.type]; if (pc.type === 'B') { if (pc.color === 'white') bw++; else bb++; } }
+  }
+  const kpos = { white: kw, black: kb };
+  const end = Math.max(0, Math.min(1, (FULL_PHASE * 0.6 - phase) / (FULL_PHASE * 0.45)));
   let s = 0;
-  for (const [k, pc] of Object.entries(pieces)) {
-    const sq = parseSquare(k);
-    const { x, y } = sq;
+  for (const k in pieces) {
+    const pc = pieces[k], sq = sqOf(k), { x, y } = sq;
     let v = V[pc.type] * st.material;
-    if (pc.type === 'P') v += (pc.color === 'white' ? y : 9 - y) * st.pawnAdv;
-    else if (pc.type !== 'K') {
+    if (pc.type === 'P') {
+      v += (pc.color === 'white' ? y : 9 - y) * st.pawnAdv;
+      if (end > 0) {
+        const foes = pc.color === 'white' ? pb : pw;
+        let passed = true;
+        for (const e of foes) if (Math.abs(e.x - x) <= 1 && (pc.color === 'white' ? e.y > y : e.y < y)) { passed = false; break; }
+        if (passed) { const adv = pc.color === 'white' ? y - 1 : 8 - y; v += adv * adv * 3 * end; }
+      }
+    } else if (pc.type === 'K') {
+      if (end > 0) v += (4 - Math.max(Math.abs(x - 2.5), Math.abs(y - 4.5))) * 10 * end;
+    } else {
       if (x >= 1 && x <= 4 && y >= 3 && y <= 6) v += st.center;
       const enemyK = kpos[other(pc.color)], ownK = kpos[pc.color];
-      if (enemyK) v += (9 - dist(sq, enemyK)) * st.attack;           // pressure on the enemy king
-      if (ownK && dist(sq, ownK) <= 2) v += st.shelter;               // pieces guarding own king
+      if (enemyK) v += (9 - dist(sq, enemyK)) * st.attack;
+      if (ownK && dist(sq, ownK) <= 2) v += st.shelter;
     }
     s += pc.color === me ? v : -v;
   }
-  return s;
+  const pair = (bw >= 2 ? 25 : 0) - (bb >= 2 ? 25 : 0);
+  return s + (me === 'white' ? pair : -pair);
 }
+
+// --- transposition table --------------------------------------------------------------
+// Zobrist-style hash computed per node: each (square, piece, moved), attack board, en passant
+// target and side to move maps to two random 32-bit words, XORed together into a 53-bit key.
+let seed = 0x2545f491;
+const rnd32 = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return seed >>> 0; };
+const Z = new Map();
+const z = (tok) => { let v = Z.get(tok); if (!v) { v = [rnd32(), rnd32() & 0x1fffff]; Z.set(tok, v); } return v; };
+function hashPos(pos, color) {
+  let a = 0, b = 0, t;
+  for (const k in pos.pieces) {
+    const p = pos.pieces[k];
+    t = z(k + p.type + p.color[0] + (p.moved ? '*' : ''));
+    a ^= t[0]; b ^= t[1];
+  }
+  for (const pin in pos.boards) { t = z('@' + pin + pos.boards[pin][0]); a ^= t[0]; b ^= t[1]; }
+  if (pos.ep) { t = z('ep' + pos.ep.victim); a ^= t[0]; b ^= t[1]; }
+  if (pos.firstMove) for (const c in pos.firstMove) if (pos.firstMove[c] !== false) { t = z('fm' + c); a ^= t[0]; b ^= t[1]; }
+  if (color === 'black') { t = z('side'); a ^= t[0]; b ^= t[1]; }
+  return (a >>> 0) * 2097152 + b;
+}
+const TT = new Map();
+const TT_MAX = 400000;
+const EXACT = 0, LOWER = 1, UPPER = 2;
 
 // Move ordering: captures by MVV-LVA, promotions, then the killer moves of this ply.
 const mkey = (m) => `${m.from}>${m.to}`;
-function orderMoves(moves, killers = null) {
-  const score = (m) => (m.capture ? 10000 + V[m.capture] * 10 - (V[m.piece] || 0) : 0) + (m.promotion ? 9000 : 0)
+function orderMoves(moves, killers = null, ttMove = null) {
+  const score = (m) => (ttMove && mkey(m) === ttMove ? 50000 : 0)
+    + (m.capture ? 10000 + V[m.capture] * 10 - (V[m.piece] || 0) : 0) + (m.promotion ? 9000 : 0)
     + (killers && !m.capture ? (killers[0] === mkey(m) ? 8000 : killers[1] === mkey(m) ? 7000 : 0) : 0);
   for (const m of moves) m._s = score(m);
   return moves.sort((a, b) => b._s - a._s);
@@ -91,14 +140,21 @@ function negamax(pos, color, depth, alpha, beta, ply, ctx) {
     if (ply < ctx.maxPly && inCheck(pos, color)) depth = 1;
     else return quiesce(pos, color, alpha, beta, ctx.qd, ctx.st);
   }
+  const key = hashPos(pos, color), e = TT.get(key);
+  if (e && e.d >= depth) {
+    // mate scores are stored relative to this node
+    const v = e.s > MATE / 2 ? e.s - ply : e.s < -MATE / 2 ? e.s + ply : e.s;
+    if (e.f === EXACT || (e.f === LOWER && v >= beta) || (e.f === UPPER && v <= alpha)) return v;
+  }
+  const alpha0 = alpha;
   const killers = ctx.killers[ply] || (ctx.killers[ply] = []);
-  let best = -Infinity, legal = 0;
-  for (const m of orderMoves(pseudoMoves(pos, color), killers)) {
+  let best = -Infinity, bestKey = null, legal = 0;
+  for (const m of orderMoves(pseudoMoves(pos, color), killers, e && e.m)) {
     const after = apply(pos, m);
     if (inCheck(after, color)) continue;
     legal++;
     const v = -negamax(after, other(color), depth - 1, -beta, -alpha, ply + 1, ctx);
-    if (v > best) best = v;
+    if (v > best) { best = v; bestKey = mkey(m); }
     if (v > alpha) alpha = v;
     if (alpha >= beta) {
       if (!m.capture) { const k = mkey(m); if (killers[0] !== k) { killers[1] = killers[0]; killers[0] = k; } }
@@ -106,6 +162,12 @@ function negamax(pos, color, depth, alpha, beta, ply, ctx) {
     }
   }
   if (!legal) return inCheck(pos, color) ? -MATE + ply : 0;
+  if (TT.size >= TT_MAX) TT.clear();
+  TT.set(key, {
+    d: depth, m: bestKey,
+    s: best > MATE / 2 ? best + ply : best < -MATE / 2 ? best - ply : best,
+    f: best <= alpha0 ? UPPER : best >= beta ? LOWER : EXACT,
+  });
   return best;
 }
 
@@ -131,6 +193,7 @@ export function chooseMove(pos, color, level = 3, style = 'balanced', recent = [
   // even when time runs out early the move does not hang material.
   deadline = lv.budget ? performance.now() + lv.budget : Infinity;
   nodes = 0;
+  TT.clear();
   const ctx = { qd: lv.qdepth, st, killers: [], maxPly: lv.depth + 2 };
   let best = moves[0];
   try {

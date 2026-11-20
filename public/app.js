@@ -396,7 +396,8 @@ statsTab.onclick = () => setStats(true);
 window.addEventListener('keydown', (e) => {
   if (e.target.closest('select, input, textarea') || e.metaKey || e.ctrlKey) return;
   if (e.key === 's' || e.key === 'S') setStats(statsEl.classList.contains('hidden'));
-  if (e.key === 'm' || e.key === 'M') { e.preventDefault(); $('moveInput').focus(); }
+  if (e.key === 'm' || e.key === 'M') { e.preventDefault(); if (document.body.classList.contains('pmin')) setPanelMin(false, true); $('moveInput').focus(); }
+  if (e.key === 'p' || e.key === 'P') $('panelToggle').click();
   if (e.key === 'Escape') hideVictory();
 });
 
@@ -1134,5 +1135,22 @@ function refreshLanguage() {
   if (state) { renderPanel(); renderMcp(); if ($('victory').classList.contains('show')) victoryText(state); }
 }
 $('langBtn').onclick = () => setLang(getLang() === 'it' ? 'en' : 'it');
+// compact left panel (desktop): turn and move log only, see-through. Key P toggles it.
+function setPanelMin(on, save = false) {
+  document.body.classList.toggle('pmin', on);
+  const b = $('panelToggle');
+  b.textContent = on ? '▸' : '◂';
+  b.setAttribute('aria-expanded', on ? 'false' : 'true');
+  b.title = t(on ? 'ui.panelShow' : 'ui.panelHide');
+  b.setAttribute('aria-label', b.title);
+  if (save) try { localStorage.setItem('tridchess.panelMin', on ? '1' : '0'); } catch {}
+}
+{
+  let saved = null;
+  try { saved = localStorage.getItem('tridchess.panelMin'); } catch {}
+  setPanelMin(saved === '1');
+}
+$('panelToggle').onclick = () => setPanelMin(!document.body.classList.contains('pmin'), true);
+onLangChange(() => setPanelMin(document.body.classList.contains('pmin')));
 onLangChange(refreshLanguage);
 refreshLanguage();

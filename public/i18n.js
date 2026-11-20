@@ -33,7 +33,7 @@ const STRINGS = {
     'ui.confirm': 'Conferma?', 'ui.view': 'Vista', 'ui.stats': 'Statistiche', 'ui.statsHide': 'Nascondi (S)',
     'ui.statsShow': 'Mostra statistiche (S)', 'ui.options': 'Opzioni', 'ui.close': 'Chiudi',
     'ui.levelW': 'Livello Bianco', 'ui.levelB': 'Livello Nero', 'ui.styleW': 'Stile Bianco', 'ui.styleB': 'Stile Nero',
-    'ui.lang': 'Lingua', 'ui.resignConfirm': 'Abbandonare la partita?', 'ui.error': 'Errore {s}',
+    'ui.panelHide': 'Comprimi pannello (P)', 'ui.panelShow': 'Espandi pannello (P)', 'ui.lang': 'Lingua', 'ui.resignConfirm': 'Abbandonare la partita?', 'ui.error': 'Errore {s}',
 
     'mcp.title': "Collega l'AI (MCP) · clic per copiare", 'mcp.none': 'Nessun giocatore AI: imposta Bianco o Nero su AI.',
     'mcp.unsaved': 'Premi “Nuova partita” per applicare i giocatori.', 'mcp.copied': 'Comando copiato',
@@ -121,7 +121,7 @@ const STRINGS = {
     'ui.confirm': 'Confirm?', 'ui.view': 'View', 'ui.stats': 'Stats', 'ui.statsHide': 'Hide (S)',
     'ui.statsShow': 'Show stats (S)', 'ui.options': 'Options', 'ui.close': 'Close',
     'ui.levelW': 'White level', 'ui.levelB': 'Black level', 'ui.styleW': 'White style', 'ui.styleB': 'Black style',
-    'ui.lang': 'Language', 'ui.resignConfirm': 'Resign the game?', 'ui.error': 'Error {s}',
+    'ui.panelHide': 'Collapse panel (P)', 'ui.panelShow': 'Expand panel (P)', 'ui.lang': 'Language', 'ui.resignConfirm': 'Resign the game?', 'ui.error': 'Error {s}',
 
     'mcp.title': 'Connect an AI (MCP) · click to copy', 'mcp.none': 'No AI player: set White or Black to AI.',
     'mcp.unsaved': 'Press “New game” to apply the players.', 'mcp.copied': 'Command copied',

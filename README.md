@@ -76,7 +76,7 @@ MCP tools: `get_rules`, `get_game_state`, `get_legal_moves`, `make_move` (square
 | Path | |
 |---|---|
 | `src/engine.js` | rules engine (also used in the browser) |
-| `src/ai.js` | computer player (alpha-beta, levels and styles) |
+| `src/ai.js` | computer player (alpha-beta with transposition table, levels and styles) |
 | `src/chess2d.js`, `src/ai-chess.js`, `src/games.js` | classic chess on chess.js, its computer player, the game-kind registry |
 | `server.js` | Express: UI, REST + SSE, network endpoints, MCP server |
 | `electron/main.js` | macOS app |
@@ -108,6 +108,7 @@ Not affiliated with any science-fiction franchise. Piece designs are original.
 - **Regole consultabili**: il pulsante Regole apre una pagina con ricerca, in italiano e inglese, con le regole del Tri-D (Meder) e degli scacchi classici (FIDE). Si apre anche con `?rules` nell'indirizzo.
 - **Tutorial interattivo**: sette lezioni brevi sulla scacchiera vera (livelli, proiezione, cavallo, tavole d'attacco, promozione, matto), aperte dalla pagina Regole o con `?tutorial`.
 - **Accessibilità**: mosse da tastiera (`b2W b4N`, `QL1 QL3`, `e2e4`, `0-0`; tasto M), mosse e stato annunciati ai lettori di schermo, descrizione testuale della posizione, tema ad alto contrasto, animazioni ridotte se il sistema lo chiede.
+- **Pannello compatto** (desktop): bottone ◂ o tasto P, restano solo turno e mosse in trasparenza.
 - **Computer**: 5 livelli (Principiante → Maestro) × 3 stili (equilibrato, aggressivo, prudente), separati per Bianco e Nero.
 - **Annulla e suggerimento** (solo partite in locale, contro il computer o in due sullo stesso schermo): Annulla toglie la tua ultima mossa e la risposta del computer; Suggerisci chiede al computer (livello 4) la mossa migliore e la segna con un anello dorato.
 - **In rete senza server**: condividi un codice stanza; Trystero trova l'avversario tramite relay Nostr pubblici, poi la partita viaggia direttamente tra i due browser via WebRTC cifrato. Ci si può ricollegare con lo stesso codice. Le partite in rete sono solo umano contro umano.

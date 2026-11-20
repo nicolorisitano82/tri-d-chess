@@ -74,6 +74,20 @@
     body.app #panel { top: 44px; }
     body.app #toast { top: 44px; }
 
+    /* compact panel (desktop): only the turn and the move log, see-through */
+    .ptoggle { margin-right: 8px; padding: 3px 8px; }
+    @media (min-width: 701px) and (min-height: 501px) {
+      body.pmin #panel { pointer-events: none; bottom: auto; max-height: calc(100vh - 32px); width: 240px; }
+      body.pmin #panel > :not(.title):not(#statusBlock):not(#log) { display: none; }
+      body.pmin #panel > .title { font-size: 14px; padding: 7px 12px; background: rgba(255,153,0,.55); align-self: flex-start; }
+      body.pmin #panel > .title #langBtn { display: none; }
+      body.pmin #statusBlock, body.pmin #log { background: rgba(10,8,20,.32); backdrop-filter: none; border-left-width: 6px; text-shadow: 0 1px 2px #000; }
+      body.pmin #statusBlock .row.pl { display: none; }
+      body.pmin #log { pointer-events: auto; max-height: 40vh; min-height: 0; flex: 0 1 auto; }
+      body.pmin.hc #statusBlock, body.pmin.hc #log { background: rgba(0,0,0,.7) !important; }
+    }
+    @media (max-width: 700px), (max-height: 500px) { .ptoggle { display: none; } }
+
     /* --- stats panel --- */
     #stats { position: fixed; top: 16px; right: 16px; width: 290px; max-height: calc(100vh - 90px); max-height: calc(100dvh - 90px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
       transition: transform .35s ease, opacity .35s ease; z-index: 5; }
@@ -262,12 +276,12 @@
   <div id="scene"></div>
 
   <div id="panel">
-    <div class="bar title">Tri-D Chess <button id="langBtn" class="lang" data-i18n-title="ui.lang" data-i18n-aria="ui.lang">EN</button></div>
-    <div class="block">
+    <div class="bar title"><button id="panelToggle" class="lang ptoggle" type="button" aria-expanded="true" aria-controls="panel">◂</button>Tri-D Chess <button id="langBtn" class="lang" data-i18n-title="ui.lang" data-i18n-aria="ui.lang">EN</button></div>
+    <div class="block" id="statusBlock">
       <div id="status" data-i18n="status.connecting">Connessione…</div>
       <div class="row"><span data-i18n="ui.turn">Turno</span><span id="turn">—</span></div>
-      <div class="row"><span data-i18n="name.white">Bianco</span><span id="pw">—</span></div>
-      <div class="row"><span data-i18n="name.black">Nero</span><span id="pb">—</span></div>
+      <div class="row pl"><span data-i18n="name.white">Bianco</span><span id="pw">—</span></div>
+      <div class="row pl"><span data-i18n="name.black">Nero</span><span id="pb">—</span></div>
     </div>
     <div class="bar" style="background:var(--lilac)" data-i18n="ui.log">Registro mosse</div>
     <div class="block blue" id="log"><ol id="moves"></ol></div>

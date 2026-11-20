@@ -301,7 +301,7 @@ body = body.replace(/<script>if \(new URLSearchParams[\s\S]*?<\/script>\n?/, '')
 body = body.replace(/<script type="importmap">[\s\S]*?<\/script>\n?/, '');
 body = body.replace(/<script type="module" src="\/app.js"><\/script>\n?/, '');
 body = body.replace(/\s*<script type="module" src="\/net.js"><\/script>\n?/, '\n'); // added back inline for pages
-body = must(body, '<div class="block">\n      <div id="status"', '<div class="block" id="statusBlock">\n      <div id="status"', 'status block');
+body = must(body, '<div class="block" id="statusBlock">\n      <div id="status"', '<div class="block" id="statusBlock">\n      <div id="status"', 'status block');
 body = must(body, '<div class="bar" style="background:var(--lilac)" data-i18n="ui.log">', '<div class="bar logbar" style="background:var(--lilac)" data-i18n="ui.log">', 'log bar');
 body = body.split('<option value="ai" data-i18n="opt.ai">AI (MCP)</option>').join('');
 if (!PAGES) body = body.split('<option value="remote" hidden data-i18n="name.remote">In rete</option>').join('');
