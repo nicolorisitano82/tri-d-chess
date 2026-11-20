@@ -7,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import { createGame, isKind, rulesText } from './src/games.js';
+import { undoGame, isLocalGame } from './src/undo.js';
 import { LEVELS as AI_LEVELS, STYLES as AI_STYLES } from './src/ai.js';
 
 const PORT = Number(process.env.PORT || 47321);
@@ -38,7 +39,9 @@ function getWorker() {
   return aiWorker;
 }
 let pendingTurn = null; // { id, gameId, version, turn }
+const hintRequests = new Map(); // request id -> resolve(move | null), for /api/hint
 function onComputerMove({ id, move, error }) {
+  if (hintRequests.has(id)) { const done = hintRequests.get(id); hintRequests.delete(id); done(error ? null : move); return; }
   const p = pendingTurn;
   if (!p || p.id !== id) return;                                  // superseded request
   pendingTurn = null;
@@ -126,6 +129,33 @@ app.post('/api/new', (req, res) => {
   game = createGame(kind, { white, black, computer: cfg });
   changed();
   res.json({ ok: true });
+});
+
+// --- local games only: take back a move, ask the computer for a hint ---------------
+app.post('/api/undo', (req, res) => {
+  try {
+    game = undoGame(game, createGame);
+    recent.white = []; recent.black = [];
+    changed();
+    res.json({ ok: true, moves: game.history.length });
+  } catch (e) {
+    res.status(409).json({ error: e.message });
+  }
+});
+
+// The move the computer (level 4) would play for the human to move. Does not change the game.
+app.post('/api/hint', (req, res) => {
+  if (!isLocalGame(game) || game.status !== 'playing' || game.players[game.turn] !== 'human')
+    return res.status(409).json({ error: 'Hints are for the human to move in a local game.' });
+  const { id: gameId, version, turn } = game;
+  const id = ++aiRequest;
+  const timer = setTimeout(() => { if (hintRequests.delete(id)) res.status(504).json({ error: 'No hint in time.' }); }, 15000);
+  hintRequests.set(id, (move) => {
+    clearTimeout(timer);
+    if (!move || game.id !== gameId || game.version !== version) return res.status(409).json({ error: 'The position changed.' });
+    res.json({ ok: true, move });
+  });
+  getWorker().postMessage({ id, kind: game.kind, pos: game.pos, color: turn, level: 4, style: 'balanced', recent: [] });
 });
 
 // body.color: the side that resigns (a local human, or the network opponent); default the side to move

@@ -65,7 +65,7 @@ const AIC = ${asNamespace(aiChessSrc, { inject: 'const { Chess } = CJS; const { 
 onmessage = (e) => {
   const { id, kind, pos, color, level, style, recent } = e.data;
   const m = kind === 'chess' ? AIC.chooseMoveChess(pos, color, level, style, recent) : AI.chooseMove(pos, color, level, style, recent);
-  postMessage({ id, m: m && { from: m.from, to: m.to, promotion: m.promotion || null } });
+  postMessage({ id, hint: !!e.data.hint, m: m && { from: m.from, to: m.to, promotion: m.promotion || null } });
 };`;
 
 // ---- main app: adapt server calls to a local game -------------------------------
@@ -123,7 +123,11 @@ function restore(sv) {
 }
 const worker = new Worker(URL.createObjectURL(new Blob([${JSON.stringify(workerSrc)}], { type: 'text/javascript' })));
 let thinkingId = 0;
+const UNDO = ${asNamespace(read('src/undo.js'))};
+const hintWaits = new Map(); // hint request id -> resolve(move | null)
+let hintSeq = 1e6;
 worker.onmessage = (e) => {
+  if (e.data.hint) { const done = hintWaits.get(e.data.id); hintWaits.delete(e.data.id); done?.(e.data.m || null); return; }
   if (e.data.id !== thinkingId || !e.data.m) return;
   const { from, to, promotion } = e.data.m, c = game.turn;
   recentMoves[c].push(to + '>' + from); if (recentMoves[c].length > 4) recentMoves[c].shift();
@@ -160,6 +164,19 @@ async function post(url, body = {}) {
     if (url === '/api/new') {
       game = createGame(body.kind === 'chess' || body.kind === 'trid' ? body.kind : game.kind, { white: body.white, black: body.black, computer: body.computer });
       recentMoves.white = []; recentMoves.black = [];
+    } else if (url === '/api/undo') {
+      game = UNDO.undoGame(game, createGame);
+      recentMoves.white = []; recentMoves.black = [];
+    } else if (url === '/api/hint') {
+      // the move the computer (level 4) would play for the human to move; the game is unchanged
+      if (!UNDO.isLocalGame(game) || game.status !== 'playing' || game.players[game.turn] !== 'human') return { error: 'no hint now' };
+      const id = ++hintSeq, ver = game.version, gid = game.id;
+      const move = await new Promise((resolve) => {
+        hintWaits.set(id, resolve);
+        worker.postMessage({ id, hint: true, kind: game.kind, pos: game.pos, color: game.turn, level: 4, style: 'balanced', recent: [] });
+      });
+      if (!move || game.version !== ver || game.id !== gid) return { error: 'The position changed.' };
+      return { ok: true, move };
     } else if (url === '/api/move') {
       if (game.players[game.turn] !== 'human') throw new Error(t('hint.notYourTurn'));
       game.move(body.from, body.to, body.promotion);

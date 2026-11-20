@@ -25,7 +25,7 @@ const STRINGS = {
     'status.computer': 'Il computer pensa ({c})…', 'status.remote': "Mossa dell'avversario in rete ({c})…",
     'status.ai': "In attesa dell'AI ({c})…", 'status.you': 'Tocca a te ({c}) · {n} mosse',
 
-    'ui.rules': 'Regole', 'ui.pieces': 'Pezzi', 'ui.setW': 'Pezzi del Bianco', 'ui.setB': 'Pezzi del Nero', 'set.federation': 'Federazione', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulani',
+    'ui.rules': 'Regole', 'ui.undo': 'Annulla', 'ui.undoTip': 'Annulla la tua ultima mossa (e la risposta del computer)', 'ui.hint': 'Suggerisci', 'ui.hintTip': 'Il computer suggerisce una mossa', 'ui.thinking': 'Penso…', 'hint.move': 'Suggerimento: {m}', 'hint.none': 'Nessun suggerimento disponibile', 'ui.pieces': 'Pezzi', 'ui.setW': 'Pezzi del Bianco', 'ui.setB': 'Pezzi del Nero', 'set.federation': 'Federazione', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulani',
     'ui.game': 'Gioco', 'game.trid': 'Scacchi 3D (Tri-D)', 'game.chess': 'Scacchi classici', 'ui.switchConfirm': 'Cambiare gioco? La partita in corso verrà chiusa.',
     'ui.turn': 'Turno', 'ui.log': 'Registro mosse', 'ui.newGame': 'Nuova partita', 'ui.resign': 'Abbandona',
     'ui.confirm': 'Conferma?', 'ui.view': 'Vista', 'ui.stats': 'Statistiche', 'ui.statsHide': 'Nascondi (S)',
@@ -111,7 +111,7 @@ const STRINGS = {
     'status.computer': 'Computer thinking ({c})…', 'status.remote': 'Waiting for the online opponent ({c})…',
     'status.ai': 'Waiting for the AI ({c})…', 'status.you': 'Your move ({c}) · {n} moves',
 
-    'ui.rules': 'Rules', 'ui.pieces': 'Pieces', 'ui.setW': 'White pieces', 'ui.setB': 'Black pieces', 'set.federation': 'Federation', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulan',
+    'ui.rules': 'Rules', 'ui.undo': 'Undo', 'ui.undoTip': 'Take back your last move (and the computer\'s reply)', 'ui.hint': 'Hint', 'ui.hintTip': 'The computer suggests a move', 'ui.thinking': 'Thinking…', 'hint.move': 'Hint: {m}', 'hint.none': 'No hint available', 'ui.pieces': 'Pieces', 'ui.setW': 'White pieces', 'ui.setB': 'Black pieces', 'set.federation': 'Federation', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulan',
     'ui.game': 'Game', 'game.trid': '3D chess (Tri-D)', 'game.chess': 'Classic chess', 'ui.switchConfirm': 'Switch game? The current game will be closed.',
     'ui.turn': 'Turn', 'ui.log': 'Move log', 'ui.newGame': 'New game', 'ui.resign': 'Resign',
     'ui.confirm': 'Confirm?', 'ui.view': 'View', 'ui.stats': 'Stats', 'ui.statsHide': 'Hide (S)',

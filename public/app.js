@@ -224,6 +224,8 @@ scene.add(markerGroup);
 const ringGeo = new THREE.RingGeometry(0.22, 0.34, 32);
 const ringMove = new THREE.MeshBasicMaterial({ color: 0x66ffcc, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
 const ringCap = new THREE.MeshBasicMaterial({ color: 0xff5555, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false });
+const ringHint = new THREE.MeshBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0.95, side: THREE.DoubleSide });
+let hintTarget = null; // square suggested by the hint (gold ring)
 
 // --- state & UI ----------------------------------------------------------------------
 let state = null;
@@ -427,7 +429,8 @@ function renderMarkers() {
   for (const m of targetsOf(selected)) {
     if (seen.has(m.to)) continue; // promotions: one ring per square
     seen.add(m.to);
-    const r = new THREE.Mesh(ringGeo, m.capture ? ringCap : ringMove);
+    const r = new THREE.Mesh(ringGeo, m.to === hintTarget ? ringHint : m.capture ? ringCap : ringMove);
+    if (m.to === hintTarget) r.scale.setScalar(1.25);
     r.rotation.x = -Math.PI / 2;
     r.position.copy(posOfKey(m.to));
     r.position.y += 0.03;
@@ -518,6 +521,8 @@ function applyState(s) {
   renderPanel();
   announceState(prev, s);
   renderPosText();
+  if (!prev || prev.id !== s.id || prev.version !== s.version) hintTarget = null;
+  renderLocalTools();
   const canReplay = !s.replay && !s.lesson && s.status !== 'playing' && s.history.length > 0;
   $('btnReplay').hidden = !canReplay;
   $('vReplay').hidden = !canReplay;
@@ -797,6 +802,44 @@ async function post(url, body) {
 
 $('btnNew').onclick = () => { selected = null; post('/api/new', newGameBody()); };
 $('btnResign').onclick = () => { if (isHumanTurn() && confirm(t('ui.resignConfirm'))) post('/api/resign'); };
+
+// --- local games only: undo and hint ---------------------------------------------------
+// (hoisted on purpose: the web build starts its local game before this point of the module)
+function isLocal(s) { return !!s && !s.replay && !s.lesson && Object.values(s.players).every((p) => p === 'human' || p === 'computer') && Object.values(s.players).includes('human'); }
+var hintBusy = false; // eslint-disable-line no-var
+function renderLocalTools() {
+  const s = state, local = isLocal(s);
+  $('btnUndo').hidden = $('btnHint').hidden = !local;
+  if (!local) return;
+  $('btnUndo').disabled = !s.history.length;
+  $('btnHint').disabled = hintBusy || !isHumanTurn();
+  $('btnHint').textContent = hintBusy ? t('ui.thinking') : t('ui.hint');
+}
+$('btnUndo').onclick = async () => {
+  if (!isLocal(state) || !state.history.length) return;
+  selected = null;
+  const r = await post('/api/undo');
+  if (r?.error) toast(r.error);
+};
+$('btnHint').onclick = async () => {
+  if (!isLocal(state) || !isHumanTurn() || hintBusy) return;
+  hintBusy = true; renderLocalTools();
+  const id = state.id, v = state.version;
+  const r = await post('/api/hint');
+  hintBusy = false;
+  if (!state || state.id !== id || state.version !== v) { renderLocalTools(); return; }
+  renderLocalTools();
+  if (!r?.move) { toast(t('hint.none')); say(t('hint.none')); return; }
+  const { from, to } = r.move;
+  // show it: select the piece (its moves light up) and name the move
+  selected = from;
+  renderMarkers(); setSquareGlow();
+  const p = state.pieces[from];
+  const txt = t('hint.move', { m: isPin(from) ? `${from} → ${to}` : `${p ? pieceName(p.type) + ' ' : ''}${from} → ${to}` });
+  toast(txt); say(txt);
+  hintTarget = to;
+  renderMarkers();
+};
 $('btnCam').onclick = () => { camIdx = (camIdx + 1) % 3; setView(Object.keys(CAM_VIEWS)[camIdx]); };
 
 // --- promotion picker ------------------------------------------------------------------
@@ -842,6 +885,7 @@ renderer.domElement.addEventListener('pointermove', (e) => { $('hover').textCont
 renderer.domElement.addEventListener('pointerup', (e) => {
   if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
   down = null;
+  hintTarget = null; // any click on the board clears the hint's gold ring
   const k = pick(e);
   if (!state || !isHumanTurn()) { if (k && state?.status === 'playing') toast(t('hint.notYourTurn')); return; }
   if (selected && k && targetsOf(selected).some((m) => m.to === k)) {
