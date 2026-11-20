@@ -2,7 +2,9 @@
 //
 // - Event: kind 30078 (NIP-78 application data, parameterized replaceable), one per room:
 //     tags  d = "tri-d-chess/room/<CODE>", t = "tri-d-chess-lobby", expiration = now + TTL (NIP-40)
-//     content JSON { v, code, kind ('trid'|'chess'), hostColor, lang, name, status: "open" | "closed" }
+//     content JSON { v, code, kind ('trid'|'chess'), hostColor, lang, name, status: "open" | "closed", live? }
+//     live: true marks a game in progress that can be watched; it is sent with status "closed" so
+//     older versions, which only list "open" rooms, simply do not show it.
 // - A waiting host re-announces every REFRESH_S; when the opponent arrives or the room closes it
 //   publishes status "closed". If the app dies, the announcement simply expires.
 // - Each session signs with a throwaway key (no persistent identity).
@@ -63,7 +65,7 @@ export function parseAnnouncement(ev, t = now()) {
   if (!['white', 'black'].includes(c.hostColor) || !['open', 'closed'].includes(c.status)) return null;
   return {
     key: d, code: c.code, kind: c.kind === 'chess' ? 'chess' : 'trid', hostColor: c.hostColor, lang: c.lang === 'en' ? 'en' : 'it',
-    name: cleanName(c.name), status: c.status, pubkey: ev.pubkey, createdAt: ev.created_at, expires: exp,
+    name: cleanName(c.name), status: c.status, live: c.status === 'closed' && c.live === true, pubkey: ev.pubkey, createdAt: ev.created_at, expires: exp,
     since: Number.isInteger(c.since) && c.since <= ev.created_at && c.since > ev.created_at - 86400 ? c.since : ev.created_at,
   };
 }
@@ -82,7 +84,7 @@ export function createLobby({ schnorr, relays = LOBBY_RELAYS, onRooms = () => {}
   const emit = () => {
     const t = now();
     const list = [...rooms.values()]
-      .filter((r) => r.status === 'open' && r.expires > t && r.pubkey !== myPubkey && !((hidden.get(r.code) || 0) > Date.now()))
+      .filter((r) => (r.status === 'open' || r.live) && r.expires > t && r.pubkey !== myPubkey && !((hidden.get(r.code) || 0) > Date.now()))
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, MAX_ROOMS);
     onRooms(list);
@@ -97,8 +99,8 @@ export function createLobby({ schnorr, relays = LOBBY_RELAYS, onRooms = () => {}
     // replaceable: keep the newest; on a tie a "closed" wins
     if (prev && (prev.createdAt > room.createdAt || (prev.createdAt === room.createdAt && (prev.status === 'closed' || room.status === 'open')))) return;
     if (!(await verifyEvent(schnorr, ev))) return;
-    if (room.status === 'open') {
-      const sameKey = [...rooms.values()].filter((r) => r.pubkey === room.pubkey && r.status === 'open' && r.key !== room.key).length;
+    if (room.status === 'open' || room.live) {
+      const sameKey = [...rooms.values()].filter((r) => r.pubkey === room.pubkey && (r.status === 'open' || r.live) && r.key !== room.key).length;
       if (sameKey >= MAX_ROOMS_PER_KEY) return;           // one key flooding the lobby
     }
     rooms.set(room.key, room);
@@ -174,13 +176,20 @@ export function createLobby({ schnorr, relays = LOBBY_RELAYS, onRooms = () => {}
     hide(code, ms = 10 * 60 * 1000) { hidden.set(code, Date.now() + ms); emit(); },
     unlisten() { stop(); },
     // advertise a waiting room until unannounce()
-    async announce({ code, kind = 'trid', hostColor, lang, name }) {
-      start(); // synchronously, so the relay sockets stay open across the lobby view switching off
-      await this.unannounce();
-      hosting = { code, kind, hostColor, lang, name: cleanName(name), since: now() };
+    // live: the game has started and can be watched (re-announcing the same room keeps its "since")
+    async announce({ code, kind = 'trid', hostColor, lang, name, live = false }) {
+      if (hosting && hosting.code === code) { // same room: update it (the sockets are already held)
+        clearInterval(hosting.timer);
+        Object.assign(hosting, { kind, hostColor, lang, name: cleanName(name), live });
+      } else {
+        start(); // synchronously, so the relay sockets stay open across the lobby view switching off
+        await this.unannounce();
+        hosting = { code, kind, hostColor, lang, name: cleanName(name), since: now(), live };
+      }
+      const h = hosting;
       const send = async () => {
-        if (!hosting) return;
-        hosting.last = await publish({ code, kind, hostColor, lang, name: hosting.name, since: hosting.since, status: 'open' }, TTL_S);
+        if (hosting !== h) return;
+        h.last = await publish({ code, kind: h.kind, hostColor: h.hostColor, lang: h.lang, name: h.name, since: h.since, status: h.live ? 'closed' : 'open', ...(h.live ? { live: true } : {}) }, TTL_S);
       };
       await send();
       hosting.timer = setInterval(send, REFRESH_S * 1000);

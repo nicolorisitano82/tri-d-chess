@@ -4,6 +4,7 @@ import { buildPiece as buildTriDPiece, setPieceSets, getPieceSets } from '/piece
 import { createChessView } from '/chess-view.js';
 import { ChessGame } from '/chess2d.js';
 import { createRules } from '/rules.js';
+import { createTutorial } from '/tutorial.js';
 import { t, table, getLang, setLang, applyStatic, onLangChange } from '/i18n.js';
 import { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseSquare, PIECE_NAMES, Game } from '/engine.js';
 
@@ -308,6 +309,20 @@ function statsFor(s, c) {
   };
 }
 
+// Nickname shown for a side: the network names (both players), else yours on your side when
+// only one side is a human on this screen.
+const escHtml = (x) => String(x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function nickOf(s, c) {
+  if (!s || s.replay || s.lesson) return '';
+  const net = window.TriD?.names?.[c];
+  if (net) return net;
+  const humans = ['white', 'black'].filter((x) => s.players[x] === 'human');
+  if (humans.length !== 1 || humans[0] !== c) return '';
+  return $('netName').value.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24);
+}
+try { $('netName').value = localStorage.getItem('tridchess.name') || ''; } catch {}
+$('netName').addEventListener('input', () => { if (state) { renderPanel(); renderStats(); } });
+$('netName').addEventListener('change', () => { try { localStorage.setItem('tridchess.name', $('netName').value.trim().slice(0, 24)); } catch {} });
 function renderStats() {
   if (!state) return;
   const st = { white: statsFor(state, 'white'), black: statsFor(state, 'black') };
@@ -320,7 +335,7 @@ function renderStats() {
     const capsHtml = S.caps.length ? S.caps.map((t) => `<span class="${o[0]}">${glyph(t)}</span>`).join('') : `<span class="none">${t('stats.noCaps')}</span>`;
     const thinking = state.status === 'playing' && state.turn === c;
     card.innerHTML = `
-      <div class="head"><span class="name">${IT[c]}</span><span class="who">${IT[state.players[c]]}${state.winner === c ? ` · ${t('stats.winner')}` : ''}</span></div>
+      <div class="head"><span class="name">${IT[c]}</span><span class="who">${escHtml(nickOf(state, c) ? `${nickOf(state, c)} · ` : '')}${IT[state.players[c]]}${state.winner === c ? ` · ${t('stats.winner')}` : ''}</span></div>
       <div class="mat"><b>${S.material}</b><span class="who">${t('stats.material')}</span>${diff > 0 ? `<span class="adv">+${diff}</span>` : ''}</div>
       ${c === 'white' ? `<div class="balance" title="${t('stats.balance')}"><div style="width:${(S.material / totalMat) * 100}%"></div></div>` : ''}
       <div class="who" style="margin-top:8px">${t('stats.captured')}</div>
@@ -361,6 +376,7 @@ statsTab.onclick = () => setStats(true);
 window.addEventListener('keydown', (e) => {
   if (e.target.closest('select, input, textarea') || e.metaKey || e.ctrlKey) return;
   if (e.key === 's' || e.key === 'S') setStats(statsEl.classList.contains('hidden'));
+  if (e.key === 'm' || e.key === 'M') { e.preventDefault(); $('moveInput').focus(); }
   if (e.key === 'Escape') hideVictory();
 });
 
@@ -420,6 +436,7 @@ function renderMarkers() {
   }
 }
 
+const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
 function renderPieces(prev) {
   pieceGroup.clear();
   pieceMeshes.clear();
@@ -445,12 +462,14 @@ function renderPieces(prev) {
       if (items.length) anim = { items, t0: performance.now(), dur: lm.castle ? 800 : 550 };
     }
   }
+  if (REDUCED_MOTION.matches) anim = null; // pieces are already on their squares
 }
 
 function renderPanel() {
   const s = state;
   let status;
   if (s.replay) status = t('replay.status', { i: s.replay.i, n: s.replay.n });
+  else if (s.lesson && s.status === 'playing') status = t(s.turn === 'white' ? 'status.lesson' : 'status.lessonDone');
   else if (s.status === 'checkmate') status = t('status.mate', { c: IT[s.winner] });
   else if (s.status === 'stalemate') status = t('status.stalemate');
   else if (s.status === 'draw') status = t('status.draw', { r: DRAW_IT[s.drawReason || 'fifty'] });
@@ -458,12 +477,13 @@ function renderPanel() {
   else if (s.status === 'timeout') status = t('status.timeout', { c: IT[s.winner] });
   else if (s.check) status = t(s.legalMoves.length === 1 ? 'status.check1' : 'status.check', { c: IT[s.turn], n: s.legalMoves.length });
   else if (s.players[s.turn] === 'computer') status = t('status.computer', { c: IT[s.turn] });
+  else if (s.players.white === 'remote' && s.players.black === 'remote') status = t('status.watching', { c: IT[s.turn] });
   else if (s.players[s.turn] === 'remote') status = t('status.remote', { c: IT[s.turn] });
   else status = s.players[s.turn] === 'ai' ? t('status.ai', { c: IT[s.turn] }) : t('status.you', { c: IT[s.turn], n: s.legalMoves.length });
   $('status').textContent = status;
   $('status').classList.toggle('alert', s.check || s.status !== 'playing');
   $('turn').textContent = IT[s.turn];
-  const pl = (c) => IT[s.players[c]] + (s.players[c] === 'computer' && s.computer ? ` · ${LEVEL_IT[s.computer[c].level].toLowerCase()}, ${STYLE_IT[s.computer[c].style].toLowerCase()}` : '');
+  const pl = (c) => (nickOf(s, c) ? `${nickOf(s, c)} · ` : '') + IT[s.players[c]] + (s.players[c] === 'computer' && s.computer ? ` · ${LEVEL_IT[s.computer[c].level].toLowerCase()}, ${STYLE_IT[s.computer[c].style].toLowerCase()}` : '');
   $('pw').textContent = pl('white');
   $('pb').textContent = pl('black');
   const ol = $('moves');
@@ -484,22 +504,25 @@ function applyState(s) {
   const prev = state;
   state = s;
   setKind(kindOf(s));
-  if (!s.replay && (!prev || prev.id !== s.id)) {
+  if (!s.replay && !s.lesson && (!prev || prev.id !== s.id)) {
     // new game: look from Black's side when Black is the only human on this screen
     const view = s.players.black === 'human' && s.players.white !== 'human' ? 'black' : 'white';
     if (!prev || prev.players?.black !== s.players.black || prev.players?.white !== s.players.white || kindOf(prev) !== kindOf(s)) { camIdx = view === 'black' ? 1 : 0; setView(view); }
   }
-  if (!s.replay && (!prev || prev.id !== s.id)) { $('gameKind').value = kindOf(s); $('selW').value = s.players.white; $('selB').value = s.players.black; if (s.computer) for (const [c, k] of [['white', 'W'], ['black', 'B']]) { $('lvl' + k).value = String(s.computer[c].level); $('sty' + k).value = s.computer[c].style; } }
+  if (!s.replay && !s.lesson && (!prev || prev.id !== s.id)) { $('gameKind').value = kindOf(s); $('selW').value = s.players.white; $('selB').value = s.players.black; if (s.computer) for (const [c, k] of [['white', 'W'], ['black', 'B']]) { $('lvl' + k).value = String(s.computer[c].level); $('sty' + k).value = s.computer[c].style; } }
   if (selected && ((!isPin(selected) && !s.pieces[selected]) || (isPin(selected) && !s.boards[selected]) || !isHumanTurn())) selected = null;
   syncBoards();
   renderPieces(prev);
   renderMarkers();
   setSquareGlow();
   renderPanel();
-  const canReplay = !s.replay && s.status !== 'playing' && s.history.length > 0;
+  announceState(prev, s);
+  renderPosText();
+  const canReplay = !s.replay && !s.lesson && s.status !== 'playing' && s.history.length > 0;
   $('btnReplay').hidden = !canReplay;
   $('vReplay').hidden = !canReplay;
   if (s.replay) { if (victory) stopVictory(); return; }
+  if (s.lesson) { if (victory) stopVictory(); return; }
   for (const f of window.TriD?.listeners || []) { try { f(s, prev); } catch (err) { console.error(err); } }
   const over = s.status !== 'playing';
   if (over && !quietVictory && (!prev || prev.id !== s.id || prev.status === 'playing')) startVictory();
@@ -511,12 +534,13 @@ function applyState(s) {
 // Live states come from the server (or the local game in the web build). While a replay is
 // open they are kept but not shown; the replay renders positions rebuilt with the engine.
 let live = null;
+let tutorial = null;      // interactive lessons (tutorial.js): shown instead of the live game while open
 let replay = null;        // { moves, i }
 let quietVictory = false;
 let replayFromUrl = null;
 function onLive(s) {
   live = s;
-  if (!replay) applyState(s);
+  if (!replay && !tutorial?.active()) applyState(s);
   if (replayFromUrl) { const { moves, k } = replayFromUrl; replayFromUrl = null; startReplay(moves, k); }
 }
 const PUBLIC_DEMO = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
@@ -602,11 +626,26 @@ window.addEventListener('keydown', (e) => {
 }
 
 // --- rules page ---------------------------------------------------------------------
-const rules = createRules({ getLang, onLangChange });
+function openTutorial(i = 0) {
+  if (replay) closeReplay();
+  hideVictory();
+  selected = null;
+  rules.close();
+  tutorial.open(i);
+  camIdx = 0;
+  setView('white');
+}
+const rules = createRules({ getLang, onLangChange, t, onTutorial: (i) => openTutorial(i) });
+tutorial = createTutorial({
+  Game, getLang, onLangChange,
+  show: (s) => applyState({ ...s, lesson: true }),
+  restore: () => { selected = null; quietVictory = true; if (live) applyState(live); },
+});
 $('btnRules').onclick = () => rules.open(kind);
 {
   const r = new URLSearchParams(location.search).get('rules');
   if (r !== null) rules.open(r === 'chess' ? 'chess' : r === 'trid' ? 'trid' : kind);
+  else if (new URLSearchParams(location.search).has('tutorial')) setTimeout(() => openTutorial(0), 600);
 }
 
 // --- victory celebration -------------------------------------------------------------
@@ -810,8 +849,9 @@ renderer.domElement.addEventListener('pointerup', (e) => {
     const promo = targetsOf(from).some((m) => m.to === k && m.promotion);
     selected = null;
     renderMarkers(); setSquareGlow();
-    if (promo) askPromotion(state.turn).then((p) => { if (p) post('/api/move', { from, to: k, promotion: p }); });
-    else post('/api/move', { from, to: k });
+    const play = (body) => (state.lesson ? tutorial.move(body) : post('/api/move', body));
+    if (promo) askPromotion(state.turn).then((p) => { if (p) play({ from, to: k, promotion: p }); });
+    else play({ from, to: k });
     return;
   }
   const p = k && state.pieces[k];
@@ -878,11 +918,150 @@ renderer.setAnimationLoop(() => {
 });
 
 // --- hooks for optional modules (network play, net.js) ---------------------------------
-window.TriD = Object.assign(window.TriD || {}, { getState: () => live || state, post, toast, t, onLangChange, listeners: window.TriD?.listeners || [] });
+window.TriD = Object.assign(window.TriD || {}, { getState: () => live || state, post, toast, t, onLangChange, listeners: window.TriD?.listeners || [],
+  // players' nicknames in a network game (set by net.js); empty outside rooms
+  names: { white: '', black: '' },
+  setNames(n) { window.TriD.names = { white: n?.white || '', black: n?.black || '' }; if (state) renderPanel(); },
+});
 
 // --- language (IT / EN) -------------------------------------------------------------------
+// --- accessibility: keyboard moves, spoken updates, text description, high contrast -------
+const say = (text) => { const el = $('srLive'); el.textContent = ''; setTimeout(() => { el.textContent = text; }, 30); };
+const pieceName = (type) => PIECE_IT[type] || type;
+function describeMove(m) {
+  const c = IT[m.color];
+  let txt = m.board ? t('a11y.boardMoved', { c, f: m.from, t: m.to })
+    : m.castle ? t('a11y.castled', { c, s: t(m.castle === 'K' ? 'a11y.short' : 'a11y.long') })
+    : t('a11y.moved', { c, p: pieceName(m.piece), f: m.from, t: m.to });
+  if (m.captured) txt += t('a11y.capture', { p: pieceName(m.captured) });
+  if (m.promotion) txt += t('a11y.promo', { p: pieceName(m.promotion) });
+  if (m.check) txt += t('a11y.check');
+  return txt + '.';
+}
+function announceState(prev, s) {
+  // (compare move numbers: the web build's states share one history array)
+  const grew = prev && prev.id === s.id && s.lastMove && s.lastMove.n !== prev.lastMove?.n;
+  const ended = prev && prev.id === s.id && prev.status === 'playing' && s.status !== 'playing';
+  if (!grew && !ended) return;
+  const parts = [];
+  if (grew && s.lastMove) parts.push(describeMove(s.lastMove));
+  if (s.status !== 'playing' || s.check) parts.push($('status').textContent);
+  say(parts.join(' '));
+}
+const ORDER = 'KQRBNP';
+function positionText(s) {
+  const lines = [];
+  for (const c of ['white', 'black']) {
+    const list = Object.entries(s.pieces).filter(([, p]) => p.color === c)
+      .sort(([a, p], [b, q]) => ORDER.indexOf(p.type) - ORDER.indexOf(q.type) || a.localeCompare(b))
+      .map(([k, p]) => `${pieceName(p.type)} ${k}`);
+    lines.push(`${IT[c]}: ${list.join(', ') || t('a11y.empty')}`);
+  }
+  if (kind === 'trid' && s.boards) lines.push(`${t('a11y.boards')}: ${Object.entries(s.boards).map(([pin, c]) => `${pin} (${IT[c]})`).join(', ')}`);
+  lines.push($('status').textContent);
+  if (s.status === 'playing') lines.push(t('a11y.turnOf', { c: IT[s.turn] }) + ' ' + t('a11y.legal', { n: s.legalMoves.length }));
+  return lines.join('\n');
+}
+function renderPosText() {
+  const box = $('posText');
+  if (!box.hidden && state) box.textContent = positionText(state);
+}
+$('btnDescribe').onclick = () => {
+  const box = $('posText');
+  box.hidden = !box.hidden;
+  $('btnDescribe').setAttribute('aria-expanded', String(!box.hidden));
+  if (!box.hidden) { renderPosText(); box.focus(); }
+};
+// "b2w" -> "b2W", "ql1" -> "QL1", "E4" -> "e4"
+function normSquare(x) {
+  const m = /^([a-hz])([0-9])(w|n|b|[qk]l[1-6])?$/i.exec(x);
+  if (m) return m[1].toLowerCase() + m[2] + (m[3] ? m[3].toUpperCase() : '');
+  if (/^[qk]l[1-6]$/i.test(x)) return x.toUpperCase();
+  return null;
+}
+// "b2W b4N", "b2w-b4n", "e2e4", "e7e8q", "e7 e8 = Q", "QL1 QL3", "0-0"; a single square = its moves
+function parseMoveText(txt) {
+  const raw = txt.trim();
+  if (/^[0o]-[0o](-[0o])?$/i.test(raw)) return { castle: /-[0o]-/i.test(raw) ? 'Q' : 'K' };
+  const tok = raw.replace(/[-x>→,=]/gi, (c) => (c.toLowerCase() === 'x' ? ' ' : ' ')).trim().split(/\s+/).filter(Boolean);
+  let promotion = null;
+  if (tok.length === 3 && /^[qrbn]$/i.test(tok[2])) promotion = tok.pop().toUpperCase();
+  const pair = (a, b) => {
+    const from = normSquare(a);
+    if (!from) return null;
+    let to = normSquare(b);
+    if (to) return { from, to, promotion };
+    if (/[qrbn]$/i.test(b) && (to = normSquare(b.slice(0, -1)))) return { from, to, promotion: b.slice(-1).toUpperCase() };
+    return null;
+  };
+  if (tok.length === 2) return pair(tok[0], tok[1]);
+  if (tok.length !== 1) return null;
+  const one = tok[0];
+  if (normSquare(one)) return { from: one && normSquare(one) };
+  // squares written together: try every split, exact squares before a trailing promotion letter
+  for (let i = 2; i < one.length - 1; i++) { const a = normSquare(one.slice(0, i)), b = normSquare(one.slice(i)); if (a && b) return { from: a, to: b, promotion }; }
+  for (let i = 2; i < one.length - 2; i++) { const r = pair(one.slice(0, i), one.slice(i)); if (r) return r; }
+  return null;
+}
+$('kbMove').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = $('moveInput'), txt = input.value;
+  if (!state || !txt.trim()) return;
+  const mv = parseMoveText(txt);
+  if (!mv) { say(t('a11y.bad', { s: txt })); toast(t('a11y.bad', { s: txt })); return; }
+  if (!isHumanTurn()) { say(t('hint.notYourTurn')); toast(t('hint.notYourTurn')); return; }
+  if (mv.castle) {
+    const c = state.legalMoves.find((m) => m.castle === mv.castle);
+    if (!c) { say(t('a11y.bad', { s: txt })); toast(t('a11y.bad', { s: txt })); return; }
+    mv.from = c.from; mv.to = c.to;
+  }
+  // Tri-D squares may be typed without their level when only one level fits ("b2 b4" -> b2W, b4N?)
+  const fromKeys = [...new Set(state.legalMoves.map((m) => m.from))];
+  const resolve = (sq, keys) => (keys.includes(sq) ? sq : (() => { const k = keys.filter((x) => x.startsWith(sq) && !/^\d/.test(x.slice(sq.length))); return k.length === 1 ? k[0] : k.length ? k : sq; })());
+  const f = resolve(mv.from, fromKeys);
+  if (Array.isArray(f)) { say(t('a11y.which', { list: f.join(', ') })); toast(t('a11y.which', { list: f.join(', ') })); return; }
+  mv.from = f;
+  if (mv.to) {
+    const tt = resolve(mv.to, targetsOf(mv.from).map((m) => m.to));
+    if (Array.isArray(tt)) { say(t('a11y.which', { list: [...new Set(tt)].join(', ') })); toast(t('a11y.which', { list: [...new Set(tt)].join(', ') })); return; }
+    mv.to = tt;
+  }
+  if (!mv.to) {
+    // only a start square: list where it can go
+    const list = targetsOf(mv.from).map((m) => m.to);
+    say(list.length ? t('a11y.targets', { sq: mv.from, n: list.length, list: [...new Set(list)].join(', ') }) : t('a11y.noTargets', { sq: mv.from }));
+    selected = list.length ? mv.from : null;
+    renderMarkers(); setSquareGlow();
+    return;
+  }
+  const cands = targetsOf(mv.from).filter((m) => m.to === mv.to);
+  if (!cands.length) { say(t('a11y.bad', { s: txt })); toast(t('a11y.bad', { s: txt })); return; }
+  const promotion = cands.some((m) => m.promotion) ? (mv.promotion || 'Q') : null;
+  const body = { from: mv.from, to: mv.to, ...(promotion ? { promotion } : {}) };
+  selected = null;
+  input.value = '';
+  if (state.lesson) tutorial.move(body); else post('/api/move', body);
+});
+$('moveInput').addEventListener('keydown', (e) => { if (e.key === 'Escape') e.target.blur(); });
+// high contrast: saved choice, else the system preference
+const HC_KEY = 'tridchess.contrast';
+function setContrast(on, save = false) {
+  document.body.classList.toggle('hc', on);
+  $('hcToggle').checked = on;
+  if (save) try { localStorage.setItem(HC_KEY, on ? '1' : '0'); } catch {}
+}
+{
+  let saved = null;
+  try { saved = localStorage.getItem(HC_KEY); } catch {}
+  setContrast(saved ? saved === '1' : matchMedia('(prefers-contrast: more)').matches);
+}
+$('hcToggle').onchange = (e) => setContrast(e.target.checked, true);
+renderer.domElement.setAttribute('role', 'img');
+
 function refreshLanguage() {
   applyStatic();
+  renderer.domElement.setAttribute('aria-label', t('a11y.board'));
+  renderPosText();
   $('langBtn').textContent = getLang() === 'it' ? 'EN' : 'IT';
   if (state) { renderPanel(); renderMcp(); if ($('victory').classList.contains('show')) victoryText(state); }
 }

@@ -45,7 +45,7 @@ export class RateWindow {
 }
 
 // UI + wire glue. `send(data)` delivers to the opponent; returns handlers for incoming data.
-export function createChat({ t, send, onLangChange }) {
+export function createChat({ t, send, onLangChange, themName = () => '' }) {
   const $ = (id) => document.getElementById(id);
   const box = $('chat');
   const log = $('chatLog');
@@ -63,7 +63,7 @@ export function createChat({ t, send, onLangChange }) {
     row.className = `cl ${kind}`;
     const who = document.createElement('span');
     who.className = 'who';
-    who.textContent = kind === 'me' ? t('chat.me') : kind === 'them' ? t('chat.them') : '';
+    who.textContent = kind === 'me' ? t('chat.me') : kind === 'them' ? (themName() || t('chat.them')) : '';
     const body = document.createElement('span');
     body.className = 'txt';
     body.textContent = text;
@@ -109,7 +109,7 @@ export function createChat({ t, send, onLangChange }) {
     el.textContent = glyph;
     const tag = document.createElement('span');
     tag.className = 'react-tag';
-    tag.textContent = mine ? t('chat.me') : t('chat.them');
+    tag.textContent = mine ? t('chat.me') : (themName() || t('chat.them'));
     el.append(tag);
     layer.append(el);
     for (let i = 0; i < 8; i++) {

@@ -17,6 +17,8 @@
 - **Computer opponent**: 5 levels (Beginner → Master) × 3 styles (balanced, aggressive, cautious), set separately for White and Black.
 - **Online play, no game server**: share a room code; [Trystero](https://github.com/dmotz/trystero) finds the other player through public Nostr relays, then the game flows directly between the two browsers over encrypted WebRTC. Reconnect with the same code. Online games are human vs human only.
 - **Serverless lobby**: public rooms are announced as signed, expiring Nostr events (NIP-78 / NIP-40) with a throwaway key, so anyone can see who is waiting and join with one tap; uncheck the box for a private, code-only room.
+- **Spettatori**: con il pulsante Guarda, o con un link `?watch=CODICE`, si segue una partita in rete senza giocare. Le partite pubbliche in corso compaiono nella lobby come «In corso · guarda».
+- **Nickname**: facoltativo, dal menu principale. Compare nel pannello, sull'orologio, nella chat e nella lobby; in rete i due giocatori (e gli spettatori) vedono i nomi di entrambi.
 - **Chat**: short messages (≤512 chars) with emoji and animated reactions, rate-limited per minute on both ends.
 - **Online extras**: invite links for X, Threads, Facebook, WhatsApp and Telegram (`?room=CODE` joins directly), optional chess clock (5/10/15 min, with or without increment), one-tap rematch with colours swapped.
 - **Replay**: step through any finished game move by move and share it as a link (`?replay=…`).
@@ -103,6 +105,8 @@ Not affiliated with any science-fiction franchise. Piece designs are original.
 - **Anche scacchi classici**: dal menu Gioco passi agli scacchi classici (regole FIDE tramite [chess.js](https://github.com/jhlywa/chess.js)) su una scacchiera in noce e acero, in una sala medievale illuminata da torce, con pezzi in avorio ed ebano. Computer, rete, lobby, orologio, replay e MCP valgono per entrambi i giochi.
 - **Quattro set di pezzi per il Tri-D**: Federazione, Klingon, Borg e Romulani, scelti separatamente per Bianco e Nero dal menu Pezzi (design originali ispirati alle fazioni, senza simboli ufficiali). La scelta è solo estetica e resta sul tuo dispositivo.
 - **Regole consultabili**: il pulsante Regole apre una pagina con ricerca, in italiano e inglese, con le regole del Tri-D (Meder) e degli scacchi classici (FIDE). Si apre anche con `?rules` nell'indirizzo.
+- **Tutorial interattivo**: sette lezioni brevi sulla scacchiera vera (livelli, proiezione, cavallo, tavole d'attacco, promozione, matto), aperte dalla pagina Regole o con `?tutorial`.
+- **Accessibilità**: mosse da tastiera (`b2W b4N`, `QL1 QL3`, `e2e4`, `0-0`; tasto M), mosse e stato annunciati ai lettori di schermo, descrizione testuale della posizione, tema ad alto contrasto, animazioni ridotte se il sistema lo chiede.
 - **Computer**: 5 livelli (Principiante → Maestro) × 3 stili (equilibrato, aggressivo, prudente), separati per Bianco e Nero.
 - **In rete senza server**: condividi un codice stanza; Trystero trova l'avversario tramite relay Nostr pubblici, poi la partita viaggia direttamente tra i due browser via WebRTC cifrato. Ci si può ricollegare con lo stesso codice. Le partite in rete sono solo umano contro umano.
 - **Lobby senza server**: le stanze pubbliche vengono annunciate come eventi Nostr firmati e con scadenza, con una chiave usa-e-getta: chiunque vede chi è in attesa ed entra con un tocco. Togliendo la spunta la stanza resta privata, solo col codice.

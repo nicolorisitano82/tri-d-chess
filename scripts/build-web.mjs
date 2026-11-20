@@ -146,8 +146,9 @@ function publish() {
 }
 let netRoom = false;
 // network games are human vs human only (same rule as server.js)
-function playersError(white, black) {
+function playersError(white, black, watch = false) {
   const remote = [white, black].filter((p) => p === 'remote').length;
+  if (watch && remote === 2 && netRoom) return null; // a spectator mirrors a network game
   if (remote && !(remote === 1 && [white, black].includes('human'))) return 'Network games are human vs human only.';
   if (netRoom && remote !== 1) return 'A network game is open: leave the room first.';
   return null;
@@ -155,7 +156,7 @@ function playersError(white, black) {
 async function post(url, body = {}) {
   try {
     if (url === '/api/net-room') { netRoom = !!body.open; return { ok: true }; }
-    if ((url === '/api/new' || url === '/api/net-sync') && playersError(body.white, body.black)) throw new Error(playersError(body.white, body.black));
+    if ((url === '/api/new' || url === '/api/net-sync') && playersError(body.white, body.black, url === '/api/net-sync' && body.watch === true)) throw new Error(playersError(body.white, body.black, url === '/api/net-sync' && body.watch === true));
     if (url === '/api/new') {
       game = createGame(body.kind === 'chess' || body.kind === 'trid' ? body.kind : game.kind, { white: body.white, black: body.black, computer: body.computer });
       recentMoves.white = []; recentMoves.black = [];
@@ -217,6 +218,7 @@ import { Chess } from 'chess.js';
 const { buildPiece: buildTriDPiece, setPieceSets, getPieceSets } = ${asNamespace(piecesSrc)};
 const { ChessGame } = ${asNamespace(chess2dSrc)};
 const { createRules } = ${asNamespace(read('public/rules.js'))};
+const { createTutorial } = ${asNamespace(read('public/tutorial.js'))};
 const { createChessView } = ${asNamespace(chessViewSrc)};
 const { ${importNames(read('public/app.js'), '/i18n.js')} } = ${asNamespace(i18nSrc)};
 ${appSrc}`;

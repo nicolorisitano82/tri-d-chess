@@ -4,7 +4,14 @@
 const STRINGS = {
   it: {
     'name.white': 'Bianco', 'name.black': 'Nero',
-    'name.human': 'Umano', 'name.ai': 'AI', 'name.computer': 'Computer', 'name.remote': 'In rete',
+    'name.human': 'Umano', 'name.ai': 'AI', 'name.computer': 'Computer', 'name.remote': 'In rete', 'a11y.move': 'Mossa da tastiera', 'a11y.placeholder': 'es. b2W b4N · QL1 QL3 · 0-0', 'a11y.go': 'Muovi', 'a11y.describe': 'Descrivi', 'a11y.contrast': 'Alto contrasto',
+    'a11y.help': 'Scrivi partenza e arrivo, poi Invio. Solo la partenza elenca le mosse possibili. Tasto M per arrivare qui.',
+    'a11y.board': 'Scacchiera 3D. Per giocare da tastiera usa il campo Mossa da tastiera; Descrivi elenca la posizione.',
+    'a11y.moved': '{c}: {p} da {f} a {t}', 'a11y.boardMoved': "{c}: tavola d'attacco da {f} a {t}", 'a11y.castled': '{c}: arrocco {s}', 'a11y.short': 'corto', 'a11y.long': 'lungo',
+    'a11y.capture': ', cattura {p}', 'a11y.promo': ', promosso a {p}', 'a11y.check': ', scacco',
+    'a11y.targets': '{sq}: {n} mosse possibili: {list}', 'a11y.noTargets': '{sq}: nessuna mossa possibile', 'a11y.bad': 'Mossa non riconosciuta: «{s}»',
+    'a11y.turnOf': 'Tocca al {c}.', 'a11y.boards': "Tavole d'attacco", 'a11y.empty': 'nessun pezzo', 'a11y.legal': '{n} mosse legali.', 'a11y.which': 'Più livelli possibili: {list}. Scrivi anche il livello.',
+    'name.tutorial': 'Tutorial', 'status.lesson': 'Tutorial: tocca a te', 'status.watching': 'In diretta: muove il {c}', 'status.lessonDone': 'Tutorial: lezione completata', 'rules.tutorial': 'Tutorial interattivo', 'rules.try': 'Provalo nel tutorial',
     'opt.ai': 'AI (MCP)',
     'level.1': 'Principiante', 'level.2': 'Facile', 'level.3': 'Medio', 'level.4': 'Esperto', 'level.5': 'Maestro',
     'style.balanced': 'Equilibrato', 'style.aggressive': 'Aggressivo', 'style.cautious': 'Prudente',
@@ -54,6 +61,7 @@ const STRINGS = {
     'hint.noMoves': 'Nessuna mossa legale per questo pezzo',
 
     'net.title': 'Gioco in rete (P2P)', 'net.iPlay': 'Io gioco', 'net.random': 'Casuale', 'net.host': 'Crea stanza',
+    'net.watch': 'Guarda', 'net.watchers': 'Spettatori', 'net.spectator': 'Spettatore', 'net.watching': 'Stai guardando la partita', 'net.fullWatching': 'La stanza ha già due giocatori: guardi la partita', 'net.spectatorNew': 'Stai guardando: esci dalla stanza per giocare', 'chat.watcherIn': 'È arrivato uno spettatore', 'lobby.live': 'In corso · guarda', 'lobby.watch': 'Guarda questa partita',
     'net.code': 'Codice stanza', 'net.join': 'Entra', 'net.room': 'Stanza', 'net.state': 'Stato', 'net.you': 'Tu giochi',
     'net.copy': 'Copia', 'net.leave': 'Esci dalla stanza', 'net.waiting': "In attesa dell'avversario…",
     'net.searching': 'Cerco la stanza…', 'net.syncing': 'Allineamento partita…', 'net.connected': 'Connesso',
@@ -63,7 +71,7 @@ const STRINGS = {
     'net.peerAway': "L'avversario non è connesso", 'net.unavailable': 'Rete non disponibile: {e}',
 
     'net.waitingPublic': "In attesa dell'avversario… (visibile nella lobby)",
-    'lobby.title': 'Stanze aperte', 'lobby.public': 'Mostra nella lobby pubblica', 'lobby.name': 'Il tuo nome (facoltativo)',
+    'lobby.title': 'Stanze aperte', 'lobby.public': 'Mostra nella lobby pubblica', 'lobby.name': 'facoltativo', 'ui.nick': 'Nickname', 'chat.joinedName': '{n} è nella stanza', 'chat.leftName': '{n} è uscito', 'name.you': '{n} (tu)',
     'lobby.empty': 'Nessuna stanza in attesa: creane una!', 'lobby.searching': 'Collegamento alla lobby…', 'lobby.anon': 'Giocatore anonimo',
     'lobby.youPlay': 'Giochi col {c}', 'lobby.now': 'adesso', 'lobby.min': 'da {n} min', 'lobby.relays': '{n} relay', 'lobby.join': 'Entra nella stanza', 'lobby.noAnswer': 'La stanza non risponde: forse è già piena o chiusa', 'lobby.search': 'Cerca per nome, codice, lingua, colore…', 'lobby.noMatch': 'Nessuna stanza corrisponde alla ricerca',
     'pwa.install': 'Installa app', 'pwa.ios': 'Per installarla: tocca Condividi ⬆︎ e poi “Aggiungi alla schermata Home”', 'pwa.offline': 'Sei offline: puoi giocare contro il computer',
@@ -82,7 +90,14 @@ const STRINGS = {
   },
   en: {
     'name.white': 'White', 'name.black': 'Black',
-    'name.human': 'Human', 'name.ai': 'AI', 'name.computer': 'Computer', 'name.remote': 'Online',
+    'name.human': 'Human', 'name.ai': 'AI', 'name.computer': 'Computer', 'name.remote': 'Online', 'a11y.move': 'Keyboard move', 'a11y.placeholder': 'e.g. b2W b4N · QL1 QL3 · 0-0', 'a11y.go': 'Move', 'a11y.describe': 'Describe', 'a11y.contrast': 'High contrast',
+    'a11y.help': 'Type the start and target square, then Enter. The start alone lists its moves. Press M to come here.',
+    'a11y.board': '3D chess board. To play with the keyboard use the Keyboard move field; Describe lists the position.',
+    'a11y.moved': '{c}: {p} from {f} to {t}', 'a11y.boardMoved': '{c}: attack board from {f} to {t}', 'a11y.castled': '{c}: castles {s}', 'a11y.short': 'king side', 'a11y.long': 'queen side',
+    'a11y.capture': ', takes {p}', 'a11y.promo': ', promotes to {p}', 'a11y.check': ', check',
+    'a11y.targets': '{sq}: {n} possible moves: {list}', 'a11y.noTargets': '{sq}: no possible moves', 'a11y.bad': 'Move not understood: “{s}”',
+    'a11y.turnOf': '{c} to move.', 'a11y.boards': 'Attack boards', 'a11y.empty': 'no pieces', 'a11y.legal': '{n} legal moves.', 'a11y.which': 'Several levels fit: {list}. Add the level too.',
+    'name.tutorial': 'Tutorial', 'status.lesson': 'Tutorial: your move', 'status.watching': 'Live: {c} to move', 'status.lessonDone': 'Tutorial: lesson complete', 'rules.tutorial': 'Interactive tutorial', 'rules.try': 'Try it in the tutorial',
     'opt.ai': 'AI (MCP)',
     'level.1': 'Beginner', 'level.2': 'Easy', 'level.3': 'Medium', 'level.4': 'Expert', 'level.5': 'Master',
     'style.balanced': 'Balanced', 'style.aggressive': 'Aggressive', 'style.cautious': 'Cautious',
@@ -132,6 +147,7 @@ const STRINGS = {
     'hint.noMoves': 'No legal moves for this piece',
 
     'net.title': 'Online play (P2P)', 'net.iPlay': 'I play', 'net.random': 'Random', 'net.host': 'Create room',
+    'net.watch': 'Watch', 'net.watchers': 'Spectators', 'net.spectator': 'Spectator', 'net.watching': 'Watching the game', 'net.fullWatching': 'The room already has two players: you are watching', 'net.spectatorNew': 'You are watching: leave the room to play', 'chat.watcherIn': 'A spectator joined', 'lobby.live': 'Live · watch', 'lobby.watch': 'Watch this game',
     'net.code': 'Room code', 'net.join': 'Join', 'net.room': 'Room', 'net.state': 'Status', 'net.you': 'You play',
     'net.copy': 'Copy', 'net.leave': 'Leave room', 'net.waiting': 'Waiting for your opponent…',
     'net.searching': 'Looking for the room…', 'net.syncing': 'Syncing the game…', 'net.connected': 'Connected',
@@ -141,7 +157,7 @@ const STRINGS = {
     'net.peerAway': 'Your opponent is not connected', 'net.unavailable': 'Network unavailable: {e}',
 
     'net.waitingPublic': 'Waiting for an opponent… (listed in the lobby)',
-    'lobby.title': 'Open rooms', 'lobby.public': 'List in the public lobby', 'lobby.name': 'Your name (optional)',
+    'lobby.title': 'Open rooms', 'lobby.public': 'List in the public lobby', 'lobby.name': 'optional', 'ui.nick': 'Nickname', 'chat.joinedName': '{n} is in the room', 'chat.leftName': '{n} left', 'name.you': '{n} (you)',
     'lobby.empty': 'No rooms waiting: create one!', 'lobby.searching': 'Connecting to the lobby…', 'lobby.anon': 'Anonymous player',
     'lobby.youPlay': 'You play {c}', 'lobby.now': 'just now', 'lobby.min': '{n} min', 'lobby.relays': '{n} relays', 'lobby.join': 'Join this room', 'lobby.noAnswer': 'The room does not answer: it may be full or closed', 'lobby.search': 'Search by name, code, language, colour…', 'lobby.noMatch': 'No rooms match your search',
     'pwa.install': 'Install app', 'pwa.ios': 'To install: tap Share ⬆︎, then “Add to Home Screen”', 'pwa.offline': 'You are offline: you can play the computer',

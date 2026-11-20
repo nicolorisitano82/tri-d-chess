@@ -123,6 +123,9 @@ const RULES = {
   },
 };
 
+// Tri-D sections that have a matching tutorial lesson: section index -> lesson index
+const TRY = { 1: 0, 4: 2, 5: 1, 7: 5, 9: 4, 10: 6 };
+
 const CSS = `
 #rulesPage { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: center; background: rgba(0,0,6,.72); backdrop-filter: blur(4px); padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); }
 #rulesPage[hidden] { display: none; }
@@ -144,9 +147,16 @@ const CSS = `
 #rulesPage table { border-collapse: collapse; margin: 6px 0; font-size: 13px; }
 #rulesPage th, #rulesPage td { border: 1px solid #3a3358; padding: 3px 10px; text-align: center; }
 #rulesPage code { background: #1e1936; padding: 1px 5px; border-radius: 4px; }
+#rulesPage .rtut { display: flex; align-items: center; gap: 10px; margin: 14px 0 4px; padding: 10px 12px; border: 1px dashed #5a4a7a; border-radius: 12px; }
+#rulesPage .rtut p { margin: 0; flex: 1; font-size: 13.5px; }
+#rulesPage .rtry { margin-top: 4px; font-size: 12px; padding: 4px 10px; }
 #rulesPage mark { background: var(--orange, #f90); color: #000; border-radius: 3px; padding: 0 1px; }
 `;
 
+const TUT_TEXT = {
+  it: 'Prima volta nel Tri-D? Sette lezioni brevi sulla scacchiera vera, una mossa alla volta.',
+  en: 'New to Tri-D? Seven short lessons on the real board, one move at a time.',
+};
 const fold = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -173,7 +183,7 @@ function highlight(root, q) {
   }
 }
 
-export function createRules({ getLang, onLangChange }) {
+export function createRules({ getLang, onLangChange, t = (k) => k, onTutorial = null }) {
   const style = document.createElement('style');
   style.textContent = CSS;
   document.head.append(style);
@@ -211,11 +221,16 @@ export function createRules({ getLang, onLangChange }) {
     // with a query, search both games (current one first); otherwise show the current game
     const games = q ? [game, game === 'trid' ? 'chess' : 'trid'] : [game];
     let html = '', n = 0;
+    const tut = onTutorial ? t('rules.tutorial') : '';
+    if (tut && !q && game === 'trid') html += `<div class="rtut"><p>${esc(TUT_TEXT[getLang()] || TUT_TEXT.en)}</p><button class="orange mini" type="button" data-lesson="0">${esc(tut)}</button></div>`;
     for (const g of games) {
-      const secs = R[g].filter(([h, b]) => !q || fold(h + ' ' + b.replace(/<[^>]+>/g, ' ')).includes(fold(q)));
+      const secs = R[g].map((sec, i) => [...sec, i]).filter(([h, b]) => !q || fold(h + ' ' + b.replace(/<[^>]+>/g, ' ')).includes(fold(q)));
       if (!secs.length) continue;
       if (q) html += `<div class="rgame">${esc(R.tabs[g])}</div>`;
-      for (const [h, b] of secs) html += `<section><h3>${esc(h)}</h3>${b}</section>`;
+      for (const [h, b, i] of secs) {
+        const tryIt = tut && g === 'trid' && TRY[i] != null ? `<button class="lilac mini rtry" type="button" data-lesson="${TRY[i]}">▶ ${esc(t('rules.try'))}</button>` : '';
+        html += `<section><h3>${esc(h)}</h3>${b}${tryIt}</section>`;
+      }
       n += secs.length;
     }
     body.innerHTML = html;
@@ -239,6 +254,10 @@ export function createRules({ getLang, onLangChange }) {
   }
 
   input.addEventListener('input', () => { render(); body.scrollTop = 0; });
+  body.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-lesson]');
+    if (b && onTutorial) { close(); onTutorial(Number(b.dataset.lesson)); }
+  });
   $('.rclose').onclick = close;
   el.addEventListener('click', (e) => { if (e.target === el) close(); });
   el.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });

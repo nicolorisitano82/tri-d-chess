@@ -67,9 +67,11 @@ const PLAYER_TYPES = ['human', 'ai', 'computer', 'remote'];
 // Network games are strictly human vs human: a "remote" side is always paired with a local human,
 // and while a network room is open (netRoom, set by the page) no other kind of game may start.
 let netRoom = false;
-function playersError(white, black) {
+// watch: a spectator mirrors a network game, so both sides are remote.
+function playersError(white, black, watch = false) {
   if (!PLAYER_TYPES.includes(white) || !PLAYER_TYPES.includes(black)) return 'players must be "human", "ai", "computer" or "remote"';
   const remote = [white, black].filter((p) => p === 'remote').length;
+  if (watch && remote === 2 && netRoom) return null;
   if (remote && !(remote === 1 && [white, black].includes('human'))) return 'Network games are human vs human only.';
   if (netRoom && remote !== 1) return 'A network game is open: leave the room before starting another kind of game.';
   return null;
@@ -173,9 +175,9 @@ app.post('/api/net-room', (req, res) => {
 });
 
 app.post('/api/net-sync', (req, res) => {
-  const { white, black, moves = [], resigned = null, kind = game.kind } = req.body || {};
+  const { white, black, moves = [], resigned = null, kind = game.kind, watch = false } = req.body || {};
   if (!isKind(kind)) return res.status(400).json({ error: 'bad game kind' });
-  const perr = playersError(white, black);
+  const perr = playersError(white, black, watch === true);
   if (perr) return res.status(409).json({ error: perr });
   recent.white = []; recent.black = [];
   game = createGame(kind, { white, black });
