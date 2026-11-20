@@ -137,6 +137,7 @@ function seatOpponent(id) {
   if (isPublic) announceRoom(true);
   chat.show(true);
   chat.system(oppName ? t('chat.joinedName', { n: oppName }) : t('chat.joined'));
+  notify(t('notify.joined', { n: oppLabel() }), 'join');
   sendSync();
   send({ t: 'watchers', n: spectators.size });
   setStatus('net.connected', 'ok');
@@ -153,6 +154,38 @@ function firstContact(id, asSpectator, hostName = '') {
   else if (!wantWatch) T.toast(t('net.fullWatching'));
 }
 
+// --- notifications -------------------------------------------------------------------
+// While the tab is in the background (or the window has no focus), network events raise a
+// system notification (when allowed) and a counter in the tab title, cleared on return.
+const baseTitle = document.title;
+let unseen = 0;
+const canNotify = () => typeof Notification === 'function';
+function askNotify() {   // called from a click (host / join / watch): browsers want a user gesture
+  try { if (canNotify() && Notification.permission === 'default') Notification.requestPermission().catch?.(() => {}); } catch {}
+}
+function notify(body, tag = 'tridchess') {
+  if (!document.hidden && document.hasFocus()) return;
+  unseen++;
+  document.title = `(${unseen}) ${baseTitle}`;
+  if (!canNotify() || Notification.permission !== 'granted') return;
+  const opts = { body, tag, renotify: true, icon: 'icons/icon-192.png' };
+  try {
+    const n = new Notification(t('notify.title'), opts);
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch {
+    // Android Chrome allows notifications only through the service worker
+    navigator.serviceWorker?.getRegistration().then((r) => r?.showNotification(t('notify.title'), opts)).catch(() => {});
+  }
+}
+function seen() { if (unseen && !document.hidden) { unseen = 0; document.title = baseTitle; } }
+document.addEventListener('visibilitychange', seen);
+window.addEventListener('focus', seen);
+// joined from a ?room= link (no click yet): ask on the first touch of the page while in a room
+document.addEventListener('pointerdown', () => { seen(); if (room) askNotify(); });
+document.addEventListener('keydown', seen);
+const oppLabel = () => oppNick() || t('notify.opp');
+let endSeen = null; // id of the game whose end was already notified
+
 // After every state change: forward our own new moves / resignation to the opponent.
 function onState(s) {
   if (!room || !myColor || s.players[myColor] !== 'human' || s.players[other(myColor)] !== 'remote') return;
@@ -166,6 +199,8 @@ function onState(s) {
   }
   if (s.status === 'resigned' && s.winner !== myColor && !resignSent) { resignSent = true; send({ t: 'resign' }); }
   if (s.status === 'playing') resignSent = false;
+  if (s.status !== 'playing' && endSeen !== s.id && s.history.length) { endSeen = s.id; notify(t(s.winner === myColor ? 'notify.won' : s.winner ? 'notify.lost' : 'notify.draw'), 'end'); }
+  if (s.status === 'playing') endSeen = null;
 }
 
 // --- receiving --------------------------------------------------------------------------
@@ -205,7 +240,10 @@ async function onMessage(data, peerId) {
         // out of step: the host's game is the reference
         if (role === 'guest') send({ t: 'syncreq' });
         else sendSync();
-      } else sent = Math.max(sent, data.n + 1);
+      } else {
+        sent = Math.max(sent, data.n + 1);
+        if (T.getState()?.status === 'playing') notify(t('notify.moved', { n: oppLabel(), m: `${data.from}–${data.to}` }), 'move');
+      }
       break;
     }
     case 'resign': {
@@ -229,6 +267,7 @@ async function onMessage(data, peerId) {
       if (!s || s.status === 'playing') break;
       offerFrom = true; renderRematch();
       T.toast(t('rematch.offer'));
+      notify(t('rematch.offer'), 'rematch');
       break;
     }
     case 'rematch-ok':
@@ -245,6 +284,7 @@ async function onMessage(data, peerId) {
     case 'chat':
     case 'react':
       chat.receive(data);
+      if (data.t === 'chat' && typeof data.text === 'string') notify(`${oppLabel()}: ${data.text.slice(0, 140)}`, 'chat');
       break;
     case 'busy':
       leave(true);
@@ -307,6 +347,7 @@ function open(roomCode) {
     renderRematch();
     setStatus('net.peerLeft', 'warn');
     chat.system(oppNick() ? t('chat.leftName', { n: oppNick() }) : t('chat.left'));
+    notify(t('notify.left', { n: oppLabel() }), 'join');
   };
 }
 
@@ -467,7 +508,7 @@ function renderLobby() {
     codeTag.textContent = r.code;
     b.append(name, meta, codeTag);
     b.title = r.live ? t('lobby.watch') : t('lobby.join');
-    b.onclick = () => { closeLobby(); $('netCode').value = r.code; join(!!r.live); };
+    b.onclick = () => { askNotify(); closeLobby(); $('netCode').value = r.code; join(!!r.live); };
     box.append(b);
   }
 }
@@ -651,9 +692,9 @@ function setRoomInUrl(c, watch = false) {
   } catch {}
 }
 
-$('netHost').onclick = () => host().catch((e) => T.toast(t('net.unavailable', { e: e.message })));
-$('netJoin').onclick = () => { try { join(); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
-$('netWatch').onclick = () => { try { join(true); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
+$('netHost').onclick = () => (askNotify(), host()).catch((e) => T.toast(t('net.unavailable', { e: e.message })));
+$('netJoin').onclick = () => { askNotify(); try { join(); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
+$('netWatch').onclick = () => { askNotify(); try { join(true); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
 $('netCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('netJoin').click(); });
 $('netLeave').onclick = () => leave();
 $('netCopy').onclick = () => navigator.clipboard?.writeText(code || '').then(() => T.toast(t('net.codeCopied')), () => {});

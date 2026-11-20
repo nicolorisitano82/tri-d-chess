@@ -109,6 +109,7 @@ Not affiliated with any science-fiction franchise. Piece designs are original.
 - **Tutorial interattivo**: sette lezioni brevi sulla scacchiera vera (livelli, proiezione, cavallo, tavole d'attacco, promozione, matto), aperte dalla pagina Regole o con `?tutorial`.
 - **Accessibilità**: mosse da tastiera (`b2W b4N`, `QL1 QL3`, `e2e4`, `0-0`; tasto M), mosse e stato annunciati ai lettori di schermo, descrizione testuale della posizione, tema ad alto contrasto, animazioni ridotte se il sistema lo chiede.
 - **Pannello compatto** (desktop): bottone ◂ o tasto P, restano solo turno e mosse in trasparenza.
+- **Notifiche** nelle partite in rete: con la scheda in background avvisa di mosse, chat, ingresso dell'avversario, rivincita e fine partita (notifica di sistema e contatore nel titolo).
 - **Computer**: 5 livelli (Principiante → Maestro) × 3 stili (equilibrato, aggressivo, prudente), separati per Bianco e Nero.
 - **Annulla e suggerimento** (solo partite in locale, contro il computer o in due sullo stesso schermo): Annulla toglie la tua ultima mossa e la risposta del computer; Suggerisci chiede al computer (livello 4) la mossa migliore e la segna con un anello dorato.
 - **In rete senza server**: condividi un codice stanza; Trystero trova l'avversario tramite relay Nostr pubblici, poi la partita viaggia direttamente tra i due browser via WebRTC cifrato. Ci si può ricollegare con lo stesso codice. Le partite in rete sono solo umano contro umano.
