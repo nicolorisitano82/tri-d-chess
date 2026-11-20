@@ -281,7 +281,7 @@
     @media (prefers-reduced-motion: reduce) { #victory .rays, #victory h1, #victory .king, #victory .card { animation: none; } }
     @media (max-width: 700px) {
       #stats { top: 16px; left: 16px; right: 16px; width: auto; max-height: 50vh; }
-      #panel { top: auto; left: 16px; right: 16px; width: auto; height: 44vh; bottom: 16px; }
+      #panel { top: auto; left: 16px; right: 16px; width: auto; height: 44vh; bottom: 16px; pointer-events: auto; touch-action: pan-y; }
       .bar.title { font-size: 15px; padding: 8px 14px; }
       #mcpblock { display: none; }
     }
@@ -290,8 +290,11 @@
     #btnMore { display: none; }
     #mcpblock, #dragbar { display: none !important; }
     @media (max-width: 700px), (max-height: 500px) {
-      #panel { top: auto; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: auto; height: auto; max-height: 64vh; max-height: 64dvh; overflow-y: auto; gap: 6px; }
-      #panel .bar.title, #panel .logbar, #log, #panel .grid2 { display: none; }
+      /* the sheet itself must take touches, or iOS will not scroll it (desktop lets clicks through to the board) */
+      #panel { top: auto; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: auto; height: auto; max-height: 64vh; max-height: 64dvh; overflow-y: auto; gap: 6px;
+        pointer-events: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+      #panel .bar.title, #panel .logbar, #log, #panel .grid2, #kbMove { display: none; }
+      #panel.open #kbMove { display: grid; }
       #panel.open .logbar { display: block; }
       #panel.open #log { display: block; flex: none; max-height: 20vh; max-height: 20dvh; }
       #panel.open .grid2 { display: grid; margin-bottom: 4px; }
