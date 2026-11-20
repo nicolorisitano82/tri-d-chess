@@ -144,3 +144,11 @@ Poi in una nuova sessione di Claude Code: *"Leggi get_rules e gioca col Nero: al
 - La posizione iniziale corrisponde al diagramma delle regole da torneo di Meder (verificata da un test).
 
 Progetto amatoriale, non affiliato ad alcun marchio di fantascienza. Pezzi dal design originale.
+
+## Licenza / License
+
+Tri-D Chess è software libero: puoi ridistribuirlo e/o modificarlo secondo i termini della GNU General Public License, versione 3 o (a tua scelta) successiva. Il testo completo è nel file [LICENSE](LICENSE).
+
+Tri-D Chess is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License, version 3 or (at your option) any later version. See [LICENSE](LICENSE).
+
+Le librerie incluse mantengono le proprie licenze (three.js, chess.js, Trystero, ecc.). / Bundled libraries keep their own licenses (three.js, chess.js, Trystero, etc.).
