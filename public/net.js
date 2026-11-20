@@ -605,7 +605,7 @@ async function doRematch() {
 for (const id of ['netRematch', 'vRematch']) $(id).onclick = askRematch;
 for (const id of ['rmAccept', 'vRmAccept']) $(id).onclick = acceptRematch;
 for (const id of ['rmDecline', 'vRmDecline']) $(id).onclick = declineRematch;
-onLangChange(() => { renderClock(); renderRematch(); });
+onLangChange(() => { renderClock(); renderRematch(); renderShare(); });
 
 // --- invite: room link + dedicated post for each network ------------------------------
 // The link always points to the public browser demo, so the invited player needs nothing installed.
@@ -613,15 +613,21 @@ const SHARE_BASE = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
 const ROOM_RE = /^[A-Z2-9]{8}$/;
 const roomLink = () => `${SHARE_BASE}?room=${code}`;
 const enc = encodeURIComponent;
+// the post names the game of the room: Tri-D, classic chess or the draughts variant
+const shareFamily = () => (hostKind.startsWith('dama-') ? 'dama' : hostKind === 'chess' ? 'chess' : 'trid');
 function shareText() {
-  return t('share.text', { c: IT[myColor], o: IT[other(myColor)], code });
+  const f = shareFamily();
+  let v = t('game.' + hostKind).replace(/\s*\(.*\)$/, '');      // "Dama inglese (Checkers)" → "Dama inglese"
+  if (document.documentElement.lang !== 'en') v = v[0].toLowerCase() + v.slice(1); // "Sfidami a dama italiana"
+  const g = t('share.g.' + f, { v });
+  return t('share.text', { g, c: IT[myColor], o: IT[other(myColor)], code });
 }
 function renderShare() {
   const show = role === 'host' && !!code && !peer && !everJoined;
   $('shareBox').hidden = !show;
   if (!show) return;
   const url = roomLink(), text = shareText();
-  $('shX').href = `https://x.com/intent/post?text=${enc(text + ' #TriDChess')}&url=${enc(url)}`;
+  $('shX').href = `https://x.com/intent/post?text=${enc(text + ' ' + t('share.tag.' + shareFamily()))}&url=${enc(url)}`;
   $('shThreads').href = `https://www.threads.net/intent/post?text=${enc(text + ' ' + url)}`;
   $('shFacebook').href = `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}`;
   $('shWhatsApp').href = `https://wa.me/?text=${enc(text + ' ' + url)}`;
@@ -629,7 +635,7 @@ function renderShare() {
   $('shNative').hidden = typeof navigator.share !== 'function';
 }
 $('shCopy').onclick = () => navigator.clipboard?.writeText(roomLink()).then(() => T.toast(t('share.copied')), () => {});
-$('shNative').onclick = () => navigator.share?.({ title: 'Tri-D Chess', text: shareText(), url: roomLink() }).catch(() => {});
+$('shNative').onclick = () => navigator.share?.({ title: t('game.' + hostKind), text: shareText(), url: roomLink() }).catch(() => {});
 onLangChange(renderShare);
 // keep ?room=CODE in the address while in a room, so a reload reconnects
 function setRoomInUrl(c, watch = false) {

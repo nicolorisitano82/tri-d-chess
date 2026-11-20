@@ -2941,7 +2941,9 @@ const STRINGS = {
     'replay.btn': 'Rivedi partita', 'replay.status': 'Replay · mossa {i} di {n}', 'replay.share': 'Copia link', 'replay.copied': 'Link della partita copiato',
     'replay.close': 'Chiudi il replay', 'replay.bad': 'Link della partita non valido', 'replay.first': 'Inizio', 'replay.prev': 'Mossa precedente', 'replay.next': 'Mossa successiva', 'replay.last': 'Fine',
     'share.title': 'Invita un avversario', 'share.copy': 'Copia link', 'share.copied': 'Link della stanza copiato', 'share.native': 'Condividi…',
-    'share.text': 'Sfidami a Tri-D Chess ♟️ scacchi tridimensionali su 7 livelli! Io gioco col {c}, tu col {o}. Entra nella mia stanza {code} 👇',
+    'share.text': 'Sfidami a {g}! Io gioco col {c}, tu col {o}. Entra nella mia stanza {code} 👇',
+    'share.g.trid': 'Tri-D Chess ♟️ scacchi tridimensionali su 7 livelli', 'share.g.chess': 'scacchi ♟️', 'share.g.dama': '{v} ⛀',
+    'share.tag.trid': '#TriDChess', 'share.tag.chess': '#scacchi #chess', 'share.tag.dama': '#dama #draughts',
     'chat.title': 'Chat', 'chat.send': 'Invia', 'chat.placeholder': 'Scrivi un messaggio…', 'chat.emoji': 'Emoticon',
     'chat.reactions': 'Reazioni', 'chat.me': 'Tu', 'chat.them': 'Avversario', 'chat.wait': 'attendi {s}s',
     'chat.tooManyEmoji': 'Massimo {n} emoticon per messaggio', 'chat.joined': "L'avversario è nella stanza",
@@ -3029,7 +3031,9 @@ const STRINGS = {
     'replay.btn': 'Replay game', 'replay.status': 'Replay · move {i} of {n}', 'replay.share': 'Copy link', 'replay.copied': 'Game link copied',
     'replay.close': 'Close replay', 'replay.bad': 'Invalid game link', 'replay.first': 'Start', 'replay.prev': 'Previous move', 'replay.next': 'Next move', 'replay.last': 'End',
     'share.title': 'Invite an opponent', 'share.copy': 'Copy link', 'share.copied': 'Room link copied', 'share.native': 'Share…',
-    'share.text': 'Challenge me at Tri-D Chess ♟️ 3D chess on seven levels! I play {c}, you play {o}. Join my room {code} 👇',
+    'share.text': 'Challenge me at {g}! I play {c}, you play {o}. Join my room {code} 👇',
+    'share.g.trid': 'Tri-D Chess ♟️ 3D chess on seven levels', 'share.g.chess': 'chess ♟️', 'share.g.dama': '{v} ⛀',
+    'share.tag.trid': '#TriDChess', 'share.tag.chess': '#chess', 'share.tag.dama': '#draughts #checkers',
     'chat.title': 'Chat', 'chat.send': 'Send', 'chat.placeholder': 'Write a message…', 'chat.emoji': 'Emoji',
     'chat.reactions': 'Reactions', 'chat.me': 'You', 'chat.them': 'Opponent', 'chat.wait': 'wait {s}s',
     'chat.tooManyEmoji': 'At most {n} emoji per message', 'chat.joined': 'Your opponent is in the room',
@@ -5442,7 +5446,7 @@ async function doRematch() {
 for (const id of ['netRematch', 'vRematch']) $(id).onclick = askRematch;
 for (const id of ['rmAccept', 'vRmAccept']) $(id).onclick = acceptRematch;
 for (const id of ['rmDecline', 'vRmDecline']) $(id).onclick = declineRematch;
-onLangChange(() => { renderClock(); renderRematch(); });
+onLangChange(() => { renderClock(); renderRematch(); renderShare(); });
 
 // --- invite: room link + dedicated post for each network ------------------------------
 // The link always points to the public browser demo, so the invited player needs nothing installed.
@@ -5450,15 +5454,21 @@ const SHARE_BASE = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
 const ROOM_RE = /^[A-Z2-9]{8}$/;
 const roomLink = () => `${SHARE_BASE}?room=${code}`;
 const enc = encodeURIComponent;
+// the post names the game of the room: Tri-D, classic chess or the draughts variant
+const shareFamily = () => (hostKind.startsWith('dama-') ? 'dama' : hostKind === 'chess' ? 'chess' : 'trid');
 function shareText() {
-  return t('share.text', { c: IT[myColor], o: IT[other(myColor)], code });
+  const f = shareFamily();
+  let v = t('game.' + hostKind).replace(/\s*\(.*\)$/, '');      // "Dama inglese (Checkers)" → "Dama inglese"
+  if (document.documentElement.lang !== 'en') v = v[0].toLowerCase() + v.slice(1); // "Sfidami a dama italiana"
+  const g = t('share.g.' + f, { v });
+  return t('share.text', { g, c: IT[myColor], o: IT[other(myColor)], code });
 }
 function renderShare() {
   const show = role === 'host' && !!code && !peer && !everJoined;
   $('shareBox').hidden = !show;
   if (!show) return;
   const url = roomLink(), text = shareText();
-  $('shX').href = `https://x.com/intent/post?text=${enc(text + ' #TriDChess')}&url=${enc(url)}`;
+  $('shX').href = `https://x.com/intent/post?text=${enc(text + ' ' + t('share.tag.' + shareFamily()))}&url=${enc(url)}`;
   $('shThreads').href = `https://www.threads.net/intent/post?text=${enc(text + ' ' + url)}`;
   $('shFacebook').href = `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}`;
   $('shWhatsApp').href = `https://wa.me/?text=${enc(text + ' ' + url)}`;
@@ -5466,7 +5476,7 @@ function renderShare() {
   $('shNative').hidden = typeof navigator.share !== 'function';
 }
 $('shCopy').onclick = () => navigator.clipboard?.writeText(roomLink()).then(() => T.toast(t('share.copied')), () => {});
-$('shNative').onclick = () => navigator.share?.({ title: 'Tri-D Chess', text: shareText(), url: roomLink() }).catch(() => {});
+$('shNative').onclick = () => navigator.share?.({ title: t('game.' + hostKind), text: shareText(), url: roomLink() }).catch(() => {});
 onLangChange(renderShare);
 // keep ?room=CODE in the address while in a room, so a reload reconnects
 function setRoomInUrl(c, watch = false) {
