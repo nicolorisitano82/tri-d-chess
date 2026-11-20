@@ -66,7 +66,7 @@
     #toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--red); color: #000; font-weight: 700; padding: 8px 18px; border-radius: 16px; opacity: 0; transition: opacity .3s; pointer-events: none; }
     #toast.show { opacity: 1; }
     .sets { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; align-items: center; }
-    body[data-kind="chess"] .tridonly { display: none; }
+    body:not([data-kind="trid"]) .tridonly { display: none; }
     .cpu { grid-column: 1 / -1; display: grid; grid-template-columns: 1.2fr 1fr; gap: 6px; margin: -2px 0 4px; padding-left: 10px; border-left: 2px solid var(--sky); }
     .cpu[hidden] { display: none; }
     #dragbar { display: none; }
@@ -287,7 +287,7 @@
         <label for="netName" data-i18n="ui.nick">Nickname</label>
         <input id="netName" class="netname nickname" maxlength="24" autocomplete="nickname" spellcheck="false" data-i18n-placeholder="lobby.name" placeholder="facoltativo">
         <label for="gameKind" data-i18n="ui.game">Gioco</label>
-        <select id="gameKind"><option value="trid" data-i18n="game.trid">Scacchi 3D (Tri-D)</option><option value="chess" data-i18n="game.chess">Scacchi classici</option></select>
+        <select id="gameKind"><option value="trid" data-i18n="game.trid">Scacchi 3D (Tri-D)</option><option value="chess" data-i18n="game.chess">Scacchi classici</option><option value="dama-it" data-i18n="game.dama-it">Dama italiana</option><option value="dama-int" data-i18n="game.dama-int">Dama internazionale (10×10)</option><option value="dama-en" data-i18n="game.dama-en">Dama inglese (Checkers)</option><option value="dama-ru" data-i18n="game.dama-ru">Dama russa</option><option value="dama-br" data-i18n="game.dama-br">Dama brasiliana</option></select>
         <div class="sets tridonly">
           <label for="setW" data-i18n="ui.pieces">Pezzi</label>
           <select id="setW" data-i18n-aria="ui.setW"><option value="federation" data-i18n="set.federation">Federazione</option><option value="klingon" data-i18n="set.klingon">Klingon</option><option value="borg" data-i18n="set.borg">Borg</option><option value="romulan" data-i18n="set.romulan">Romulani</option></select>

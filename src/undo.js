@@ -8,10 +8,12 @@ export const isLocalGame = (g) => {
 };
 
 // How many moves to keep: drop the last move, then keep dropping until a human is to move
-// (so "undo" against the computer takes back your move and its reply). White moves first.
+// (so "undo" against the computer takes back your move and its reply). White moves first,
+// except in English draughts (g.variant.first).
 export function undoTarget(g) {
+  const first = g.variant?.first || 'white', second = first === 'white' ? 'black' : 'white';
   let n = g.history.length - 1;
-  while (n > 0 && g.players[n % 2 === 0 ? 'white' : 'black'] !== 'human') n--;
+  while (n > 0 && g.players[n % 2 === 0 ? first : second] !== 'human') n--;
   return Math.max(0, n);
 }
 
@@ -23,7 +25,8 @@ export function undoGame(g, create) {
   const keep = undoTarget(g);
   const fresh = create(g.kind, { white: g.players.white, black: g.players.black, computer: g.computer });
   for (const h of g.history.slice(0, keep)) {
-    const r = fresh.move(h.from, h.to, h.promotion || null);
+    // (draughts: the route picks the same capture among several with the same start and end)
+    const r = fresh.move(h.from, h.to, h.promotion || (h.path && h.path.length > 2 ? h.path.join('x') : null));
     if (h.at) r.at = h.at;
   }
   fresh.id = g.id;

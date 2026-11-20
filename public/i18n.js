@@ -26,7 +26,9 @@ const STRINGS = {
     'status.ai': "In attesa dell'AI ({c})…", 'status.you': 'Tocca a te ({c}) · {n} mosse',
 
     'ui.rules': 'Regole', 'ui.undo': 'Annulla', 'ui.undoTip': 'Annulla la tua ultima mossa (e la risposta del computer)', 'ui.hint': 'Suggerisci', 'ui.hintTip': 'Il computer suggerisce una mossa', 'ui.thinking': 'Penso…', 'hint.move': 'Suggerimento: {m}', 'hint.none': 'Nessun suggerimento disponibile', 'ui.pieces': 'Pezzi', 'ui.setW': 'Pezzi del Bianco', 'ui.setB': 'Pezzi del Nero', 'set.federation': 'Federazione', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulani',
-    'ui.game': 'Gioco', 'game.trid': 'Scacchi 3D (Tri-D)', 'game.chess': 'Scacchi classici', 'ui.switchConfirm': 'Cambiare gioco? La partita in corso verrà chiusa.',
+    'ui.game': 'Gioco', 'game.trid': 'Scacchi 3D (Tri-D)', 'game.chess': 'Scacchi classici',
+    'game.dama-it': 'Dama italiana', 'game.dama-int': 'Dama internazionale (10×10)', 'game.dama-en': 'Dama inglese (Checkers)', 'game.dama-ru': 'Dama russa', 'game.dama-br': 'Dama brasiliana',
+    'status.blocked': 'Vince il {c}: l\'avversario non può muovere', 'victory.byBlock': 'bloccando l\'avversario', 'piece.M': 'Pedina', 'piece.D': 'Dama', 'a11y.captureN': ', cattura {n} pezzi', 'ui.switchConfirm': 'Cambiare gioco? La partita in corso verrà chiusa.',
     'ui.turn': 'Turno', 'ui.log': 'Registro mosse', 'ui.newGame': 'Nuova partita', 'ui.resign': 'Abbandona',
     'ui.confirm': 'Conferma?', 'ui.view': 'Vista', 'ui.stats': 'Statistiche', 'ui.statsHide': 'Nascondi (S)',
     'ui.statsShow': 'Mostra statistiche (S)', 'ui.options': 'Opzioni', 'ui.close': 'Chiudi',
@@ -112,7 +114,9 @@ const STRINGS = {
     'status.ai': 'Waiting for the AI ({c})…', 'status.you': 'Your move ({c}) · {n} moves',
 
     'ui.rules': 'Rules', 'ui.undo': 'Undo', 'ui.undoTip': 'Take back your last move (and the computer\'s reply)', 'ui.hint': 'Hint', 'ui.hintTip': 'The computer suggests a move', 'ui.thinking': 'Thinking…', 'hint.move': 'Hint: {m}', 'hint.none': 'No hint available', 'ui.pieces': 'Pieces', 'ui.setW': 'White pieces', 'ui.setB': 'Black pieces', 'set.federation': 'Federation', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulan',
-    'ui.game': 'Game', 'game.trid': '3D chess (Tri-D)', 'game.chess': 'Classic chess', 'ui.switchConfirm': 'Switch game? The current game will be closed.',
+    'ui.game': 'Game', 'game.trid': '3D chess (Tri-D)', 'game.chess': 'Classic chess',
+    'game.dama-it': 'Italian draughts', 'game.dama-int': 'International draughts (10×10)', 'game.dama-en': 'English draughts (checkers)', 'game.dama-ru': 'Russian draughts', 'game.dama-br': 'Brazilian draughts',
+    'status.blocked': '{c} wins: the opponent cannot move', 'victory.byBlock': 'by blocking the opponent', 'piece.M': 'Man', 'piece.D': 'King', 'a11y.captureN': ', takes {n} pieces', 'ui.switchConfirm': 'Switch game? The current game will be closed.',
     'ui.turn': 'Turn', 'ui.log': 'Move log', 'ui.newGame': 'New game', 'ui.resign': 'Resign',
     'ui.confirm': 'Confirm?', 'ui.view': 'View', 'ui.stats': 'Stats', 'ui.statsHide': 'Hide (S)',
     'ui.statsShow': 'Show stats (S)', 'ui.options': 'Options', 'ui.close': 'Close',

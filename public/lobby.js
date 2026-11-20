@@ -2,7 +2,7 @@
 //
 // - Event: kind 30078 (NIP-78 application data, parameterized replaceable), one per room:
 //     tags  d = "tri-d-chess/room/<CODE>", t = "tri-d-chess-lobby", expiration = now + TTL (NIP-40)
-//     content JSON { v, code, kind ('trid'|'chess'), hostColor, lang, name, status: "open" | "closed", live? }
+//     content JSON { v, code, kind ('trid'|'chess'|'dama-it'|'dama-int'|'dama-en'|'dama-ru'|'dama-br'), hostColor, lang, name, status: "open" | "closed", live? }
 //     live: true marks a game in progress that can be watched; it is sent with status "closed" so
 //     older versions, which only list "open" rooms, simply do not show it.
 // - A waiting host re-announces every REFRESH_S; when the opponent arrives or the room closes it
@@ -64,7 +64,7 @@ export function parseAnnouncement(ev, t = now()) {
   if (!c || c.v !== 1 || typeof c.code !== 'string' || !/^[A-Z2-9]{8}$/.test(c.code) || d !== D_PREFIX + c.code) return null;
   if (!['white', 'black'].includes(c.hostColor) || !['open', 'closed'].includes(c.status)) return null;
   return {
-    key: d, code: c.code, kind: c.kind === 'chess' ? 'chess' : 'trid', hostColor: c.hostColor, lang: c.lang === 'en' ? 'en' : 'it',
+    key: d, code: c.code, kind: /^(trid|chess|dama-(it|int|en|ru|br))$/.test(c.kind) ? c.kind : 'trid', hostColor: c.hostColor, lang: c.lang === 'en' ? 'en' : 'it',
     name: cleanName(c.name), status: c.status, live: c.status === 'closed' && c.live === true, pubkey: ev.pubkey, createdAt: ev.created_at, expires: exp,
     since: Number.isInteger(c.since) && c.since <= ev.created_at && c.since > ev.created_at - 86400 ? c.since : ev.created_at,
   };

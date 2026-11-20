@@ -73,7 +73,9 @@ function showActive(on) {
 // Tell the game server a room is open, so it refuses any non human-vs-human game meanwhile.
 const setRoomFlag = (open) => T.post('/api/net-room', { open });
 
-const movesOf = (s) => s.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || null }));
+// draughts captures carry their route in `promotion` ("c3xe5xg7")
+const movesOf = (s) => s.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || (h.path && h.path.length > 2 ? h.path.join('x') : null) }));
+const knownKind = (k) => ((T.kinds || ['trid', 'chess']).includes(k) ? k : 'trid');
 
 function newCode() {
   const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -184,7 +186,7 @@ async function onMessage(data, peerId) {
       myColor = other(data.hostColor);
       $('netMe').textContent = IT[myColor];
       setNames({ ...data.names, [myColor]: myNick() });
-      const body = { kind: data.kind === 'chess' ? 'chess' : 'trid', [myColor]: 'human', [data.hostColor]: 'remote', moves: Array.isArray(data.moves) ? data.moves : [], resigned: data.resigned || null };
+      const body = { kind: knownKind(data.kind), [myColor]: 'human', [data.hostColor]: 'remote', moves: Array.isArray(data.moves) ? data.moves : [], resigned: data.resigned || null };
       setTimeControl(validTc(data.tc));
       const r = await T.post('/api/net-sync', body);
       if (data.flagged === 'white' || data.flagged === 'black') await T.post('/api/flag', { color: data.flagged });
@@ -261,7 +263,7 @@ async function onSpectatorMessage(data) {
   $('netMe').textContent = t('net.spectator');
   setStatus('net.watching', 'ok');
   if (Number.isInteger(data.watchers)) setWatchers(Math.min(data.watchers, 999));
-  const kind = data.kind === 'chess' ? 'chess' : 'trid';
+  const kind = knownKind(data.kind);
   setTimeControl(validTc(data.tc));
   const s = T.getState(), n = data.moves.length;
   const same = (a, b) => a.from === b.from && a.to === b.to && (a.promotion || null) === (b.promotion || null);
@@ -323,7 +325,7 @@ async function host() {
   const pick = $('netColor').value;
   myColor = pick === 'random' ? (crypto.getRandomValues(new Uint8Array(1))[0] % 2 ? 'white' : 'black') : pick;
   role = 'host';
-  hostKind = $('gameKind').value === 'chess' ? 'chess' : 'trid';
+  hostKind = knownKind($('gameKind').value);
   code = newCode();
   setTimeControl(validTc(parseTc($('netTime').value)));
   await setRoomFlag(true);

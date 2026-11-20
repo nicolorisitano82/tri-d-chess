@@ -5,7 +5,7 @@
 const RULES = {
   it: {
     title: 'Regole', search: 'Cerca nelle regole…', close: 'Chiudi', none: 'Nessun risultato per «{q}»',
-    results: '{n} sezioni trovate', tabs: { trid: 'Scacchi 3D (Tri-D)', chess: 'Scacchi classici' },
+    results: '{n} sezioni trovate', tabs: { trid: 'Scacchi 3D (Tri-D)', chess: 'Scacchi classici', dama: 'Dama' },
     trid: [
       ['Il gioco', `<p>Gli scacchi tridimensionali si giocano su più scacchiere sovrapposte. Qui si seguono le <b>regole da torneo di Jens Meder</b>. Pezzi e scopo sono quelli degli scacchi normali: vince chi dà scacco matto al re avversario.</p>`],
       ['La scacchiera', `<p>Ci sono <b>tre tavole principali</b> fisse, 4×4, con colonne a–d:</p>
@@ -61,10 +61,24 @@ const RULES = {
       ['Patta', `<ul><li><b>Stallo</b>: chi deve muovere non ha mosse legali ma non è sotto scacco.</li><li><b>Triplice ripetizione</b> della stessa posizione.</li><li><b>Materiale insufficiente</b>: nessuno dei due può dare matto, per esempio re contro re o re e alfiere contro re.</li><li><b>Regola delle 50 mosse</b>: 50 mosse per parte senza catture né mosse di pedone.</li><li>Con l'orologio, se finisce il tempo ma l'avversario non potrebbe mai dare matto.</li></ul>`],
       ["Usare l'app", `<ul><li>Tocca un pezzo, poi la casella di arrivo; le mosse possibili sono evidenziate.</li><li>Il pulsante <b>Vista</b> alterna il lato del Bianco, del Nero e la vista laterale.</li><li>Computer, gioco in rete, orologio, replay e AI via MCP funzionano come nel Tri-D.</li></ul>`],
     ],
+    dama: [
+      ['Il gioco', `<p>La dama si gioca sulle case scure di una scacchiera. Ognuno ha 12 pedine (20 nella dama internazionale). Vince chi cattura tutti i pezzi avversari o lo lascia <b>senza mosse</b>. L'app propone cinque varianti, scelte dal menu Gioco.</p>`],
+      ['Scacchiera e posizione iniziale', `<p>Le pedine stanno sulle case scure delle prime tre file di ciascun giocatore (quattro sul 10×10). Le caselle si chiamano come negli scacchi, per esempio <code>c3</code> o <code>j10</code>.</p><p>Nella <b>dama italiana</b> la scacchiera è girata: la casa scura d'angolo è alla destra di ciascun giocatore.</p>`],
+      ['La pedina', `<p>La pedina si muove di una casa in diagonale, solo in avanti. Cattura saltando un pezzo avversario vicino e atterrando sulla casa libera subito dietro. Dopo la presa, se può, continua a saltare con la stessa pedina (<b>presa multipla</b>).</p>`],
+      ['La presa è obbligatoria', `<p>Se puoi catturare devi farlo, e devi completare tutta la sequenza di salti. I pezzi catturati si tolgono alla fine della mossa e non si possono saltare due volte.</p><p>Quando ci sono più prese possibili, la scelta dipende dalla variante (vedi sotto). Nell'app tocchi il pezzo e poi la casa d'arrivo finale.</p>`],
+      ['Promozione a dama', `<p>La pedina che arriva sull'ultima fila diventa <b>dama</b>, segnata con una seconda pedina e una corona d'oro. La dama si muove in diagonale anche all'indietro.</p>`],
+      ['Dama italiana', `<ul><li>8×8, 12 pedine; muove per primo il Bianco.</li><li>Le pedine catturano solo in avanti e <b>non possono catturare le dame</b>.</li><li>La dama si muove di una sola casa.</li><li>Prese, in quest'ordine: quella che cattura <b>più pezzi</b>; a parità, quella fatta <b>con la dama</b>; poi quella che cattura <b>più dame</b>; poi quella che incontra una dama <b>per prima</b>.</li><li>La pedina che arriva in fondo durante una presa diventa dama e si ferma lì.</li></ul>`],
+      ['Dama internazionale', `<ul><li>10×10, 20 pedine; muove per primo il Bianco.</li><li>Le pedine catturano anche all'indietro.</li><li>La dama è <b>volante</b>: si muove di quante case vuole in diagonale e cattura anche a distanza, atterrando su qualunque casa libera dietro al pezzo.</li><li>È obbligatoria la presa che cattura <b>più pezzi</b>.</li><li>La pedina diventa dama solo se <b>finisce</b> la mossa sull'ultima fila.</li></ul>`],
+      ['Dama inglese (Checkers)', `<ul><li>8×8, 12 pedine; muove per primo il <b>Nero</b>.</li><li>Le pedine catturano solo in avanti; la dama si muove di una sola casa.</li><li>Si può scegliere qualunque presa, ma va completata.</li><li>La pedina promossa durante una presa si ferma lì.</li></ul>`],
+      ['Dama russa', `<ul><li>8×8, 12 pedine; muove per primo il Bianco.</li><li>Le pedine catturano anche all'indietro; la dama è volante.</li><li>Si può scegliere qualunque presa (completandola).</li><li>La pedina che arriva in fondo durante una presa diventa subito dama e <b>continua a catturare</b> come dama.</li></ul>`],
+      ['Dama brasiliana', `<p>Le regole della dama internazionale su una scacchiera 8×8 con 12 pedine: dama volante, pedine che catturano all'indietro, obbligo di catturare più pezzi possibile.</p>`],
+      ['Fine della partita', `<p>Perde chi non ha più pezzi o non può muovere. La partita è <b>patta</b> per triplice ripetizione della posizione, o dopo 50 mosse consecutive di sole dame senza catture.</p>`],
+      ["Usare l'app", `<ul><li>Tocca un pezzo: le case d'arrivo si illuminano, in rosso quelle con presa.</li><li>Per una presa multipla tocca solo la casa finale; l'app trova il percorso.</li><li>Computer, gioco in rete, orologio, replay, annulla e suggerimento funzionano come negli scacchi.</li></ul>`],
+    ],
   },
   en: {
     title: 'Rules', search: 'Search the rules…', close: 'Close', none: 'No results for “{q}”',
-    results: '{n} sections found', tabs: { trid: '3D chess (Tri-D)', chess: 'Classic chess' },
+    results: '{n} sections found', tabs: { trid: '3D chess (Tri-D)', chess: 'Classic chess', dama: 'Draughts' },
     trid: [
       ['The game', `<p>Three-dimensional chess is played on several stacked boards. This app follows <b>Jens Meder's tournament rules</b>. The pieces and the goal are those of normal chess: checkmate the opponent's king.</p>`],
       ['The board', `<p>There are <b>three fixed main boards</b>, each 4×4 with files a–d:</p>
@@ -119,6 +133,20 @@ const RULES = {
       ['Check and checkmate', `<p>A king that is attacked is <b>in check</b>, and the player must deal with it at once: move the king, capture the checking piece, or block the attack. If that is impossible it is <b>checkmate</b>, and the game is lost.</p>`],
       ['Draws', `<ul><li><b>Stalemate</b>: the player to move has no legal move but is not in check.</li><li><b>Threefold repetition</b> of the same position.</li><li><b>Insufficient material</b>: neither side can mate, for example king against king, or king and bishop against king.</li><li><b>50-move rule</b>: 50 moves by each side with no capture or pawn move.</li><li>With a clock, when time runs out but the opponent could never mate.</li></ul>`],
       ['Using the app', `<ul><li>Tap a piece, then the target square; the possible moves are highlighted.</li><li>The <b>View</b> button switches between White's side, Black's side and a side view.</li><li>The computer, online play, clock, replay and AI via MCP all work as in Tri-D.</li></ul>`],
+    ],
+    dama: [
+      ['The game', `<p>Draughts is played on the dark squares of a board. Each side has 12 men (20 in international draughts). You win by taking all the opponent's pieces or leaving them <b>without a move</b>. The app offers five variants in the Game menu.</p>`],
+      ['Board and start position', `<p>The men stand on the dark squares of each player's first three rows (four on the 10×10 board). Squares are named as in chess, e.g. <code>c3</code> or <code>j10</code>.</p><p>In <b>Italian draughts</b> the board is turned: the dark corner square is on each player's right.</p>`],
+      ['The man', `<p>A man moves one square diagonally, forward only. It captures by jumping over an adjacent enemy piece onto the empty square just behind it. After a capture it goes on jumping with the same man if it can (<b>multiple capture</b>).</p>`],
+      ['Capturing is compulsory', `<p>If you can capture, you must, and you must complete the whole sequence of jumps. Captured pieces are removed at the end of the move and cannot be jumped twice.</p><p>When several captures are possible, the variant decides which one you may choose (see below). In the app, tap the piece and then the final square.</p>`],
+      ['Crowning', `<p>A man that reaches the last row becomes a <b>king</b>, shown with a second disc and a gold crown. A king moves diagonally backwards too.</p>`],
+      ['Italian draughts', `<ul><li>8×8, 12 men; White moves first.</li><li>Men capture forward only and <b>cannot capture kings</b>.</li><li>The king moves one square.</li><li>Captures, in this order: the one taking <b>the most pieces</b>; if equal, the one made <b>with a king</b>; then the one taking <b>the most kings</b>; then the one meeting a king <b>first</b>.</li><li>A man reaching the far row during a capture is crowned and stops there.</li></ul>`],
+      ['International draughts', `<ul><li>10×10, 20 men; White moves first.</li><li>Men capture backwards too.</li><li>The king is a <b>flying king</b>: it moves any distance diagonally and captures from a distance, landing on any empty square beyond the piece.</li><li>You must take <b>the most pieces</b>.</li><li>A man is crowned only if it <b>ends</b> its move on the last row.</li></ul>`],
+      ['English draughts (checkers)', `<ul><li>8×8, 12 men; <b>Black</b> moves first.</li><li>Men capture forward only; the king moves one square.</li><li>Any capture may be chosen, but it must be completed.</li><li>A man crowned during a capture stops there.</li></ul>`],
+      ['Russian draughts', `<ul><li>8×8, 12 men; White moves first.</li><li>Men capture backwards too; flying kings.</li><li>Any capture may be chosen (and completed).</li><li>A man reaching the far row during a capture is crowned at once and <b>goes on capturing</b> as a king.</li></ul>`],
+      ['Brazilian draughts', `<p>International rules on an 8×8 board with 12 men: flying kings, men capturing backwards, and the duty to take as many pieces as possible.</p>`],
+      ['End of the game', `<p>You lose when you have no pieces or no move. The game is a <b>draw</b> by threefold repetition, or after 50 consecutive king-only moves without a capture.</p>`],
+      ['Using the app', `<ul><li>Tap a piece: its target squares light up, in red those that capture.</li><li>For a multiple capture tap only the final square; the app finds the route.</li><li>The computer, online play, clock, replay, undo and hint work as in chess.</li></ul>`],
     ],
   },
 };
@@ -196,7 +224,7 @@ export function createRules({ getLang, onLangChange, t = (k) => k, onTutorial = 
   el.innerHTML = `<div class="rcard">
     <div class="rhead">
       <div class="rtop"><h2 id="rulesTitle"></h2><button class="red rclose" type="button"></button></div>
-      <div class="rtabs" role="tablist"><button class="orange" type="button" role="tab" data-g="trid"></button><button class="blue" type="button" role="tab" data-g="chess"></button></div>
+      <div class="rtabs" role="tablist"><button class="orange" type="button" role="tab" data-g="trid"></button><button class="blue" type="button" role="tab" data-g="chess"></button><button class="lilac" type="button" role="tab" data-g="dama"></button></div>
       <input type="search" autocomplete="off" spellcheck="false">
       <div class="rcount" aria-live="polite"></div>
     </div>
@@ -219,7 +247,7 @@ export function createRules({ getLang, onLangChange, t = (k) => k, onTutorial = 
     }
     const q = input.value.trim();
     // with a query, search both games (current one first); otherwise show the current game
-    const games = q ? [game, game === 'trid' ? 'chess' : 'trid'] : [game];
+    const games = q ? [game, ...['trid', 'chess', 'dama'].filter((g) => g !== game)] : [game];
     let html = '', n = 0;
     const tut = onTutorial ? t('rules.tutorial') : '';
     if (tut && !q && game === 'trid') html += `<div class="rtut"><p>${esc(TUT_TEXT[getLang()] || TUT_TEXT.en)}</p><button class="orange mini" type="button" data-lesson="0">${esc(tut)}</button></div>`;
@@ -239,7 +267,7 @@ export function createRules({ getLang, onLangChange, t = (k) => k, onTutorial = 
   }
 
   function open(g) {
-    if (g === 'trid' || g === 'chess') game = g;
+    if (g === 'trid' || g === 'chess' || g === 'dama') game = g;
     input.value = '';
     lastFocus = document.activeElement;
     el.hidden = false;

@@ -4,7 +4,7 @@
 // posOfKey() for piece positions, buildPiece() for the 3D pieces, camera views.
 import * as THREE from 'three';
 
-const FILES = 'abcdefgh';
+const FILES = 'abcdefghij';
 const SQ = 1;
 const TOP = 0.06;                                  // y of the playing surface
 
@@ -14,10 +14,12 @@ export const CHESS_VIEWS = {
   side: { pos: [10.5, 5.5, 0], target: [0, 0, 0], narrow: [0, 0, 0] },
 };
 
-export const posOfSquare = (key) => {
-  const f = FILES.indexOf(key[0]), r = Number(key[1]);
-  return new THREE.Vector3((f - 3.5) * SQ, TOP, -(r - 4.5) * SQ);
+// centre of a square on an n x n board ("a1".."h8", or up to "j10")
+const squarePos = (n) => (key) => {
+  const f = FILES.indexOf(key[0]), r = Number(key.slice(1));
+  return new THREE.Vector3((f - (n - 1) / 2) * SQ, TOP, -(r - (n + 1) / 2) * SQ);
 };
+export const posOfSquare = squarePos(8);
 
 // --- procedural textures -------------------------------------------------------------
 function woodTexture(base, grain, seed = 1) {
@@ -163,6 +165,24 @@ const PIECES = {
   },
 };
 
+// Draughts: a turned disc with grooves; a king ("dama") is two discs crowned with gold.
+function disc(g, m, y) {
+  add(g, new THREE.CylinderGeometry(0.4, 0.42, 0.13, 40), m, [0, y + 0.065, 0]);
+  add(g, new THREE.TorusGeometry(0.33, 0.012, 6, 40), GOLD, [0, y + 0.132, 0], [Math.PI / 2, 0, 0]);
+  add(g, new THREE.TorusGeometry(0.2, 0.01, 6, 32), m, [0, y + 0.132, 0], [Math.PI / 2, 0, 0]);
+}
+export function buildDraughtsPiece(type, color) {
+  const g = new THREE.Group();
+  const m = color === 'white' ? IVORY : EBONY;
+  disc(g, m, 0);
+  if (type === 'D') {
+    disc(g, m, 0.135);
+    add(g, new THREE.TorusGeometry(0.14, 0.035, 8, 32), GOLD, [0, 0.29, 0], [Math.PI / 2, 0, 0]);
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; add(g, new THREE.ConeGeometry(0.03, 0.09, 6), GOLD, [Math.cos(a) * 0.14, 0.34, Math.sin(a) * 0.14]); }
+  }
+  return g;
+}
+
 export function buildChessPiece(type, color) {
   const g = new THREE.Group();
   PIECES[type](g, color === 'white' ? IVORY : EBONY);
@@ -171,7 +191,11 @@ export function buildChessPiece(type, color) {
 }
 
 // --- the room and the board ------------------------------------------------------------
-export function createChessView() {
+// size: 8 or 10. darkA1: whether a1 is a dark square (chess, international draughts); the Italian
+// draughts board is turned so that the dark corner is on each player's right (h1).
+// draughts: build discs instead of chess pieces.
+export function createChessView({ size = 8, darkA1 = true, draughts = false } = {}) {
+  const n = size, half = n / 2, posOf = squarePos(n), k = n / 8;
   const root = new THREE.Group();
   root.visible = false;
   const squares = [];
@@ -179,10 +203,11 @@ export function createChessView() {
   const light = new THREE.MeshStandardMaterial({ map: woodTexture('#d9b98a', '#8a5a2b', 7), roughness: 0.55, metalness: 0.02, emissive: 0x000000 });
   const dark = new THREE.MeshStandardMaterial({ map: woodTexture('#5a3a22', '#2a170a', 11), roughness: 0.5, metalness: 0.03, emissive: 0x000000 });
   const sqGeo = new THREE.BoxGeometry(SQ * 0.995, 0.08, SQ * 0.995);
-  for (let f = 0; f < 8; f++) for (let r = 1; r <= 8; r++) {
+  for (let f = 0; f < n; f++) for (let r = 1; r <= n; r++) {
     const key = FILES[f] + r;
-    const m = new THREE.Mesh(sqGeo, ((f + r) % 2 === 0 ? dark : light).clone());
-    m.position.copy(posOfSquare(key));
+    const isDark = ((f + r) % 2 === 1) === darkA1;
+    const m = new THREE.Mesh(sqGeo, (isDark ? dark : light).clone());
+    m.position.copy(posOf(key));
     m.position.y = TOP - 0.04;
     m.userData = { key, kind: 'square' };
     root.add(m);
@@ -190,22 +215,24 @@ export function createChessView() {
   }
   // carved frame with brass inlay and coordinates
   const frameWood = new THREE.MeshStandardMaterial({ map: woodTexture('#3b2414', '#1c0e05', 3), roughness: 0.45, metalness: 0.05 });
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(9.3, 0.3, 9.3), frameWood);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(n + 1.3, 0.3, n + 1.3), frameWood);
   frame.position.y = -0.13;
   root.add(frame);
   const brass = new THREE.MeshStandardMaterial({ color: 0xb08a3e, roughness: 0.35, metalness: 0.8 });
-  for (const [w, d, x, z] of [[8.2, 0.05, 0, 4.07], [8.2, 0.05, 0, -4.07], [0.05, 8.2, 4.07, 0], [0.05, 8.2, -4.07, 0]]) {
+  const e = half + 0.07, L = n + 0.2;
+  for (const [w, d, x, z] of [[L, 0.05, 0, e], [L, 0.05, 0, -e], [0.05, L, e, 0], [0.05, L, -e, 0]]) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), brass);
     b.position.set(x, 0.03, z);
     root.add(b);
   }
-  for (let i = 0; i < 8; i++) {
-    for (const z of [4.38, -4.38]) { const s = labelSprite(FILES[i]); s.position.set(i - 3.5, 0.06, z); root.add(s); }
-    for (const x of [-4.38, 4.38]) { const s = labelSprite(String(i + 1)); s.position.set(x, 0.06, -(i + 1 - 4.5)); root.add(s); }
+  const lab = half + 0.38;
+  for (let i = 0; i < n; i++) {
+    for (const z of [lab, -lab]) { const s = labelSprite(FILES[i]); s.position.set(i - (n - 1) / 2, 0.06, z); root.add(s); }
+    for (const x of [-lab, lab]) { const s = labelSprite(String(i + 1)); s.position.set(x, 0.06, -(i + 1 - (n + 1) / 2)); root.add(s); }
   }
   // stone table and floor
   const stone = new THREE.MeshStandardMaterial({ map: stoneTexture(), roughness: 0.9, metalness: 0 });
-  const table = new THREE.Mesh(new THREE.CylinderGeometry(7.6, 7.9, 0.5, 64), new THREE.MeshStandardMaterial({ map: woodTexture('#4a2f1b', '#24130a', 5), roughness: 0.6 }));
+  const table = new THREE.Mesh(new THREE.CylinderGeometry(7.6 * k, 7.9 * k, 0.5, 64), new THREE.MeshStandardMaterial({ map: woodTexture('#4a2f1b', '#24130a', 5), roughness: 0.6 }));
   table.position.y = -0.55;
   root.add(table);
   const leg = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.8, 4, 24), frameWood);
@@ -223,7 +250,7 @@ export function createChessView() {
   root.add(moon);
   const flameTex = flameTexture();
   const torches = [];
-  for (const [x, z] of [[-8.5, -5], [8.5, 5], [8.5, -6]]) {
+  for (const [x, z] of [[-8.5, -5], [8.5, 5], [8.5, -6]].map(([x, z]) => [x * k, z * k])) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 2.2, 10), frameWood);
     pole.position.set(x, 1.2, z);
     root.add(pole);
@@ -243,9 +270,9 @@ export function createChessView() {
   return {
     root,
     squares,
-    views: CHESS_VIEWS,
-    posOfKey: posOfSquare,
-    buildPiece: buildChessPiece,
+    views: k === 1 ? CHESS_VIEWS : Object.fromEntries(Object.entries(CHESS_VIEWS).map(([name, v]) => [name, { pos: v.pos.map((x) => x * k), target: v.target.map((x) => x * k), narrow: v.narrow.map((x) => x * k) }])),
+    posOfKey: posOf,
+    buildPiece: draughts ? buildDraughtsPiece : buildChessPiece,
     background: 0x140d08,
     fog: [0x140d08, 22, 70],
     update(t) {

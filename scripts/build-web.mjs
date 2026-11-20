@@ -40,6 +40,8 @@ const engineSrc = read('src/engine.js');
 const aiSrc = read('src/ai.js');
 const aiChessSrc = read('src/ai-chess.js');
 const chess2dSrc = read('src/chess2d.js');
+const draughtsSrc = read('src/draughts.js');
+const aiDraughtsSrc = read('src/ai-draughts.js');
 const chessViewSrc = read('public/chess-view.js');
 // chess.js is one ES module ending in a single export list: inline it in the worker as a namespace
 const chessJsSrc = read('node_modules/chess.js/dist/esm/chess.js');
@@ -62,9 +64,13 @@ const ENG = ${asNamespace(engineSrc)};
 const AI = ${asNamespace(aiSrc, { inject: `const { ${importNames(aiSrc, './engine.js')} } = ENG;` })};
 const CJS = ${chessJsNs};
 const AIC = ${asNamespace(aiChessSrc, { inject: 'const { Chess } = CJS; const { STYLES } = AI;' })};
+const DR = ${asNamespace(draughtsSrc)};
+const AID = ${asNamespace(aiDraughtsSrc, { inject: 'const { VARIANTS, draughtsMoves, applyDraughts } = DR; const { STYLES } = AI;' })};
 onmessage = (e) => {
   const { id, kind, pos, color, level, style, recent } = e.data;
-  const m = kind === 'chess' ? AIC.chooseMoveChess(pos, color, level, style, recent) : AI.chooseMove(pos, color, level, style, recent);
+  const m = kind === 'chess' ? AIC.chooseMoveChess(pos, color, level, style, recent)
+    : kind.startsWith('dama-') ? AID.chooseMoveDraughts(pos, color, level, style, recent)
+    : AI.chooseMove(pos, color, level, style, recent);
   postMessage({ id, hint: !!e.data.hint, m: m && { from: m.from, to: m.to, promotion: m.promotion || null } });
 };`;
 
@@ -106,15 +112,16 @@ appSrc = must(appSrc,
 const localGame = `
 // --- local game: replaces the server's REST + SSE ------------------------------------
 const STORE_KEY = 'tridchess.web.game.v4';
-const createGame = (kind, opts) => (kind === 'chess' ? new ChessGame(opts) : new ENG.Game(opts));
+const createGame = (kind, opts) => (kind === 'chess' ? new ChessGame(opts) : isDraughts(kind) ? new DraughtsGame(kind, opts) : new ENG.Game(opts));
+const knownKind = (k) => (k === 'chess' || k === 'trid' || isDraughts(k) ? k : null);
 let game = createGame('trid', { white: 'human', black: 'computer', computer: { black: { level: 3, style: 'aggressive' } } });
 const recentMoves = { white: [], black: [] };
 // saved as the move list (replayed on load), so every game kind restores the same way
 const serialize = () => ({ kind: game.kind, id: game.id, players: game.players, computer: game.computer, startedAt: game.startedAt,
-  moves: game.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || null, at: h.at })),
+  moves: game.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || (h.path && h.path.length > 2 ? h.path.join('x') : null), at: h.at })),
   status: game.status, winner: game.winner, drawReason: game.drawReason });
 function restore(sv) {
-  const g = createGame(sv.kind === 'chess' ? 'chess' : 'trid', { white: sv.players.white, black: sv.players.black, computer: sv.computer });
+  const g = createGame(knownKind(sv.kind) || 'trid', { white: sv.players.white, black: sv.players.black, computer: sv.computer });
   for (const m of sv.moves || []) { const r = g.move(m.from, m.to, m.promotion); if (m.at) r.at = m.at; }
   if (g.status === 'playing' && ['resigned', 'timeout', 'draw'].includes(sv.status)) { g.status = sv.status; g.winner = sv.winner || null; g.drawReason = sv.drawReason || null; }
   if (sv.id) g.id = sv.id;
@@ -162,7 +169,7 @@ async function post(url, body = {}) {
     if (url === '/api/net-room') { netRoom = !!body.open; return { ok: true }; }
     if ((url === '/api/new' || url === '/api/net-sync') && playersError(body.white, body.black, url === '/api/net-sync' && body.watch === true)) throw new Error(playersError(body.white, body.black, url === '/api/net-sync' && body.watch === true));
     if (url === '/api/new') {
-      game = createGame(body.kind === 'chess' || body.kind === 'trid' ? body.kind : game.kind, { white: body.white, black: body.black, computer: body.computer });
+      game = createGame(knownKind(body.kind) || game.kind, { white: body.white, black: body.black, computer: body.computer });
       recentMoves.white = []; recentMoves.black = [];
     } else if (url === '/api/undo') {
       game = UNDO.undoGame(game, createGame);
@@ -190,7 +197,7 @@ async function post(url, body = {}) {
       if (game.players[game.turn] !== 'remote' || body.n !== game.history.length) return { error: 'out of sync', expected: game.history.length };
       game.move(body.from, body.to, body.promotion);
     } else if (url === '/api/net-sync') {
-      game = createGame(body.kind === 'chess' ? 'chess' : 'trid', { white: body.white, black: body.black });
+      game = createGame(knownKind(body.kind) || 'trid', { white: body.white, black: body.black });
       recentMoves.white = []; recentMoves.black = [];
       try { for (const m of body.moves || []) game.move(m.from, m.to, m.promotion); if (body.resigned && game.status === 'playing') game.resign(body.resigned); }
       catch (err) { publish(); return { error: err.message }; }
@@ -234,6 +241,7 @@ const { ${importNames(read('public/app.js'), '/engine.js')} } = ENG;
 import { Chess } from 'chess.js';
 const { buildPiece: buildTriDPiece, setPieceSets, getPieceSets } = ${asNamespace(piecesSrc)};
 const { ChessGame } = ${asNamespace(chess2dSrc)};
+const { ${importNames(read('public/app.js'), '/draughts.js')} } = ${asNamespace(draughtsSrc)};
 const { createRules } = ${asNamespace(read('public/rules.js'))};
 const { createTutorial } = ${asNamespace(read('public/tutorial.js'))};
 const { createChessView } = ${asNamespace(chessViewSrc)};

@@ -2,12 +2,15 @@
 // (reset, move, legal, resign, flag, snapshot, render, pos, kind) plus its rules text.
 import { Game as TriDGame, RULES_TEXT as TRID_RULES } from './engine.js';
 import { ChessGame, RULES_TEXT as CHESS_RULES } from './chess2d.js';
+import { DraughtsGame, DRAUGHTS_KINDS, isDraughts, RULES_TEXT as DRAUGHTS_RULES } from './draughts.js';
 
-export const KINDS = ['trid', 'chess'];
+export const KINDS = ['trid', 'chess', ...DRAUGHTS_KINDS];
 export const isKind = (k) => KINDS.includes(k);
 
 export function createGame(kind = 'trid', opts = {}) {
-  return kind === 'chess' ? new ChessGame(opts) : new TriDGame(opts);
+  if (kind === 'chess') return new ChessGame(opts);
+  if (isDraughts(kind)) return new DraughtsGame(kind, opts);
+  return new TriDGame(opts);
 }
 
-export const rulesText = (kind) => (kind === 'chess' ? CHESS_RULES : TRID_RULES);
+export const rulesText = (kind) => (kind === 'chess' ? CHESS_RULES : isDraughts(kind) ? DRAUGHTS_RULES : TRID_RULES);

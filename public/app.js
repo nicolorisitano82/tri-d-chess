@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildPiece as buildTriDPiece, setPieceSets, getPieceSets } from '/pieces.js';
 import { createChessView } from '/chess-view.js';
+import { DraughtsGame, isDraughts, VARIANTS } from '/draughts.js';
 import { ChessGame } from '/chess2d.js';
 import { createRules } from '/rules.js';
 import { createTutorial } from '/tutorial.js';
@@ -13,11 +14,28 @@ const H = 2.0; // vertical spacing per level unit
 const SQ = 1.0;
 const worldPos = (x, y, level) => new THREE.Vector3((x - 2.5) * SQ, LEVELS[level].height * H, -(y - 4.5) * SQ);
 const tridPos = (key) => { const s = parseSquare(key); return worldPos(s.x, s.y, s.level); };
-// game kinds: 'trid' (Star Trek 3D chess) and 'chess' (classic chess, medieval room)
+// game kinds: 'trid' (Star Trek 3D chess), 'chess' (classic chess) and the draughts variants
+// ('dama-it', 'dama-int', ...). Chess and draughts are played in the medieval room; each board
+// (chess, draughts 8x8, the Italian 8x8 turned board, draughts 10x10) is built on first use.
 let kind = 'trid';
-const chessView = createChessView();
-const posOfKey = (key) => (kind === 'chess' ? chessView.posOfKey(key) : tridPos(key));
-const buildPiece = (type, color) => (kind === 'chess' ? chessView.buildPiece(type, color) : buildTriDPiece(type, color));
+const ROOMS = {};
+let room = null; // the medieval room view in use, or null for the Tri-D scene
+const roomKey = (k) => (k === 'chess' ? 'chess' : isDraughts(k) ? (VARIANTS[k].size === 10 ? 'dama10' : VARIANTS[k].dark === 'even' ? 'dama8it' : 'dama8') : null);
+function roomFor(k) {
+  const rk = roomKey(k);
+  if (!rk) return null;
+  if (!ROOMS[rk]) {
+    const v = rk === 'chess' ? createChessView() : createChessView({ size: rk === 'dama10' ? 10 : 8, darkA1: rk !== 'dama8it', draughts: true });
+    scene.add(v.root);
+    for (const { mesh } of v.squares) pickables.push(mesh);
+    ROOMS[rk] = v;
+  }
+  return ROOMS[rk];
+}
+const posOfKey = (key) => (room ? room.posOfKey(key) : tridPos(key));
+const buildPiece = (type, color) => (room ? room.buildPiece(type, color) : buildTriDPiece(type, color));
+// a new, empty game of any kind (replays, local checks)
+const newLocalGame = (k) => (k === 'chess' ? new ChessGame({ white: 'human', black: 'human' }) : isDraughts(k) ? new DraughtsGame(k, { white: 'human', black: 'human' }) : new Game({ white: 'human', black: 'human' }));
 
 // --- renderer / scene ------------------------------------------------------------
 const container = document.getElementById('scene');
@@ -44,21 +62,23 @@ const VIEWS = {
     black: { pos: [-7, 11, -12], target: [-1.6, 2.2, 0] },
     side: { pos: [14, 4, 0], target: [-1.6, 2.2, 0] },
   },
-  chess: chessView.views,
 };
 let CAM_VIEWS = VIEWS.trid;
 let camIdx = 0;
 function setKind(k) {
   if (k === kind) return;
   kind = k;
-  const chess = k === 'chess';
-  tridRoot.visible = !chess;
-  chessView.root.visible = chess;
-  CAM_VIEWS = VIEWS[k];
-  const bg = chess ? chessView.background : 0x000006;
+  const next = roomFor(k);
+  for (const v of Object.values(ROOMS)) v.root.visible = v === next;
+  room = next;
+  tridRoot.visible = !room;
+  CAM_VIEWS = room ? room.views : VIEWS.trid;
+  // the boards share square names ("a1"...): the room in use owns them
+  if (room) for (const { key, mesh } of room.squares) squareMeshes.set(key, mesh);
+  const bg = room ? room.background : 0x000006;
   scene.background.setHex(bg);
   scene.fog.color.setHex(bg);
-  [scene.fog.near, scene.fog.far] = chess ? chessView.fog.slice(1) : [30, 90];
+  [scene.fog.near, scene.fog.far] = room ? room.fog.slice(1) : [30, 90];
   document.body.dataset.kind = k;
   pieceGroup.clear();
   pieceMeshes.clear();
@@ -73,10 +93,10 @@ function setView(name) {
 }
 setView('white');
 
-// everything specific to the Tri-D scene lives in tridRoot; the chess room in chessView.root
+// everything specific to the Tri-D scene lives in tridRoot; the medieval rooms in ROOMS
 const tridRoot = new THREE.Group();
 scene.add(tridRoot);
-scene.add(chessView.root);
+document.body.dataset.kind = 'trid';
 tridRoot.add(new THREE.HemisphereLight(0x8899ff, 0x110818, 0.9));
 const key = new THREE.DirectionalLight(0xffffff, 2.2);
 key.position.set(6, 14, 8);
@@ -203,8 +223,6 @@ function syncBoards() {
     levelGroups[pin].position.set(0, 0, 0);
   }
 }
-// classic chess squares share the maps (keys "a1".."h8" never clash with Tri-D keys)
-for (const { key, mesh } of chessView.squares) { squareMeshes.set(key, mesh); pickables.push(mesh); }
 // base plate
 {
   const base = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.0, 0.25, 48), metal);
@@ -290,14 +308,14 @@ $('setW').onchange = $('setB').onchange = () => {
 };
 
 // --- statistics panel -----------------------------------------------------------------
-const VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 0 };
-const GLYPH = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
+const VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 0, M: 1, D: 3 };
+const GLYPH = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟', M: '⛂', D: '⛃' };
 const glyph = (t) => GLYPH[t] + '\uFE0E';
 const fmtTime = (ms) => { if (ms == null || !isFinite(ms)) return '—'; const s = Math.round(ms / 1000); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 function statsFor(s, c) {
   const mine = s.history.filter((m) => m.color === c);
-  const caps = mine.filter((m) => m.captured).map((m) => m.captured).sort((x, y) => VAL[y] - VAL[x]);
+  const caps = mine.flatMap((m) => m.capturedAll || (m.captured ? [m.captured] : [])).sort((x, y) => VAL[y] - VAL[x]);
   const material = Object.values(s.pieces).filter((p) => p.color === c).reduce((t, p) => t + VAL[p.type], 0);
   const think = [];
   s.history.forEach((m, i) => { if (m.color === c && m.at) { const prev = i ? s.history[i - 1].at : s.startedAt; if (prev) think.push(m.at - prev); } });
@@ -473,7 +491,7 @@ function renderPanel() {
   let status;
   if (s.replay) status = t('replay.status', { i: s.replay.i, n: s.replay.n });
   else if (s.lesson && s.status === 'playing') status = t(s.turn === 'white' ? 'status.lesson' : 'status.lessonDone');
-  else if (s.status === 'checkmate') status = t('status.mate', { c: IT[s.winner] });
+  else if (s.status === 'checkmate') status = t(isDraughts(kindOf(s)) ? 'status.blocked' : 'status.mate', { c: IT[s.winner] });
   else if (s.status === 'stalemate') status = t('status.stalemate');
   else if (s.status === 'draw') status = t('status.draw', { r: DRAW_IT[s.drawReason || 'fifty'] });
   else if (s.status === 'resigned') status = t('status.resigned', { c: IT[s.winner] });
@@ -550,6 +568,7 @@ function onLive(s) {
 }
 const PUBLIC_DEMO = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
 const CHESS_MOVE_RE = /^([a-h][1-8])-([a-h][1-8])(?:=([QRBN]))?$/;
+const DRAUGHTS_MOVE_RE = /^([a-j](?:10|[1-9]))-([a-j](?:10|[1-9]))(?:=([a-j0-9x]{4,120}))?$/;
 const MOVE_RE = /^([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])-([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])(?:=([QRBN]))?$/;
 const b64url = (s) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64url = (s) => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
@@ -559,13 +578,13 @@ function decodeGame(code, k = 'trid') {
     if (!code || code.length > 30000) return null;
     const parts = unb64url(code).split('.').filter(Boolean);
     if (!parts.length || parts.length > 2000) return null;
-    const re = k === 'chess' ? CHESS_MOVE_RE : MOVE_RE;
+    const re = k === 'chess' ? CHESS_MOVE_RE : isDraughts(k) ? DRAUGHTS_MOVE_RE : MOVE_RE;
     const moves = parts.map((p) => { const m = re.exec(p); return m && { from: m[1], to: m[2], promotion: m[3] || null }; });
     return moves.every(Boolean) ? moves : null;
   } catch { return null; }
 }
 function replayState(moves, i) {
-  const g = replay?.kind === 'chess' ? new ChessGame({ white: 'human', black: 'human' }) : new Game({ white: 'human', black: 'human' });
+  const g = newLocalGame(replay?.kind || 'trid');
   g.id = 'replay';
   let k = 0;
   for (; k < i; k++) { try { g.move(moves[k].from, moves[k].to, moves[k].promotion); } catch { break; } }
@@ -603,7 +622,8 @@ function closeReplay() {
   quietVictory = true;
   if (live) applyState(live);
 }
-const movesOfState = (s) => s.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || null }));
+// draughts captures carry their route in `promotion` ("c3xe5xg7"), so every move list replays exactly
+const movesOfState = (s) => s.history.map((h) => ({ from: h.from, to: h.to, promotion: h.promotion || (h.path && h.path.length > 2 ? h.path.join('x') : null) }));
 $('btnReplay').onclick = () => live && startReplay(movesOfState(live), kindOf(live));
 $('vReplay').onclick = () => live && startReplay(movesOfState(live), kindOf(live));
 $('rpFirst').onclick = () => stepReplay(0);
@@ -613,7 +633,7 @@ $('rpLast').onclick = () => stepReplay(Infinity);
 $('rpClose').onclick = closeReplay;
 $('rpShare').onclick = () => {
   if (!replay) return;
-  const url = `${PUBLIC_DEMO}?replay=${encodeGame(replay.moves)}${replay.kind === 'chess' ? '&game=chess' : ''}`;
+  const url = `${PUBLIC_DEMO}?replay=${encodeGame(replay.moves)}${replay.kind !== 'trid' ? '&game=' + replay.kind : ''}`;
   navigator.clipboard?.writeText(url).then(() => toast(t('replay.copied')), () => {});
 };
 window.addEventListener('keydown', (e) => {
@@ -626,7 +646,8 @@ window.addEventListener('keydown', (e) => {
 });
 {
   const qs = new URLSearchParams(location.search);
-  const code = qs.get('replay'), k = qs.get('game') === 'chess' ? 'chess' : 'trid';
+  const g = qs.get('game'), k = g === 'chess' || isDraughts(g) ? g : 'trid';
+  const code = qs.get('replay');
   if (code) { const m = decodeGame(code, k); if (m) replayFromUrl = { moves: m, k }; else setTimeout(() => toast(t('replay.bad')), 500); }
 }
 
@@ -646,10 +667,10 @@ tutorial = createTutorial({
   show: (s) => applyState({ ...s, lesson: true }),
   restore: () => { selected = null; quietVictory = true; if (live) applyState(live); },
 });
-$('btnRules').onclick = () => rules.open(kind);
+$('btnRules').onclick = () => rules.open(isDraughts(kind) ? 'dama' : kind);
 {
   const r = new URLSearchParams(location.search).get('rules');
-  if (r !== null) rules.open(r === 'chess' ? 'chess' : r === 'trid' ? 'trid' : kind);
+  if (r !== null) rules.open(r === 'chess' || r === 'trid' || r === 'dama' ? r : isDraughts(r) ? 'dama' : null);
   else if (new URLSearchParams(location.search).has('tutorial')) setTimeout(() => openTutorial(0), 600);
 }
 
@@ -683,7 +704,7 @@ function victoryText(s) {
     const w = s.winner, st = statsFor(s, w);
     $('vEyebrow').textContent = t('victory.glory', { c: IT[w] });
     $('vTitle').textContent = t('victory.win');
-    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? 'victory.byMate' : s.status === 'timeout' ? 'victory.byTime' : 'victory.byResign'), n });
+    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? (isDraughts(kindOf(s)) ? 'victory.byBlock' : 'victory.byMate') : s.status === 'timeout' ? 'victory.byTime' : 'victory.byResign'), n });
     $('vMeta').textContent = t('victory.meta', { caps: st.caps.length, checks: st.checks, mat: st.material });
   }
 }
@@ -937,7 +958,7 @@ window.addEventListener('resize', () => {
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const t = clock.getElapsedTime();
-  if (kind === 'chess') chessView.update(t);
+  if (room) room.update(t);
   else scene.getObjectByName('stars').rotation.y = t * 0.004;
   ringMove.opacity = 0.6 + 0.3 * Math.sin(t * 4);
   if (anim) {
@@ -963,6 +984,7 @@ renderer.setAnimationLoop(() => {
 
 // --- hooks for optional modules (network play, net.js) ---------------------------------
 window.TriD = Object.assign(window.TriD || {}, { getState: () => live || state, post, toast, t, onLangChange, listeners: window.TriD?.listeners || [],
+  kinds: ['trid', 'chess', ...Object.keys(VARIANTS)],
   // players' nicknames in a network game (set by net.js); empty outside rooms
   names: { white: '', black: '' },
   setNames(n) { window.TriD.names = { white: n?.white || '', black: n?.black || '' }; if (state) renderPanel(); },
@@ -977,7 +999,8 @@ function describeMove(m) {
   let txt = m.board ? t('a11y.boardMoved', { c, f: m.from, t: m.to })
     : m.castle ? t('a11y.castled', { c, s: t(m.castle === 'K' ? 'a11y.short' : 'a11y.long') })
     : t('a11y.moved', { c, p: pieceName(m.piece), f: m.from, t: m.to });
-  if (m.captured) txt += t('a11y.capture', { p: pieceName(m.captured) });
+  if (m.capturedAll?.length > 1) txt += t('a11y.captureN', { n: m.capturedAll.length });
+  else if (m.captured) txt += t('a11y.capture', { p: pieceName(m.captured) });
   if (m.promotion) txt += t('a11y.promo', { p: pieceName(m.promotion) });
   if (m.check) txt += t('a11y.check');
   return txt + '.';
@@ -1018,7 +1041,7 @@ $('btnDescribe').onclick = () => {
 };
 // "b2w" -> "b2W", "ql1" -> "QL1", "E4" -> "e4"
 function normSquare(x) {
-  const m = /^([a-hz])([0-9])(w|n|b|[qk]l[1-6])?$/i.exec(x);
+  const m = /^([a-jz])(10|[0-9])(w|n|b|[qk]l[1-6])?$/i.exec(x);
   if (m) return m[1].toLowerCase() + m[2] + (m[3] ? m[3].toUpperCase() : '');
   if (/^[qk]l[1-6]$/i.test(x)) return x.toUpperCase();
   return null;
@@ -1027,7 +1050,7 @@ function normSquare(x) {
 function parseMoveText(txt) {
   const raw = txt.trim();
   if (/^[0o]-[0o](-[0o])?$/i.test(raw)) return { castle: /-[0o]-/i.test(raw) ? 'Q' : 'K' };
-  const tok = raw.replace(/[-x>→,=]/gi, (c) => (c.toLowerCase() === 'x' ? ' ' : ' ')).trim().split(/\s+/).filter(Boolean);
+  const tok = raw.replace(/[-x>→,=:]/gi, (c) => (c.toLowerCase() === 'x' ? ' ' : ' ')).trim().split(/\s+/).filter(Boolean);
   let promotion = null;
   if (tok.length === 3 && /^[qrbn]$/i.test(tok[2])) promotion = tok.pop().toUpperCase();
   const pair = (a, b) => {
@@ -1039,6 +1062,7 @@ function parseMoveText(txt) {
     return null;
   };
   if (tok.length === 2) return pair(tok[0], tok[1]);
+  if (tok.length > 2 && !promotion) return pair(tok[0], tok[tok.length - 1]); // a draughts route: start ... end
   if (tok.length !== 1) return null;
   const one = tok[0];
   if (normSquare(one)) return { from: one && normSquare(one) };

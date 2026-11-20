@@ -6,7 +6,7 @@ import { Worker } from 'node:worker_threads';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
-import { createGame, isKind, rulesText } from './src/games.js';
+import { createGame, isKind, rulesText, KINDS } from './src/games.js';
 import { undoGame, isLocalGame } from './src/undo.js';
 import { LEVELS as AI_LEVELS, STYLES as AI_STYLES } from './src/ai.js';
 
@@ -14,9 +14,9 @@ const PORT = Number(process.env.PORT || 47321);
 const HOST = process.env.HOST || '127.0.0.1';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// The game being played; its kind ('trid' | 'chess') is chosen when a new game starts.
+// The game being played; its kind ('trid' | 'chess' | 'dama-*') is chosen when a new game starts.
 let game = createGame('trid', { white: 'human', black: 'ai' });
-const KIND_NAMES = { trid: 'Tri-D chess (Meder rules)', chess: 'classic chess' };
+const KIND_NAMES = { trid: 'Tri-D chess (Meder rules)', chess: 'classic chess', 'dama-it': 'Italian draughts', 'dama-int': 'international draughts (10x10)', 'dama-en': 'English draughts (checkers)', 'dama-ru': 'Russian draughts', 'dama-br': 'Brazilian draughts' };
 const bus = new EventEmitter();
 bus.setMaxListeners(100);
 const changed = () => { bus.emit('change', game.snapshot()); scheduleComputer(); };
@@ -85,6 +85,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/engine.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/engine.js')));
 app.get('/chess2d.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/chess2d.js')));
+app.get('/draughts.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/draughts.js')));
 
 // --- REST API for the 3D UI --------------------------------------------------
 
@@ -115,7 +116,7 @@ app.post('/api/move', (req, res) => {
 
 app.post('/api/new', (req, res) => {
   const { white = 'human', black = 'ai', computer = {}, kind = game.kind } = req.body || {};
-  if (!isKind(kind)) return res.status(400).json({ error: 'kind must be "trid" or "chess"' });
+  if (!isKind(kind)) return res.status(400).json({ error: `kind must be one of ${KINDS.join(', ')}` });
   const perr = playersError(white, black);
   if (perr) return res.status(409).json({ error: perr });
   const cfg = {};
@@ -332,7 +333,7 @@ function buildMcp(urlColor = null) {
       white_style: z.enum(['balanced', 'aggressive', 'cautious']).default('balanced').describe('White built-in computer style'),
       black_level: z.number().int().min(1).max(5).default(3).describe('Black built-in computer strength: 1 beginner .. 5 master'),
       black_style: z.enum(['balanced', 'aggressive', 'cautious']).default('balanced').describe('Black built-in computer style'),
-      kind: z.enum(['trid', 'chess']).optional().describe('Which game: "trid" (3D chess, Meder rules) or "chess" (classic chess). Default: the current one'),
+      kind: z.enum(KINDS).optional().describe('Which game: "trid" (3D chess, Meder rules), "chess" (classic chess), or draughts: "dama-it" (Italian), "dama-int" (international 10x10), "dama-en" (English checkers), "dama-ru" (Russian), "dama-br" (Brazilian). Default: the current one'),
     },
   }, async ({ white, black, white_level, white_style, black_level, black_style, kind }) => {
     if (netRoom || Object.values(game.players).includes('remote') && game.status === 'playing')
