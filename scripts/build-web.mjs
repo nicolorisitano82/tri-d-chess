@@ -214,7 +214,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const ENG = ${asNamespace(engineSrc)};
 const { ${importNames(read('public/app.js'), '/engine.js')} } = ENG;
 import { Chess } from 'chess.js';
-const { buildPiece: buildTriDPiece } = ${asNamespace(piecesSrc)};
+const { buildPiece: buildTriDPiece, setPieceSets, getPieceSets } = ${asNamespace(piecesSrc)};
 const { ChessGame } = ${asNamespace(chess2dSrc)};
 const { createChessView } = ${asNamespace(chessViewSrc)};
 const { ${importNames(read('public/app.js'), '/i18n.js')} } = ${asNamespace(i18nSrc)};

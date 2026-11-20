@@ -49,6 +49,8 @@
     #hover { position: fixed; right: 16px; bottom: 16px; background: rgba(10,8,20,.78); border-right: 14px solid var(--orange); border-radius: 10px 0 0 10px; padding: 8px 12px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; min-width: 120px; text-align: right; }
     #toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--red); color: #000; font-weight: 700; padding: 8px 18px; border-radius: 16px; opacity: 0; transition: opacity .3s; pointer-events: none; }
     #toast.show { opacity: 1; }
+    .sets { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; align-items: center; }
+    body[data-kind="chess"] .tridonly { display: none; }
     .cpu { grid-column: 1 / -1; display: grid; grid-template-columns: 1.2fr 1fr; gap: 6px; margin: -2px 0 4px; padding-left: 10px; border-left: 2px solid var(--sky); }
     .cpu[hidden] { display: none; }
     #dragbar { display: none; }
@@ -255,6 +257,11 @@
       <div class="grid2">
         <label for="gameKind" data-i18n="ui.game">Gioco</label>
         <select id="gameKind"><option value="trid" data-i18n="game.trid">Scacchi 3D (Tri-D)</option><option value="chess" data-i18n="game.chess">Scacchi classici</option></select>
+        <div class="sets tridonly">
+          <label for="setW" data-i18n="ui.pieces">Pezzi</label>
+          <select id="setW" data-i18n-aria="ui.setW"><option value="federation" data-i18n="set.federation">Federazione</option><option value="klingon" data-i18n="set.klingon">Klingon</option><option value="borg" data-i18n="set.borg">Borg</option><option value="romulan" data-i18n="set.romulan">Romulani</option></select>
+          <select id="setB" data-i18n-aria="ui.setB"><option value="federation" data-i18n="set.federation">Federazione</option><option value="klingon" selected data-i18n="set.klingon">Klingon</option><option value="borg" data-i18n="set.borg">Borg</option><option value="romulan" data-i18n="set.romulan">Romulani</option></select>
+        </div>
         <label for="selW" data-i18n="name.white">Bianco</label>
         <select id="selW"><option value="human" data-i18n="name.human">Umano</option><option value="ai" data-i18n="opt.ai">AI (MCP)</option><option value="computer" data-i18n="name.computer">Computer</option><option value="remote" hidden data-i18n="name.remote">In rete</option></select>
         <div class="cpu" id="cpuW" hidden>

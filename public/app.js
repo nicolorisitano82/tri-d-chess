@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildPiece as buildTriDPiece } from '/pieces.js';
+import { buildPiece as buildTriDPiece, setPieceSets, getPieceSets } from '/pieces.js';
 import { createChessView } from '/chess-view.js';
 import { ChessGame } from '/chess2d.js';
 import { t, table, getLang, setLang, applyStatic, onLangChange } from '/i18n.js';
@@ -274,6 +274,16 @@ $('gameKind').onchange = () => {
   post('/api/new', newGameBody());
 };
 syncLevel();
+
+// piece sets for Tri-D (cosmetic, local only: each player sees their own choice)
+try { setPieceSets(JSON.parse(localStorage.getItem('tridchess.sets') || '{}')); } catch {}
+$('setW').value = getPieceSets().white;
+$('setB').value = getPieceSets().black;
+$('setW').onchange = $('setB').onchange = () => {
+  setPieceSets({ white: $('setW').value, black: $('setB').value });
+  try { localStorage.setItem('tridchess.sets', JSON.stringify(getPieceSets())); } catch {}
+  if (state && kind === 'trid') renderPieces(null);
+};
 
 // --- statistics panel -----------------------------------------------------------------
 const VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 0 };

@@ -80,6 +80,8 @@
     #hover { position: fixed; right: 16px; bottom: 16px; background: rgba(10,8,20,.78); border-right: 14px solid var(--orange); border-radius: 10px 0 0 10px; padding: 8px 12px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; min-width: 120px; text-align: right; }
     #toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--red); color: #000; font-weight: 700; padding: 8px 18px; border-radius: 16px; opacity: 0; transition: opacity .3s; pointer-events: none; }
     #toast.show { opacity: 1; }
+    .sets { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; align-items: center; }
+    body[data-kind="chess"] .tridonly { display: none; }
     .cpu { grid-column: 1 / -1; display: grid; grid-template-columns: 1.2fr 1fr; gap: 6px; margin: -2px 0 4px; padding-left: 10px; border-left: 2px solid var(--sky); }
     .cpu[hidden] { display: none; }
     #dragbar { display: none; }
@@ -324,6 +326,11 @@
       <div class="grid2">
         <label for="gameKind" data-i18n="ui.game">Gioco</label>
         <select id="gameKind"><option value="trid" data-i18n="game.trid">Scacchi 3D (Tri-D)</option><option value="chess" data-i18n="game.chess">Scacchi classici</option></select>
+        <div class="sets tridonly">
+          <label for="setW" data-i18n="ui.pieces">Pezzi</label>
+          <select id="setW" data-i18n-aria="ui.setW"><option value="federation" data-i18n="set.federation">Federazione</option><option value="klingon" data-i18n="set.klingon">Klingon</option><option value="borg" data-i18n="set.borg">Borg</option><option value="romulan" data-i18n="set.romulan">Romulani</option></select>
+          <select id="setB" data-i18n-aria="ui.setB"><option value="federation" data-i18n="set.federation">Federazione</option><option value="klingon" selected data-i18n="set.klingon">Klingon</option><option value="borg" data-i18n="set.borg">Borg</option><option value="romulan" data-i18n="set.romulan">Romulani</option></select>
+        </div>
         <label for="selW" data-i18n="name.white">Bianco</label>
         <select id="selW"><option value="human" data-i18n="name.human">Umano</option><option value="computer" data-i18n="name.computer">Computer</option><option value="remote" hidden data-i18n="name.remote">In rete</option></select>
         <div class="cpu" id="cpuW" hidden>
@@ -1133,11 +1140,13 @@ return { FILES, MAIN_LEVELS, PINS, LEVELS, LEVEL_NAMES, PIECE_NAMES, PROMOTION_P
 })();
 const { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseSquare, PIECE_NAMES, Game } = ENG;
 import { Chess } from 'chess.js';
-const { buildPiece: buildTriDPiece } = (() => {
+const { buildPiece: buildTriDPiece, setPieceSets, getPieceSets } = (() => {
 
-// Faction-styled piece sets.
-//   white → "Federation": smooth pearl hulls, silver trim, blue running lights.
-//   black → "Klingon": faceted dark metal, bronze blades, red glow.
+// Faction-styled piece sets, chosen per side (default: White Federation, Black Klingon).
+//   "Federation": smooth pearl hulls, silver trim, blue running lights.
+//   "Klingon": faceted dark metal, bronze blades, red glow.
+//   "Borg": cubic dark machinery, greebles, green glow.
+//   "Romulan": green avian hulls, double wings, teal glow.
 // Original designs inspired by the factions — no official insignia.
 
 
@@ -1298,15 +1307,171 @@ const KLINGON = {
   },
 };
 
+// --------------------------------------------------------------------- Borg ---
+const BORG = {
+  metal: new THREE.MeshStandardMaterial({ color: 0x8a9094, metalness: 0.55, roughness: 0.4, emissive: 0x0c120e, flatShading: true }),
+  dark: new THREE.MeshStandardMaterial({ color: 0x4a4f52, metalness: 0.5, roughness: 0.55, flatShading: true }),
+  glow: new THREE.MeshStandardMaterial({ color: 0x55ff77, emissive: 0x22ff55, emissiveIntensity: 1.8 }),
+};
+// deterministic greebles: small boxes scattered on the faces of a w×h×w block centred at y
+function greebles(g, w, h, y, n, seed) {
+  let x = seed * 9301 + 49297;
+  const rnd = () => ((x = (x * 9301 + 49297) % 233280) / 233280);
+  for (let i = 0; i < n; i++) {
+    const face = Math.floor(rnd() * 4), a = (face * Math.PI) / 2;
+    const u = (rnd() - 0.5) * w * 0.8, v = (rnd() - 0.5) * h * 0.85;
+    const sz = 0.02 + rnd() * 0.035, glow = rnd() < 0.25;
+    const m = add(g, new THREE.BoxGeometry(sz, sz * (glow ? 0.5 : 1 + rnd()), 0.02), glow ? BORG.glow : BORG.dark,
+      [Math.cos(a) * u + Math.sin(a) * (w / 2 + 0.008), y + v, -Math.sin(a) * u + Math.cos(a) * (w / 2 + 0.008)]);
+    m.rotation.y = a;
+  }
+}
+function borgBase(g) {
+  add(g, new THREE.BoxGeometry(0.52, 0.07, 0.52), BORG.dark, [0, 0.035, 0]);
+  add(g, new THREE.BoxGeometry(0.44, 0.03, 0.44), BORG.metal, [0, 0.085, 0]);
+  for (const [x, z] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) add(g, new THREE.BoxGeometry(x ? 0.012 : 0.4, 0.012, z ? 0.012 : 0.4), BORG.glow, [x * 0.225, 0.075, z * 0.225]);
+}
+const BORG_SET = {
+  P(g) { // drone
+    borgBase(g);
+    add(g, new THREE.BoxGeometry(0.2, 0.26, 0.2), BORG.metal, [0, 0.23, 0]);
+    greebles(g, 0.2, 0.26, 0.23, 8, 1);
+    add(g, new THREE.BoxGeometry(0.15, 0.13, 0.15), BORG.metal, [0, 0.43, 0]);
+    add(g, new THREE.BoxGeometry(0.05, 0.025, 0.02), BORG.glow, [0.03, 0.45, -0.08]);
+  },
+  R(g) { // tower of stacked cubes
+    borgBase(g);
+    for (const [s, y] of [[0.3, 0.2], [0.26, 0.4], [0.3, 0.58]]) { add(g, new THREE.BoxGeometry(s, 0.17, s), BORG.metal, [0, y, 0]); greebles(g, s, 0.17, y, 6, y * 10); }
+    add(g, new THREE.BoxGeometry(0.2, 0.012, 0.31), BORG.glow, [0, 0.49, 0]);
+    add(g, new THREE.BoxGeometry(0.31, 0.012, 0.2), BORG.glow, [0, 0.49, 0]);
+  },
+  B(g) { // tactical diamond
+    borgBase(g);
+    add(g, new THREE.BoxGeometry(0.08, 0.3, 0.08), BORG.dark, [0, 0.24, 0]);
+    add(g, new THREE.OctahedronGeometry(0.2), BORG.metal, [0, 0.58, 0], [0, Math.PI / 4, 0], [0.8, 1.3, 0.8]);
+    add(g, new THREE.OctahedronGeometry(0.06), BORG.glow, [0, 0.58, 0], [0, Math.PI / 4, 0], [1, 1.3, 1]);
+    for (const s of [-1, 1]) add(g, new THREE.BoxGeometry(0.02, 0.3, 0.02), BORG.glow, [s * 0.11, 0.58, 0], [0, 0, s * 0.35]);
+  },
+  N(g) { // probe on an arm
+    borgBase(g);
+    add(g, new THREE.BoxGeometry(0.1, 0.34, 0.1), BORG.metal, [0, 0.26, 0.05]);
+    add(g, new THREE.BoxGeometry(0.08, 0.08, 0.3), BORG.dark, [0, 0.45, -0.06], [0.3, 0, 0]);
+    add(g, new THREE.BoxGeometry(0.2, 0.16, 0.2), BORG.metal, [0, 0.52, -0.2], [0.3, 0, 0]);
+    greebles(g, 0.2, 0.14, 0.52, 5, 7);
+    add(g, new THREE.SphereGeometry(0.03, 10, 8), BORG.glow, [0, 0.5, -0.31]);
+    add(g, new THREE.CylinderGeometry(0.008, 0.008, 0.25, 6), BORG.glow, [0.06, 0.62, -0.05], [0.9, 0, 0]);
+  },
+  Q(g) { // sphere ship
+    borgBase(g);
+    add(g, new THREE.CylinderGeometry(0.05, 0.08, 0.36, 4), BORG.dark, [0, 0.26, 0], [0, Math.PI / 4, 0]);
+    add(g, new THREE.IcosahedronGeometry(0.21, 1), BORG.metal, [0, 0.6, 0]);
+    add(g, new THREE.TorusGeometry(0.215, 0.008, 4, 32), BORG.glow, [0, 0.6, 0], [Math.PI / 2, 0, 0]);
+    add(g, new THREE.TorusGeometry(0.215, 0.008, 4, 32), BORG.glow, [0, 0.6, 0]);
+    add(g, new THREE.TorusGeometry(0.215, 0.008, 4, 32), BORG.glow, [0, 0.6, 0], [0, Math.PI / 2, 0]);
+  },
+  K(g) { // the cube
+    borgBase(g);
+    add(g, new THREE.BoxGeometry(0.12, 0.2, 0.12), BORG.dark, [0, 0.19, 0]);
+    add(g, new THREE.BoxGeometry(0.36, 0.36, 0.36), BORG.metal, [0, 0.47, 0]);
+    greebles(g, 0.36, 0.36, 0.47, 22, 3);
+    for (const y of [0.36, 0.47, 0.58]) add(g, new THREE.BoxGeometry(0.368, 0.012, 0.368), BORG.glow, [0, y, 0]);
+    add(g, new THREE.BoxGeometry(0.14, 0.14, 0.14), BORG.metal, [0, 0.72, 0], [Math.PI / 4, Math.PI / 4, 0]);
+    add(g, new THREE.OctahedronGeometry(0.04), BORG.glow, [0, 0.84, 0]);
+  },
+};
+
+// ------------------------------------------------------------------ Romulan ---
+const ROM = {
+  hull: new THREE.MeshStandardMaterial({ color: 0x4f8a6a, metalness: 0.5, roughness: 0.3, emissive: 0x06140c }),
+  dark: new THREE.MeshStandardMaterial({ color: 0x24443a, metalness: 0.55, roughness: 0.35 }),
+  glow: new THREE.MeshStandardMaterial({ color: 0x66ffd8, emissive: 0x20f0c0, emissiveIntensity: 1.8 }),
+};
+function romBase(g) {
+  add(g, lathe([[0, 0], [0.31, 0], [0.29, 0.04], [0.22, 0.08], [0, 0.08]], 8), ROM.dark, [0, 0, 0], [0, Math.PI / 8, 0]);
+  add(g, new THREE.TorusGeometry(0.235, 0.012, 4, 8), ROM.glow, [0, 0.085, 0], [Math.PI / 2, 0, Math.PI / 8]);
+}
+// a swept wing: thin box, bent at the tip
+function wing(g, s, y, z, len, tilt, mat = ROM.hull) {
+  add(g, new THREE.BoxGeometry(len, 0.022, 0.16), mat, [s * len / 2, y, z], [0, s * 0.25, s * tilt]);
+  add(g, new THREE.BoxGeometry(len * 0.9, 0.012, 0.02), ROM.glow, [s * len / 2, y + 0.005, z - 0.075], [0, s * 0.25, s * tilt]);
+}
+const ROMULAN = {
+  P(g) { // sentinel
+    romBase(g);
+    add(g, lathe([[0, 0.08], [0.15, 0.08], [0.08, 0.32], [0, 0.34]], 8), ROM.hull);
+    add(g, new THREE.ConeGeometry(0.08, 0.2, 6), ROM.hull, [0, 0.42, -0.03], [-0.3, 0, 0]);
+    add(g, new THREE.BoxGeometry(0.1, 0.02, 0.02), ROM.glow, [0, 0.4, -0.09]);
+  },
+  R(g) { // twin pylon gate
+    romBase(g);
+    for (const s of [-1, 1]) add(g, new THREE.CylinderGeometry(0.06, 0.09, 0.5, 6), ROM.hull, [s * 0.12, 0.33, 0]);
+    add(g, new THREE.BoxGeometry(0.38, 0.06, 0.16), ROM.dark, [0, 0.6, 0]);
+    add(g, new THREE.TorusGeometry(0.1, 0.014, 6, 24, Math.PI), ROM.glow, [0, 0.42, 0]);
+    for (const s of [-1, 1]) add(g, new THREE.ConeGeometry(0.035, 0.14, 4), ROM.hull, [s * 0.17, 0.68, 0], [0, 0, s * -0.4]);
+  },
+  B(g) { // feather blade
+    romBase(g);
+    add(g, new THREE.CylinderGeometry(0.06, 0.1, 0.2, 6), ROM.dark, [0, 0.18, 0]);
+    add(g, new THREE.SphereGeometry(0.15, 20, 14), ROM.hull, [0, 0.52, 0], [0, 0, 0], [0.45, 1.7, 0.75]);
+    add(g, new THREE.BoxGeometry(0.012, 0.42, 0.02), ROM.glow, [0, 0.52, -0.11]);
+    add(g, new THREE.ConeGeometry(0.03, 0.12, 6), ROM.glow, [0, 0.8, 0]);
+  },
+  N(g) { // raptor head
+    romBase(g);
+    add(g, new THREE.CylinderGeometry(0.08, 0.14, 0.3, 6), ROM.hull, [0, 0.23, 0]);
+    add(g, new THREE.SphereGeometry(0.13, 16, 12), ROM.hull, [0, 0.5, 0.02], [0, 0, 0], [0.8, 0.9, 1.1]);
+    add(g, new THREE.ConeGeometry(0.06, 0.22, 6), ROM.dark, [0, 0.46, -0.2], [-Math.PI / 2 - 0.5, 0, 0]);
+    add(g, new THREE.ConeGeometry(0.05, 0.26, 4), ROM.hull, [0, 0.64, 0.14], [0.9, 0, 0]);
+    for (const s of [-1, 1]) add(g, new THREE.SphereGeometry(0.02, 8, 6), ROM.glow, [s * 0.065, 0.54, -0.08]);
+  },
+  Q(g) { // warbird: double wings around a glowing core
+    romBase(g);
+    add(g, new THREE.CylinderGeometry(0.04, 0.09, 0.36, 6), ROM.dark, [0, 0.26, 0]);
+    add(g, new THREE.SphereGeometry(0.07, 16, 12), ROM.glow, [0, 0.58, 0.04]);
+    add(g, new THREE.ConeGeometry(0.06, 0.3, 6), ROM.hull, [0, 0.58, -0.17], [-Math.PI / 2, 0, 0]);
+    for (const s of [-1, 1]) { wing(g, s, 0.68, 0.06, 0.34, -0.35); wing(g, s, 0.48, 0.06, 0.34, 0.35); }
+    for (const s of [-1, 1]) add(g, new THREE.BoxGeometry(0.03, 0.25, 0.1), ROM.hull, [s * 0.32, 0.58, 0.06]);
+  },
+  K(g) { // praetor spire with wing crest
+    romBase(g);
+    add(g, lathe([[0, 0.08], [0.18, 0.08], [0.1, 0.4], [0.13, 0.6], [0.06, 0.72], [0, 0.74]], 8), ROM.hull);
+    add(g, new THREE.TorusGeometry(0.115, 0.012, 4, 8), ROM.glow, [0, 0.42, 0], [Math.PI / 2, 0, Math.PI / 8]);
+    for (const s of [-1, 1]) wing(g, s, 0.66, 0.02, 0.22, -0.7, ROM.dark);
+    add(g, new THREE.OctahedronGeometry(0.06), ROM.glow, [0, 0.82, 0], [0, 0, 0], [1, 1.6, 1]);
+  },
+};
+
+const PIECE_SETS = { federation: FEDERATION, klingon: KLINGON, borg: BORG_SET, romulan: ROMULAN };
+const SET_IDS = Object.keys(PIECE_SETS);
+const sets = { white: 'federation', black: 'klingon' };
+const getPieceSets = () => ({ ...sets });
+function setPieceSets(next = {}) {
+  for (const c of ['white', 'black']) if (PIECE_SETS[next[c]]) sets[c] = next[c];
+}
+
+// Both sides on the same set: Black gets a darkened hull and complementary glow, so the
+// two armies stay distinguishable.
+const altCache = new Map();
+function altMaterial(m) {
+  if (!altCache.has(m)) {
+    const c = m.clone();
+    if ((c.emissiveIntensity ?? 1) > 1.2) { c.color.offsetHSL(0.5, 0, 0); c.emissive.offsetHSL(0.5, 0, 0); }
+    else { c.color.multiplyScalar(0.38); c.emissive.multiplyScalar(0.3); }
+    altCache.set(m, c);
+  }
+  return altCache.get(m);
+}
+
 function buildPiece(type, color) {
   const g = new THREE.Group();
-  (color === 'white' ? FEDERATION : KLINGON)[type](g);
+  PIECE_SETS[sets[color]][type](g);
+  if (color === 'black' && sets.white === sets.black) g.traverse((o) => { if (o.material) o.material = altMaterial(o.material); });
   if (color === 'black') g.rotation.y = Math.PI; // face the opponent
   g.scale.setScalar(0.85);
   return g;
 }
 
-return { buildPiece };
+return { PIECE_SETS, SET_IDS, getPieceSets, setPieceSets, buildPiece };
 })();
 const { ChessGame } = (() => {
 
@@ -1772,6 +1937,7 @@ const STRINGS = {
     'status.computer': 'Il computer pensa ({c})…', 'status.remote': "Mossa dell'avversario in rete ({c})…",
     'status.ai': "In attesa dell'AI ({c})…", 'status.you': 'Tocca a te ({c}) · {n} mosse',
 
+    'ui.pieces': 'Pezzi', 'ui.setW': 'Pezzi del Bianco', 'ui.setB': 'Pezzi del Nero', 'set.federation': 'Federazione', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulani',
     'ui.game': 'Gioco', 'game.trid': 'Scacchi 3D (Tri-D)', 'game.chess': 'Scacchi classici', 'ui.switchConfirm': 'Cambiare gioco? La partita in corso verrà chiusa.',
     'ui.turn': 'Turno', 'ui.log': 'Registro mosse', 'ui.newGame': 'Nuova partita', 'ui.resign': 'Abbandona',
     'ui.confirm': 'Conferma?', 'ui.view': 'Vista', 'ui.stats': 'Statistiche', 'ui.statsHide': 'Nascondi (S)',
@@ -1849,6 +2015,7 @@ const STRINGS = {
     'status.computer': 'Computer thinking ({c})…', 'status.remote': 'Waiting for the online opponent ({c})…',
     'status.ai': 'Waiting for the AI ({c})…', 'status.you': 'Your move ({c}) · {n} moves',
 
+    'ui.pieces': 'Pieces', 'ui.setW': 'White pieces', 'ui.setB': 'Black pieces', 'set.federation': 'Federation', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulan',
     'ui.game': 'Game', 'game.trid': '3D chess (Tri-D)', 'game.chess': 'Classic chess', 'ui.switchConfirm': 'Switch game? The current game will be closed.',
     'ui.turn': 'Turn', 'ui.log': 'Move log', 'ui.newGame': 'New game', 'ui.resign': 'Resign',
     'ui.confirm': 'Confirm?', 'ui.view': 'View', 'ui.stats': 'Stats', 'ui.statsHide': 'Hide (S)',
@@ -2235,6 +2402,16 @@ $('gameKind').onchange = () => {
   post('/api/new', newGameBody());
 };
 syncLevel();
+
+// piece sets for Tri-D (cosmetic, local only: each player sees their own choice)
+try { setPieceSets(JSON.parse(localStorage.getItem('tridchess.sets') || '{}')); } catch {}
+$('setW').value = getPieceSets().white;
+$('setB').value = getPieceSets().black;
+$('setW').onchange = $('setB').onchange = () => {
+  setPieceSets({ white: $('setW').value, black: $('setB').value });
+  try { localStorage.setItem('tridchess.sets', JSON.stringify(getPieceSets())); } catch {}
+  if (state && kind === 'trid') renderPieces(null);
+};
 
 // --- statistics panel -----------------------------------------------------------------
 const VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 0 };
