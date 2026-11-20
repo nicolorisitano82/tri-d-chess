@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildPiece as buildTriDPiece, setPieceSets, getPieceSets } from '/pieces.js';
 import { createChessView } from '/chess-view.js';
 import { ChessGame } from '/chess2d.js';
+import { createRules } from '/rules.js';
 import { t, table, getLang, setLang, applyStatic, onLangChange } from '/i18n.js';
 import { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseSquare, PIECE_NAMES, Game } from '/engine.js';
 
@@ -598,6 +599,14 @@ window.addEventListener('keydown', (e) => {
   const qs = new URLSearchParams(location.search);
   const code = qs.get('replay'), k = qs.get('game') === 'chess' ? 'chess' : 'trid';
   if (code) { const m = decodeGame(code, k); if (m) replayFromUrl = { moves: m, k }; else setTimeout(() => toast(t('replay.bad')), 500); }
+}
+
+// --- rules page ---------------------------------------------------------------------
+const rules = createRules({ getLang, onLangChange });
+$('btnRules').onclick = () => rules.open(kind);
+{
+  const r = new URLSearchParams(location.search).get('rules');
+  if (r !== null) rules.open(r === 'chess' ? 'chess' : r === 'trid' ? 'trid' : kind);
 }
 
 // --- victory celebration -------------------------------------------------------------

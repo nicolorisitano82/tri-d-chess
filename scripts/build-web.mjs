@@ -216,6 +216,7 @@ const { ${importNames(read('public/app.js'), '/engine.js')} } = ENG;
 import { Chess } from 'chess.js';
 const { buildPiece: buildTriDPiece, setPieceSets, getPieceSets } = ${asNamespace(piecesSrc)};
 const { ChessGame } = ${asNamespace(chess2dSrc)};
+const { createRules } = ${asNamespace(read('public/rules.js'))};
 const { createChessView } = ${asNamespace(chessViewSrc)};
 const { ${importNames(read('public/app.js'), '/i18n.js')} } = ${asNamespace(i18nSrc)};
 ${appSrc}`;
