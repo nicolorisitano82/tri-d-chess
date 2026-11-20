@@ -1,15 +1,16 @@
-// Computer player for classic chess: alpha-beta with iterative deepening, capture quiescence
-// and a time budget, on top of chess.js (make/undo). Same levels and styles as the Tri-D computer.
+// Computer player for classic chess: iterative-deepening alpha-beta (negamax) with a capture
+// search at the horizon, killer moves and a time budget, on top of chess.js (make/undo).
+// Same levels and styles as the Tri-D computer.
 import { Chess } from 'chess.js';
 import { STYLES } from './ai.js';
 
 // Experience levels for classic chess (branching is lower than Tri-D, so a little deeper).
 export const LEVELS_CHESS = {
   1: { depth: 1, qdepth: 0, noise: 220 },
-  2: { depth: 2, qdepth: 0, noise: 70 },
-  3: { depth: 2, qdepth: 3, noise: 20, budget: 1500 },
-  4: { depth: 3, qdepth: 4, noise: 8, budget: 2500 },
-  5: { depth: 4, qdepth: 4, noise: 2, budget: 3500 },
+  2: { depth: 2, qdepth: 2, noise: 70, budget: 1500 },
+  3: { depth: 3, qdepth: 4, noise: 20, budget: 2500 },
+  4: { depth: 3, qdepth: 6, noise: 8, budget: 3500 },
+  5: { depth: 4, qdepth: 6, noise: 0, budget: 5000 },
 };
 
 const V = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
@@ -22,9 +23,6 @@ const PST = {
   q: [-20, -10, -10, -5, -5, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 5, 5, 5, 5, 0, -10, -5, 0, 5, 5, 5, 5, 0, -5, 0, 0, 5, 5, 5, 5, 0, -5, -10, 5, 5, 5, 5, 5, 0, -10, -10, 0, 5, 0, 0, 0, 0, -10, -20, -10, -10, -5, -5, -10, -10, -20],
   k: [-30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -20, -30, -30, -40, -40, -30, -30, -20, -10, -20, -20, -20, -20, -20, -20, -10, 20, 20, 0, 0, 0, 0, 20, 20, 20, 30, 10, 0, 0, 10, 30, 20],
 };
-
-let deadline = Infinity;
-class Timeout extends Error {}
 
 function evaluate(chess, me, st) {
   const board = chess.board();
@@ -49,39 +47,60 @@ function evaluate(chess, me, st) {
   return s;
 }
 
-const order = (moves) => moves.sort((a, b) => (b.captured ? V[b.captured] * 10 - V[b.piece] : 0) + (b.promotion ? 800 : 0) - ((a.captured ? V[a.captured] * 10 - V[a.piece] : 0) + (a.promotion ? 800 : 0)));
-
-function quiesce(chess, me, qd, alpha, beta, st) {
-  if (performance.now() > deadline) throw new Timeout();
-  const stand = evaluate(chess, me, st);
-  if (qd === 0) return stand;
-  const maximizing = chess.turn() === me;
-  if (maximizing) { if (stand >= beta) return stand; alpha = Math.max(alpha, stand); }
-  else { if (stand <= alpha) return stand; beta = Math.min(beta, stand); }
-  let best = stand;
-  for (const m of order(chess.moves({ verbose: true }).filter((x) => x.captured || x.promotion))) {
-    chess.move(m);
-    const v = quiesce(chess, me, qd - 1, alpha, beta, st);
-    chess.undo();
-    if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, v); } else { best = Math.min(best, v); beta = Math.min(beta, v); }
-    if (alpha >= beta) break;
-  }
-  return best;
+// Move ordering: captures by MVV-LVA, promotions, then this ply's killer moves.
+const mkey = (m) => m.from + m.to;
+function order(moves, killers = null) {
+  for (const m of moves) m._s = (m.captured ? 10000 + V[m.captured] * 10 - V[m.piece] : 0) + (m.promotion ? 9000 : 0)
+    + (killers && !m.captured ? (killers[0] === mkey(m) ? 8000 : killers[1] === mkey(m) ? 7000 : 0) : 0);
+  return moves.sort((a, b) => b._s - a._s);
 }
 
-function search(chess, me, depth, alpha, beta, lv, st) {
-  if (performance.now() > deadline) throw new Timeout();
-  if (chess.isCheckmate()) return chess.turn() === me ? -1e6 - depth : 1e6 + depth;
-  if (chess.isStalemate() || chess.isInsufficientMaterial() || chess.isThreefoldRepetition()) return 0;
-  if (depth === 0) return lv.qdepth ? quiesce(chess, me, lv.qdepth, alpha, beta, st) : evaluate(chess, me, st);
-  const maximizing = chess.turn() === me;
-  let best = maximizing ? -Infinity : Infinity;
-  for (const m of order(chess.moves({ verbose: true }))) {
+let deadline = Infinity;
+let nodes = 0;
+class Timeout extends Error {}
+const tick = () => { if ((++nodes & 127) === 0 && performance.now() > deadline) throw new Timeout(); };
+const MATE = 1e6;
+const side = (chess) => chess.turn(); // 'w' | 'b'
+
+// Capture-only search (negamax): never stop in the middle of an exchange.
+function quiesce(chess, alpha, beta, qd, st) {
+  tick();
+  const stand = evaluate(chess, side(chess), st);
+  if (qd <= 0 || stand >= beta) return stand;
+  if (stand > alpha) alpha = stand;
+  for (const m of order(chess.moves({ verbose: true }).filter((x) => x.captured || x.promotion))) {
+    if (!m.promotion && stand + V[m.captured] + 250 < alpha) continue; // delta pruning
     chess.move(m);
-    const v = search(chess, me, depth - 1, alpha, beta, lv, st);
+    const v = -quiesce(chess, -beta, -alpha, qd - 1, st);
     chess.undo();
-    if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, v); } else { best = Math.min(best, v); beta = Math.min(beta, v); }
-    if (alpha >= beta) break;
+    if (v >= beta) return v;
+    if (v > alpha) alpha = v;
+  }
+  return alpha;
+}
+
+// Alpha-beta (negamax); scores from the side to move's point of view.
+function negamax(chess, depth, alpha, beta, ply, ctx) {
+  tick();
+  if (depth <= 0) {
+    if (ply < ctx.maxPly && chess.inCheck()) depth = 1; // check at the horizon: one more ply
+    else return quiesce(chess, alpha, beta, ctx.qd, ctx.st);
+  }
+  const moves = chess.moves({ verbose: true });
+  if (!moves.length) return chess.inCheck() ? -MATE + ply : 0;
+  if (ply > 0 && (chess.isInsufficientMaterial() || chess.isThreefoldRepetition())) return 0;
+  const killers = ctx.killers[ply] || (ctx.killers[ply] = []);
+  let best = -Infinity;
+  for (const m of order(moves, killers)) {
+    chess.move(m);
+    const v = -negamax(chess, depth - 1, -beta, -alpha, ply + 1, ctx);
+    chess.undo();
+    if (v > best) best = v;
+    if (v > alpha) alpha = v;
+    if (alpha >= beta) {
+      if (!m.captured) { const k = mkey(m); if (killers[0] !== k) { killers[1] = killers[0]; killers[0] = k; } }
+      break;
+    }
   }
   return best;
 }
@@ -91,7 +110,6 @@ export function chooseMoveChess(pos, color, level = 3, style = 'balanced', recen
   const lv = LEVELS_CHESS[level] || LEVELS_CHESS[3];
   const st = STYLES[style] || STYLES.balanced;
   const chess = new Chess(pos.fen);
-  const me = color === 'white' ? 'w' : 'b';
   let moves = order(chess.moves({ verbose: true }));
   if (!moves.length) return null;
   const bonus = new Map();
@@ -102,19 +120,28 @@ export function chooseMoveChess(pos, color, level = 3, style = 'balanced', recen
     if (recent.includes(`${m.from}>${m.to}`)) b -= 30;
     bonus.set(m, b);
   }
+  // Iterative deepening with a time budget; every iteration ends in the capture search, so a
+  // move kept after a timeout still sees the recaptures.
   deadline = lv.budget ? performance.now() + lv.budget : Infinity;
+  nodes = 0;
+  const ctx = { qd: lv.qdepth, st, killers: [], maxPly: lv.depth + 2 };
   let best = moves[0];
   try {
     for (let d = 1; d <= lv.depth; d++) {
+      ctx.maxPly = d + 2;
       const scored = [];
+      let bestTotal = -Infinity, iterBest = null;
       for (const m of moves) {
+        const b = bonus.get(m);
+        const a = iterBest ? bestTotal - b : -Infinity; // only moves that could still win need an exact score
         chess.move(m);
-        const v = search(chess, me, d - 1, -Infinity, Infinity, d === lv.depth ? lv : { ...lv, qdepth: 0 }, st);
+        const v = -negamax(chess, d - 1, -Infinity, a === -Infinity ? Infinity : -a + 1, 1, ctx);
         chess.undo();
-        scored.push({ m, s: v + bonus.get(m) });
+        scored.push({ m, s: v + b });
+        if (v + b > bestTotal) { bestTotal = v + b; iterBest = m; }
+        best = iterBest; // the previous best is searched first, so a partial iteration is sound
       }
-      scored.sort((a, b) => b.s - a.s);
-      best = scored[0].m;
+      scored.sort((x, y) => y.s - x.s);
       moves = scored.map((x) => x.m);
     }
   } catch (e) {

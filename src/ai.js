@@ -1,6 +1,6 @@
-// Built-in computer player: alpha-beta search (+ capture quiescence at high levels)
-// on top of the rules engine, with selectable strength and playing style.
-import { legalMoves, inCheck, parseSquare, findKing, applyMove } from './engine.js';
+// Built-in computer player: iterative-deepening alpha-beta (negamax) with a capture search at the
+// horizon, killer moves and a time budget, on top of the rules engine; selectable strength and style.
+import { legalMoves, pseudoMoves, inCheck, parseSquare, findKing, applyMove } from './engine.js';
 
 const V = { P: 100, N: 300, B: 320, R: 500, Q: 900, K: 0 };
 
@@ -8,10 +8,10 @@ const V = { P: 100, N: 300, B: 320, R: 500, Q: 900, K: 0 };
 // noise = random score added per root move (higher = more mistakes).
 export const LEVELS = {
   1: { name: 'Principiante', depth: 1, qdepth: 0, noise: 260 },
-  2: { name: 'Facile', depth: 1, qdepth: 0, noise: 70 },
-  3: { name: 'Medio', depth: 2, qdepth: 0, noise: 25, budget: 2000 },
-  4: { name: 'Esperto', depth: 2, qdepth: 2, noise: 8, budget: 2500 },
-  5: { name: 'Maestro', depth: 3, qdepth: 2, noise: 2, budget: 3500 },
+  2: { name: 'Facile', depth: 1, qdepth: 2, noise: 90, budget: 1500 },
+  3: { name: 'Medio', depth: 3, qdepth: 4, noise: 30, budget: 2500 },
+  4: { name: 'Esperto', depth: 4, qdepth: 6, noise: 8, budget: 4000 },
+  5: { name: 'Maestro', depth: 5, qdepth: 8, noise: 0, budget: 6000 },
 };
 
 // Playing styles: weights for the evaluation and root move bonuses.
@@ -49,46 +49,63 @@ function evaluate(pos, me, st) {
   return s;
 }
 
-function orderMoves(moves) {
-  return moves.sort((a, b) => (b.capture ? V[b.capture] * 10 - V[b.piece] : 0) - (a.capture ? V[a.capture] * 10 - V[a.piece] : 0));
+// Move ordering: captures by MVV-LVA, promotions, then the killer moves of this ply.
+const mkey = (m) => `${m.from}>${m.to}`;
+function orderMoves(moves, killers = null) {
+  const score = (m) => (m.capture ? 10000 + V[m.capture] * 10 - (V[m.piece] || 0) : 0) + (m.promotion ? 9000 : 0)
+    + (killers && !m.capture ? (killers[0] === mkey(m) ? 8000 : killers[1] === mkey(m) ? 7000 : 0) : 0);
+  for (const m of moves) m._s = score(m);
+  return moves.sort((a, b) => b._s - a._s);
 }
 
-// Capture-only search to avoid stopping in the middle of an exchange.
 let deadline = Infinity;
+let nodes = 0;
 class Timeout extends Error {}
+const tick = () => { if ((++nodes & 255) === 0 && performance.now() > deadline) throw new Timeout(); };
+const MATE = 1e6;
 
-function quiesce(pos, color, me, qdepth, alpha, beta, st) {
-  if (performance.now() > deadline) throw new Timeout();
-  const stand = evaluate(pos, me, st);
-  if (qdepth === 0) return stand;
-  const maximizing = color === me;
-  if (maximizing) { if (stand >= beta) return stand; alpha = Math.max(alpha, stand); }
-  else { if (stand <= alpha) return stand; beta = Math.min(beta, stand); }
-  const caps = orderMoves(legalMoves(pos, color).filter((m) => m.capture));
-  let best = stand;
-  for (const m of caps) {
-    const v = quiesce(apply(pos, m), other(color), me, qdepth - 1, alpha, beta, st);
-    if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, v); }
-    else { best = Math.min(best, v); beta = Math.min(beta, v); }
-    if (alpha >= beta) break;
+// Capture-only search (negamax), so the search never stops in the middle of an exchange:
+// a move that leaves a piece hanging is seen to lose it.
+function quiesce(pos, color, alpha, beta, qd, st) {
+  tick();
+  const stand = evaluate(pos, color, st);
+  if (qd <= 0 || stand >= beta) return stand;
+  if (stand > alpha) alpha = stand;
+  for (const m of orderMoves(pseudoMoves(pos, color, true))) {
+    if (!m.promotion && stand + V[m.capture] + 250 < alpha) continue; // delta pruning: cannot raise alpha
+    const after = apply(pos, m);
+    if (inCheck(after, color)) continue;
+    const v = -quiesce(after, other(color), -beta, -alpha, qd - 1, st);
+    if (v >= beta) return v;
+    if (v > alpha) alpha = v;
   }
-  return best;
+  return alpha;
 }
 
-function search(pos, color, me, depth, alpha, beta, lv, st) {
-  if (performance.now() > deadline) throw new Timeout();
-  const moves = legalMoves(pos, color);
-  if (!moves.length) return inCheck(pos, color) ? (color === me ? -1e6 - depth : 1e6 + depth) : 0;
-  if (depth === 0) return lv.qdepth ? quiesce(pos, color, me, lv.qdepth, alpha, beta, st) : evaluate(pos, me, st);
-  orderMoves(moves);
-  const maximizing = color === me;
-  let best = maximizing ? -Infinity : Infinity;
-  for (const m of moves) {
-    const v = search(apply(pos, m), other(color), me, depth - 1, alpha, beta, lv, st);
-    if (maximizing) { best = Math.max(best, v); alpha = Math.max(alpha, v); }
-    else { best = Math.min(best, v); beta = Math.min(beta, v); }
-    if (alpha >= beta) break;
+// Alpha-beta (negamax) on pseudo-legal moves: a move is checked for legality only when searched.
+// Scores are from the point of view of `color`, the side to move.
+function negamax(pos, color, depth, alpha, beta, ply, ctx) {
+  tick();
+  if (depth <= 0) {
+    // a side in check at the horizon gets one more ply (stand-pat would be wrong)
+    if (ply < ctx.maxPly && inCheck(pos, color)) depth = 1;
+    else return quiesce(pos, color, alpha, beta, ctx.qd, ctx.st);
   }
+  const killers = ctx.killers[ply] || (ctx.killers[ply] = []);
+  let best = -Infinity, legal = 0;
+  for (const m of orderMoves(pseudoMoves(pos, color), killers)) {
+    const after = apply(pos, m);
+    if (inCheck(after, color)) continue;
+    legal++;
+    const v = -negamax(after, other(color), depth - 1, -beta, -alpha, ply + 1, ctx);
+    if (v > best) best = v;
+    if (v > alpha) alpha = v;
+    if (alpha >= beta) {
+      if (!m.capture) { const k = mkey(m); if (killers[0] !== k) { killers[1] = killers[0]; killers[0] = k; } }
+      break;
+    }
+  }
+  if (!legal) return inCheck(pos, color) ? -MATE + ply : 0;
   return best;
 }
 
@@ -110,18 +127,27 @@ export function chooseMove(pos, color, level = 3, style = 'balanced', recent = [
     if (recent.includes(`${m.from}>${m.to}`)) b -= 30;
     bonus.set(m, b);
   }
-  // Iterative deepening with a time budget: keep the last fully searched depth.
+  // Iterative deepening with a time budget. Every iteration ends in the capture search, so
+  // even when time runs out early the move does not hang material.
   deadline = lv.budget ? performance.now() + lv.budget : Infinity;
+  nodes = 0;
+  const ctx = { qd: lv.qdepth, st, killers: [], maxPly: lv.depth + 2 };
   let best = moves[0];
   try {
     for (let d = 1; d <= lv.depth; d++) {
+      ctx.maxPly = d + 2;
       const scored = [];
+      let bestTotal = -Infinity, iterBest = null;
       for (const m of moves) {
-        const v = search(apply(pos, m), other(color), color, d - 1, -Infinity, Infinity, d === lv.depth ? lv : { ...lv, qdepth: 0 }, st);
-        scored.push({ m, s: v + bonus.get(m) });
+        const b = bonus.get(m);
+        // only moves that could still beat the best total need an exact score
+        const a = iterBest ? bestTotal - b : -Infinity;
+        const v = -negamax(apply(pos, m), other(color), d - 1, -Infinity, a === -Infinity ? Infinity : -a + 1, 1, ctx);
+        scored.push({ m, s: v + b });
+        if (v + b > bestTotal) { bestTotal = v + b; iterBest = m; }
+        best = iterBest; // the previous best is searched first, so a partial iteration is still sound
       }
-      scored.sort((a, b) => b.s - a.s);
-      best = scored[0].m;
+      scored.sort((x, y) => y.s - x.s);
       moves = scored.map((x) => x.m); // best-first ordering for the next iteration
     }
   } catch (e) {

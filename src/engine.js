@@ -341,7 +341,54 @@ export function findKing(pieces, color) {
   return Object.keys(pieces).find((k) => pieces[k].type === 'K' && pieces[k].color === color);
 }
 
+// Square names -> coordinates, memoised (the search asks for the same few hundred squares).
+const XY = new Map();
+function xyOf(key) {
+  let v = XY.get(key);
+  if (!v) { v = parseSquare(key); XY.set(key, v); }
+  return v;
+}
+
+// Whether a piece of `byColor` could capture on targetKey (an occupied square, e.g. the king's),
+// i.e. pieceMovesFrom(...).some(m => m.to === targetKey), worked out geometrically instead of generating every move (this is the hot path of check detection).
 export function isAttacked(pos, targetKey, byColor) {
+  const t = xyOf(targetKey);
+  if (!t) return false;
+  if (!MAIN_LEVELS[t.level] && !pos.boards[t.level]) return false;   // board not in play
+  const occ = pos.pieces[targetKey];
+  if (occ && occ.color === byColor) return false;                     // own piece: not a landing
+  for (const k in pos.pieces) {
+    const pc = pos.pieces[k];
+    if (pc.color !== byColor) continue;
+    const f = xyOf(k);
+    const dx = t.x - f.x, dy = t.y - f.y;
+    if (dx === 0 && dy === 0) continue;                                // no purely vertical moves
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    switch (pc.type) {
+      case 'P':
+        if (occ && ax === 1 && dy === (byColor === 'white' ? 1 : -1)) return true;
+        break;
+      case 'N':
+        if ((ax === 1 && ay === 2) || (ax === 2 && ay === 1)) return true;
+        break;
+      case 'K':
+        if (ax <= 1 && ay <= 1) return true;
+        break;
+      default: {
+        const straight = dx === 0 || dy === 0, diagonal = ax === ay;
+        if (!((pc.type === 'R' && straight) || (pc.type === 'B' && diagonal) || (pc.type === 'Q' && (straight || diagonal)))) break;
+        const sx = Math.sign(dx), sy = Math.sign(dy), n = Math.max(ax, ay);
+        let clear = true;
+        for (let i = 1; i < n && clear; i++) if (columnOccupied(pos, f.x + sx * i, f.y + sy * i)) clear = false;
+        if (clear) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Reference version (generates every move); kept for the tests that check isAttacked against it.
+export function isAttackedSlow(pos, targetKey, byColor) {
   for (const k of Object.keys(pos.pieces)) {
     if (pos.pieces[k].color !== byColor) continue;
     if (pieceMovesFrom(pos, k).some((m) => m.to === targetKey)) return true;
@@ -352,6 +399,27 @@ export function isAttacked(pos, targetKey, byColor) {
 export function inCheck(pos, color) {
   const king = findKing(pos.pieces, color);
   return king ? isAttacked(pos, king, other(color)) : false;
+}
+
+// Pseudo-legal moves for the search: piece moves (+ promotions) and, unless capturesOnly,
+// attack-board moves; no castling, and the mover's king may be left in check (the search
+// rejects those after applying them). Annotated like legalMoves: piece, capture, promotion.
+export function pseudoMoves(pos, color, capturesOnly = false) {
+  const out = [];
+  for (const k in pos.pieces) {
+    const p = pos.pieces[k];
+    if (p.color !== color) continue;
+    for (const m of pieceMovesFrom(pos, k)) {
+      const capt = m.ep ? 'P' : pos.pieces[m.to] ? pos.pieces[m.to].type : null;
+      const t = p.type === 'P' && xyOf(m.to);
+      const promo = t && t.y === promotionRank(pos, color, t.x);
+      if (capturesOnly && !capt && !promo) continue;
+      if (promo) for (const pr of (capturesOnly ? ['Q'] : PROMOTION_PIECES)) out.push({ ...m, piece: 'P', capture: capt, promotion: pr });
+      else out.push({ ...m, piece: p.type, capture: capt, promotion: null });
+    }
+  }
+  if (!capturesOnly) for (const m of boardMovesFor(pos, color)) out.push({ ...m, piece: null, capture: null, promotion: null });
+  return out;
 }
 
 // Legal moves for `color`. `from` may be a square (piece moves) or a pin (board moves).
