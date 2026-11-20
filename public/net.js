@@ -634,6 +634,10 @@ function renderShare() {
   $('shTelegram').href = `https://t.me/share/url?url=${enc(url)}&text=${enc(text)}`;
   $('shNative').hidden = typeof navigator.share !== 'function';
 }
+// Facebook's sharer ignores any prefilled text: copy the post so it can be pasted there
+$('shFacebook').addEventListener('click', () => {
+  navigator.clipboard?.writeText(`${shareText()} ${t('share.tag.' + shareFamily())} ${roomLink()}`).then(() => T.toast(t('share.fbCopied')), () => {});
+});
 $('shCopy').onclick = () => navigator.clipboard?.writeText(roomLink()).then(() => T.toast(t('share.copied')), () => {});
 $('shNative').onclick = () => navigator.share?.({ title: t('game.' + hostKind), text: shareText(), url: roomLink() }).catch(() => {});
 onLangChange(renderShare);
