@@ -436,6 +436,6 @@ RewriteEngine On
 RewriteBase /
 # one address per page: /index.html -> /
 RewriteCond %{THE_REQUEST} \\s/+(.*/)?index\\.html[\\s?] [NC]
-RewriteRule ^(.*/)?index\\.html$ /$1 [R=301,L]
+RewriteRule ^(.*/)?index\\.html$ ${SITE}/$1 [R=301,L]
 `);
 console.log(`built site → ${OUT} (${pages.length} pages) for ${SITE}`);
