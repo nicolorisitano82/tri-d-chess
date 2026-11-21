@@ -15,6 +15,10 @@ const args = process.argv.slice(2);
 const target = (args.find((a) => a.startsWith('--target='))?.split('=')[1]) || 'artifact';
 const PAGES = target === 'pages';
 const out = args.find((a) => !a.startsWith('--')) || join(root, PAGES ? 'docs/play/index.html' : 'dist-web/tri-d-chess.html');
+// --site=https://example.org: the public address of the website the game lives under (at /play/);
+// links to share rooms and replays, canonical and social cards point there. Default: GitHub Pages.
+const GH_BASE = 'https://nicolorisitano82.github.io/tri-d-chess';
+const SITE = (args.find((a) => a.startsWith('--site='))?.split('=')[1] || GH_BASE).replace(/\/+$/, '');
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.170.0';
 
 // Names imported by a module from a given specifier, e.g. "a, b, c".
@@ -385,7 +389,7 @@ ${content}
 `
   : content;
 mkdirSync(dirname(out), { recursive: true });
-writeFileSync(out, page);
+writeFileSync(out, SITE === GH_BASE ? page : page.split(GH_BASE + '/').join(SITE + '/'));
 if (PAGES) {
   const dir = dirname(out);
   cpSync(join(root, 'public/vendor'), join(dir, 'vendor'), { recursive: true });

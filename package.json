@@ -17,7 +17,8 @@
     "preapp": "node scripts/vendor.mjs",
     "prestart": "node scripts/vendor.mjs",
     "web": "node scripts/build-web.mjs",
-    "pages": "node scripts/vendor.mjs && node scripts/build-web.mjs --target=pages"
+    "pages": "node scripts/vendor.mjs && node scripts/build-web.mjs --target=pages",
+    "site": "node scripts/vendor.mjs && node scripts/build-site.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",

@@ -501,7 +501,7 @@ function renderPanel() {
   else if (s.players[s.turn] === 'computer') status = t('status.computer', { c: IT[s.turn] });
   else if (s.players.white === 'remote' && s.players.black === 'remote') status = t('status.watching', { c: IT[s.turn] });
   else if (s.players[s.turn] === 'remote') status = t('status.remote', { c: IT[s.turn] });
-  else status = s.players[s.turn] === 'ai' ? t('status.ai', { c: IT[s.turn] }) : t('status.you', { c: IT[s.turn], n: s.legalMoves.length });
+  else status = s.players[s.turn] === 'ai' ? t('status.ai', { c: IT[s.turn] }) : t(s.legalMoves.length === 1 ? 'status.you1' : 'status.you', { c: IT[s.turn], n: s.legalMoves.length });
   $('status').textContent = status;
   $('status').classList.toggle('alert', s.check || s.status !== 'playing');
   $('turn').textContent = IT[s.turn];
@@ -562,8 +562,16 @@ let tutorial = null;      // interactive lessons (tutorial.js): shown instead of
 let replay = null;        // { moves, i }
 let quietVictory = false;
 let replayFromUrl = null;
+// ?game=<kind> (links from the website): open that game unless a replay, room or lesson is asked for
+var gameFromUrl = true;
 function onLive(s) {
   live = s;
+  if (gameFromUrl === true) {
+    const q = new URLSearchParams(location.search), g = q.get('game');
+    gameFromUrl = null;
+    if (g && !q.has('replay') && !q.has('room') && !q.has('watch') && (g === 'trid' || g === 'chess' || isDraughts(g)) && kindOf(s) !== g)
+      setTimeout(() => { $('gameKind').value = g; $('gameKind').onchange(); }, 0);
+  }
   if (!replay && !tutorial?.active()) applyState(s);
   if (replayFromUrl) { const { moves, k } = replayFromUrl; replayFromUrl = null; startReplay(moves, k); }
 }

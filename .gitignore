@@ -3,3 +3,4 @@ dist/
 dist-web/
 public/vendor/
 .DS_Store
+/site/

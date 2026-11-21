@@ -23,7 +23,7 @@ const STRINGS = {
     'status.resigned': 'Abbandono — vince {c}', 'status.timeout': 'Tempo scaduto — vince {c}',
     'status.check': 'Scacco al {c}! {n} mosse per uscirne', 'status.check1': 'Scacco al {c}! 1 mossa per uscirne',
     'status.computer': 'Il computer pensa ({c})…', 'status.remote': "Mossa dell'avversario in rete ({c})…",
-    'status.ai': "In attesa dell'AI ({c})…", 'status.you': 'Tocca a te ({c}) · {n} mosse',
+    'status.ai': "In attesa dell'AI ({c})…", 'status.you': 'Tocca a te ({c}) · {n} mosse', 'status.you1': 'Tocca a te ({c}) · 1 mossa',
 
     'ui.rules': 'Regole', 'ui.undo': 'Annulla', 'ui.undoTip': 'Annulla la tua ultima mossa (e la risposta del computer)', 'ui.hint': 'Suggerisci', 'ui.hintTip': 'Il computer suggerisce una mossa', 'ui.thinking': 'Penso…', 'hint.move': 'Suggerimento: {m}', 'hint.none': 'Nessun suggerimento disponibile', 'ui.pieces': 'Pezzi', 'ui.setW': 'Pezzi del Bianco', 'ui.setB': 'Pezzi del Nero', 'set.federation': 'Federazione', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulani',
     'ui.game': 'Gioco', 'game.trid': 'Scacchi 3D (Tri-D)', 'game.chess': 'Scacchi classici',
@@ -113,7 +113,7 @@ const STRINGS = {
     'status.resigned': 'Resignation — {c} wins', 'status.timeout': 'Out of time — {c} wins',
     'status.check': '{c} in check! {n} moves to escape', 'status.check1': '{c} in check! 1 move to escape',
     'status.computer': 'Computer thinking ({c})…', 'status.remote': 'Waiting for the online opponent ({c})…',
-    'status.ai': 'Waiting for the AI ({c})…', 'status.you': 'Your move ({c}) · {n} moves',
+    'status.ai': 'Waiting for the AI ({c})…', 'status.you': 'Your move ({c}) · {n} moves', 'status.you1': 'Your move ({c}) · 1 move',
 
     'ui.rules': 'Rules', 'ui.undo': 'Undo', 'ui.undoTip': 'Take back your last move (and the computer\'s reply)', 'ui.hint': 'Hint', 'ui.hintTip': 'The computer suggests a move', 'ui.thinking': 'Thinking…', 'hint.move': 'Hint: {m}', 'hint.none': 'No hint available', 'ui.pieces': 'Pieces', 'ui.setW': 'White pieces', 'ui.setB': 'Black pieces', 'set.federation': 'Federation', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulan',
     'ui.game': 'Game', 'game.trid': '3D chess (Tri-D)', 'game.chess': 'Classic chess',

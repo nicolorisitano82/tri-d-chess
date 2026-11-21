@@ -2,7 +2,7 @@
 // tournament rules, as implemented) and classic chess (FIDE), in Italian and English.
 // Open it with the "Rules" button, or with ?rules / ?rules=chess in the URL.
 
-const RULES = {
+export const RULES = {
   it: {
     title: 'Regole', search: 'Cerca nelle regole…', close: 'Chiudi', none: 'Nessun risultato per «{q}»',
     results: '{n} sezioni trovate', tabs: { trid: 'Scacchi 3D (Tri-D)', chess: 'Scacchi classici', dama: 'Dama' },
