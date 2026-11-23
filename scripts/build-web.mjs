@@ -109,8 +109,8 @@ appSrc = must(appSrc,
 }
 let lastPortrait = camera.aspect < 1;`, 'setView');
 appSrc = must(appSrc,
-  "  renderer.setSize(window.innerWidth, window.innerHeight);\n});",
-  "  renderer.setSize(window.innerWidth, window.innerHeight);\n  const portrait = camera.aspect < 1;\n  if (portrait !== lastPortrait) { lastPortrait = portrait; setView(Object.keys(CAM_VIEWS)[camIdx]); }\n});",
+  "  renderer.setSize(w, h, false);\n}",
+  "  renderer.setSize(w, h, false);\n  const portrait = camera.aspect < 1;\n  if (portrait !== lastPortrait) { lastPortrait = portrait; setView(Object.keys(CAM_VIEWS)[camIdx]); }\n}",
   'resize handler');
 
 const localGame = `

@@ -19,7 +19,8 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
       font-family: "Helvetica Neue", "Avenir Next Condensed", -apple-system, sans-serif; overflow: hidden; }
-    #scene { position: fixed; inset: 0; }
+    #scene { position: fixed; inset: 0; overflow: hidden; }
+    #scene canvas { display: block; width: 100% !important; height: 100% !important; }
     #panel { position: fixed; top: 16px; left: 16px; bottom: 16px; width: 300px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
     #panel > * { flex-shrink: 0; }
     #panel > #log { flex: 1 1 auto; flex-shrink: 1; }

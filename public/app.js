@@ -41,7 +41,7 @@ const newLocalGame = (k) => (k === 'chess' ? new ChessGame({ white: 'human', bla
 const container = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight, false);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 container.appendChild(renderer.domElement);
 
@@ -958,11 +958,32 @@ renderer.domElement.addEventListener('pointerup', (e) => {
 });
 
 // --- loop ------------------------------------------------------------------------------
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+// iOS Safari reports a stale/halved window.innerHeight during rotation, keyboard and toolbar
+// transitions, and sometimes fires no resize afterwards. Size from the fixed full-screen
+// container instead, re-check on every viewport signal and once more after things settle.
+function fitView() {
+  const w = container.clientWidth || window.innerWidth, h = container.clientHeight || window.innerHeight;
+  if (!w || !h) return;
+  const c = renderer.domElement;
+  if (c.width === Math.round(w * renderer.getPixelRatio()) && c.height === Math.round(h * renderer.getPixelRatio()) && Math.abs(camera.aspect - w / h) < 1e-3) return;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+  renderer.setSize(w, h, false);
+}
+let fitTimer = 0;
+function scheduleFit() {
+  requestAnimationFrame(fitView);
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(fitView, 350);
+}
+window.addEventListener('resize', scheduleFit);
+window.addEventListener('orientationchange', scheduleFit);
+window.addEventListener('pageshow', scheduleFit);
+document.addEventListener('visibilitychange', scheduleFit);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', scheduleFit);
+if (window.ResizeObserver) new ResizeObserver(scheduleFit).observe(container);
+document.addEventListener('focusout', scheduleFit);
+scheduleFit();
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
