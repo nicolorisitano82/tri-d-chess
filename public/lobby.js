@@ -2,7 +2,7 @@
 //
 // - Event: kind 30078 (NIP-78 application data, parameterized replaceable), one per room:
 //     tags  d = "tri-d-chess/room/<CODE>", t = "tri-d-chess-lobby", expiration = now + TTL (NIP-40)
-//     content JSON { v, code, kind ('trid'|'chess'|'xiangqi'|'dama-it'|'dama-int'|'dama-en'|'dama-ru'|'dama-br'), hostColor, lang, name, status: "open" | "closed", live? }
+//     content JSON { v, code, kind ('trid'|'chess'|'xiangqi'|'cinese'|'dama-it'|'dama-int'|'dama-en'|'dama-ru'|'dama-br'), hostColor, lang, name, status: "open" | "closed", live? }
 //     live: true marks a game in progress that can be watched; it is sent with status "closed" so
 //     older versions, which only list "open" rooms, simply do not show it.
 // - A waiting host re-announces every REFRESH_S; when the opponent arrives or the room closes it

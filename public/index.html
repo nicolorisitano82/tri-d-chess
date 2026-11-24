@@ -42,7 +42,7 @@
     select, button { font: inherit; font-size: 13px; }
     select { background: #1a1428; color: var(--text); border: 1px solid #443a5a; border-radius: 6px; padding: 4px 6px; }
     button { border: 0; border-radius: 14px; padding: 7px 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; color: #000; }
-    button.orange { background: var(--orange); } button.blue { background: var(--blue); } button.lilac { background: var(--lilac); } button.red { background: var(--red); }
+    button.orange { background: var(--orange); } button.blue { background: var(--blue); } button.lilac { background: var(--lilac); } button.red { background: var(--red); } button.peach { background: var(--peach); }
     button:hover { filter: brightness(1.15); }
     /* accessibility: keyboard moves, focus, high contrast */
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -302,7 +302,7 @@
         <label for="netName" data-i18n="ui.nick">Nickname</label>
         <input id="netName" class="netname nickname" maxlength="24" autocomplete="nickname" spellcheck="false" data-i18n-placeholder="lobby.name" placeholder="facoltativo">
         <label for="gameKind" data-i18n="ui.game">Gioco</label>
-        <select id="gameKind"><option value="trid" data-i18n="game.trid">Scacchi 3D (Tri-D)</option><option value="chess" data-i18n="game.chess">Scacchi classici</option><option value="xiangqi" data-i18n="game.xiangqi">Scacchi cinesi (Xiangqi)</option><option value="dama-it" data-i18n="game.dama-it">Dama italiana</option><option value="dama-int" data-i18n="game.dama-int">Dama internazionale (10×10)</option><option value="dama-en" data-i18n="game.dama-en">Dama inglese (Checkers)</option><option value="dama-ru" data-i18n="game.dama-ru">Dama russa</option><option value="dama-br" data-i18n="game.dama-br">Dama brasiliana</option></select>
+        <select id="gameKind"><option value="trid" data-i18n="game.trid">Scacchi 3D (Tri-D)</option><option value="chess" data-i18n="game.chess">Scacchi classici</option><option value="xiangqi" data-i18n="game.xiangqi">Scacchi cinesi (Xiangqi)</option><option value="cinese" data-i18n="game.cinese">Dama cinese</option><option value="dama-it" data-i18n="game.dama-it">Dama italiana</option><option value="dama-int" data-i18n="game.dama-int">Dama internazionale (10×10)</option><option value="dama-en" data-i18n="game.dama-en">Dama inglese (Checkers)</option><option value="dama-ru" data-i18n="game.dama-ru">Dama russa</option><option value="dama-br" data-i18n="game.dama-br">Dama brasiliana</option></select>
         <div class="sets tridonly">
           <label for="setW" data-i18n="ui.pieces">Pezzi</label>
           <select id="setW" data-i18n-aria="ui.setW"><option value="federation" data-i18n="set.federation">Federazione</option><option value="klingon" data-i18n="set.klingon">Klingon</option><option value="borg" data-i18n="set.borg">Borg</option><option value="romulan" data-i18n="set.romulan">Romulani</option></select>

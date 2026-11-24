@@ -5,7 +5,7 @@
 export const RULES = {
   it: {
     title: 'Regole', search: 'Cerca nelle regole…', close: 'Chiudi', none: 'Nessun risultato per «{q}»',
-    results: '{n} sezioni trovate', tabs: { trid: 'Scacchi 3D (Tri-D)', chess: 'Scacchi classici', xiangqi: 'Scacchi cinesi', dama: 'Dama' },
+    results: '{n} sezioni trovate', tabs: { trid: 'Scacchi 3D (Tri-D)', chess: 'Scacchi classici', xiangqi: 'Scacchi cinesi', cinese: 'Dama cinese', dama: 'Dama' },
     trid: [
       ['Il gioco', `<p>Gli scacchi tridimensionali si giocano su più scacchiere sovrapposte. Qui si seguono le <b>regole da torneo di Jens Meder</b>. Pezzi e scopo sono quelli degli scacchi normali: vince chi dà scacco matto al re avversario.</p>`],
       ['La scacchiera', `<p>Ci sono <b>tre tavole principali</b> fisse, 4×4, con colonne a–d:</p>
@@ -71,6 +71,15 @@ export const RULES = {
       ['Posizione iniziale', `<p>Riga 1 (Rosso): carro, cavallo, elefante, consigliere, generale, consigliere, elefante, cavallo, carro. Cannoni in <code>b3</code> e <code>h3</code>, soldati in <code>a4 c4 e4 g4 i4</code>. Il Nero è disposto a specchio sulle righe 10, 8 e 7.</p>`],
       ["Usare l'app", `<ul><li>Tocca un pezzo: i punti d'arrivo si illuminano, in rosso quelli con cattura.</li><li>Puoi scrivere le mosse con le coordinate, per esempio <code>h3 e3</code> (cannone al centro).</li><li>Computer, gioco in rete, orologio, replay, annulla e suggerimento funzionano come negli scacchi.</li></ul>`],
     ],
+    cinese: [
+      ['Il gioco', `<p>La <b>dama cinese</b> si gioca su una stella a sei punte con 121 buche. In questa versione a <b>due giocatori</b> ognuno ha 10 biglie nella propria punta: il Bianco in basso, il Nero in alto. Vince chi porta per primo tutte le sue biglie nella <b>punta opposta</b>. Non ci sono catture. Muove per primo il Bianco.</p><p>Nonostante il nome il gioco non viene dalla Cina: nacque in Germania nel 1892 come «Stern-Halma», una variante dell'Halma su una stella.</p>`],
+      ['Il passo', `<p>Una biglia si sposta in una qualunque delle <b>sei direzioni</b> nella buca vicina, se è vuota.</p>`],
+      ['Il salto', `<p>Una biglia può <b>saltare</b> una biglia vicina (tua o dell'avversario) e atterrare nella buca vuota subito dietro, in linea retta. Dopo un salto può saltare ancora, tutte le volte che vuole e in qualunque direzione: è una <b>catena di salti</b>. La biglia scavalcata resta dov'è.</p><p>Nella stessa mossa non si possono mescolare passi e salti: o un passo solo, o una serie di salti.</p>`],
+      ['Vittoria', `<p>Vince chi riempie <b>tutte e dieci</b> le buche della punta opposta. Se l'avversario lascia qualche biglia a casa per bloccarti, vinci lo stesso quando le buche della punta sono tutte occupate e almeno una dalle tue biglie.</p>`],
+      ['Patta', `<p>Per triplice ripetizione della stessa posizione, oppure dopo 400 semimosse.</p>`],
+      ['Nomi delle buche', `<p>Ogni buca ha un nome come le case degli scacchi: una lettera da <code>a</code> a <code>q</code> per la diagonale e un numero da <code>1</code> a <code>17</code> per la riga, contando dal basso. La punta del Bianco va dalla riga 1 alla 4 (la punta in basso è <code>m1</code>), quella del Nero dalla 14 alla 17 (la punta in alto è <code>e17</code>).</p>`],
+      ["Usare l'app", `<ul><li>Tocca una biglia: si illuminano tutte le buche dove può arrivare, anche in fondo a una lunga catena di salti.</li><li>Tocca la buca finale: l'app trova da sola il percorso.</li><li>Computer, gioco in rete, orologio, replay, annulla e suggerimento funzionano come negli altri giochi.</li></ul>`],
+    ],
     dama: [
       ['Il gioco', `<p>La dama si gioca sulle case scure di una scacchiera. Ognuno ha 12 pedine (20 nella dama internazionale). Vince chi cattura tutti i pezzi avversari o lo lascia <b>senza mosse</b>. L'app propone cinque varianti, scelte dal menu Gioco.</p>`],
       ['Scacchiera e posizione iniziale', `<p>Le pedine stanno sulle case scure delle prime tre file di ciascun giocatore (quattro sul 10×10). Le caselle si chiamano come negli scacchi, per esempio <code>c3</code> o <code>j10</code>.</p><p>Nella <b>dama italiana</b> la scacchiera è girata: la casa scura d'angolo è alla destra di ciascun giocatore.</p>`],
@@ -88,7 +97,7 @@ export const RULES = {
   },
   en: {
     title: 'Rules', search: 'Search the rules…', close: 'Close', none: 'No results for “{q}”',
-    results: '{n} sections found', tabs: { trid: '3D chess (Tri-D)', chess: 'Classic chess', xiangqi: 'Chinese chess', dama: 'Draughts' },
+    results: '{n} sections found', tabs: { trid: '3D chess (Tri-D)', chess: 'Classic chess', xiangqi: 'Chinese chess', cinese: 'Chinese checkers', dama: 'Draughts' },
     trid: [
       ['The game', `<p>Three-dimensional chess is played on several stacked boards. This app follows <b>Jens Meder's tournament rules</b>. The pieces and the goal are those of normal chess: checkmate the opponent's king.</p>`],
       ['The board', `<p>There are <b>three fixed main boards</b>, each 4×4 with files a–d:</p>
@@ -153,6 +162,15 @@ export const RULES = {
       ['Draws', `<ul><li><b>Threefold repetition</b> of the same position.</li><li><b>120 plies</b> (60 moves each) without a capture.</li><li>Neither side has attacking pieces left (chariots, horses, cannons or soldiers).</li></ul><p>The official rules on perpetual check and repeated attacks are very complex: the app simplifies them as a draw by repetition.</p>`],
       ['Start position', `<p>Row 1 (Red): chariot, horse, elephant, advisor, general, advisor, elephant, horse, chariot. Cannons on <code>b3</code> and <code>h3</code>, soldiers on <code>a4 c4 e4 g4 i4</code>. Black mirrors this on rows 10, 8 and 7.</p>`],
       ['Using the app', `<ul><li>Tap a piece: its target points light up, in red those that capture.</li><li>You can type moves as coordinates, e.g. <code>h3 e3</code> (cannon to the centre).</li><li>The computer, online play, clock, replay, undo and hint work as in chess.</li></ul>`],
+    ],
+    cinese: [
+      ['The game', `<p><b>Chinese checkers</b> is played on a six-pointed star with 121 holes. In this <b>two-player</b> version each side has 10 marbles in its own point: White at the bottom, Black at the top. The first to bring all of their marbles into the <b>opposite point</b> wins. There are no captures. White moves first.</p><p>Despite the name the game is not Chinese: it was born in Germany in 1892 as "Stern-Halma", a version of Halma on a star.</p>`],
+      ['A step', `<p>A marble moves in any of the <b>six directions</b> to the next hole, if it is empty.</p>`],
+      ['A hop', `<p>A marble may <b>hop</b> over an adjacent marble (yours or your opponent's) into the empty hole right behind it, in a straight line. After a hop it may hop again, as many times as you like and in any direction: a <b>chain of hops</b>. The marble jumped over stays where it is.</p><p>Steps and hops cannot be mixed in one move: either a single step, or a series of hops.</p>`],
+      ['Winning', `<p>You win by filling <b>all ten</b> holes of the opposite point. If your opponent leaves marbles at home to block you, you still win once every hole of that point is occupied and at least one of them by your marbles.</p>`],
+      ['Draws', `<p>By threefold repetition of the same position, or after 400 plies.</p>`],
+      ['Hole names', `<p>Each hole has a name like a chess square: a letter from <code>a</code> to <code>q</code> for the diagonal and a number from <code>1</code> to <code>17</code> for the row, counted from the bottom. White's point covers rows 1 to 4 (the bottom tip is <code>m1</code>), Black's rows 14 to 17 (the top tip is <code>e17</code>).</p>`],
+      ['Using the app', `<ul><li>Tap a marble: every hole it can reach lights up, even at the end of a long chain of hops.</li><li>Tap the final hole: the app finds the route.</li><li>The computer, online play, clock, replay, undo and hint work as in the other games.</li></ul>`],
     ],
     dama: [
       ['The game', `<p>Draughts is played on the dark squares of a board. Each side has 12 men (20 in international draughts). You win by taking all the opponent's pieces or leaving them <b>without a move</b>. The app offers five variants in the Game menu.</p>`],
@@ -244,7 +262,7 @@ export function createRules({ getLang, onLangChange, t = (k) => k, onTutorial = 
   el.innerHTML = `<div class="rcard">
     <div class="rhead">
       <div class="rtop"><h2 id="rulesTitle"></h2><button class="red rclose" type="button"></button></div>
-      <div class="rtabs" role="tablist"><button class="orange" type="button" role="tab" data-g="trid"></button><button class="blue" type="button" role="tab" data-g="chess"></button><button class="red" type="button" role="tab" data-g="xiangqi"></button><button class="lilac" type="button" role="tab" data-g="dama"></button></div>
+      <div class="rtabs" role="tablist"><button class="orange" type="button" role="tab" data-g="trid"></button><button class="blue" type="button" role="tab" data-g="chess"></button><button class="red" type="button" role="tab" data-g="xiangqi"></button><button class="peach" type="button" role="tab" data-g="cinese"></button><button class="lilac" type="button" role="tab" data-g="dama"></button></div>
       <input type="search" autocomplete="off" spellcheck="false">
       <div class="rcount" aria-live="polite"></div>
     </div>
@@ -267,7 +285,7 @@ export function createRules({ getLang, onLangChange, t = (k) => k, onTutorial = 
     }
     const q = input.value.trim();
     // with a query, search both games (current one first); otherwise show the current game
-    const games = q ? [game, ...['trid', 'chess', 'xiangqi', 'dama'].filter((g) => g !== game)] : [game];
+    const games = q ? [game, ...['trid', 'chess', 'xiangqi', 'cinese', 'dama'].filter((g) => g !== game)] : [game];
     let html = '', n = 0;
     const tut = onTutorial ? t('rules.tutorial') : '';
     if (tut && !q && game === 'trid') html += `<div class="rtut"><p>${esc(TUT_TEXT[getLang()] || TUT_TEXT.en)}</p><button class="orange mini" type="button" data-lesson="0">${esc(tut)}</button></div>`;
@@ -287,7 +305,7 @@ export function createRules({ getLang, onLangChange, t = (k) => k, onTutorial = 
   }
 
   function open(g) {
-    if (g === 'trid' || g === 'chess' || g === 'xiangqi' || g === 'dama') game = g;
+    if (g === 'trid' || g === 'chess' || g === 'xiangqi' || g === 'cinese' || g === 'dama') game = g;
     input.value = '';
     lastFocus = document.activeElement;
     el.hidden = false;

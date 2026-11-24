@@ -5,9 +5,10 @@ import { chooseMove } from './ai.js';
 import { chooseMoveChess } from './ai-chess.js';
 import { chooseMoveDraughts } from './ai-draughts.js';
 import { chooseMoveXiangqi } from './ai-xiangqi.js';
+import { chooseMoveHalma } from './ai-halma.js';
 
 parentPort.on('message', ({ id, kind, pos, color, level, style, recent }) => {
   let move = null;
-  try { move = kind === 'chess' ? chooseMoveChess(pos, color, level, style, recent) : kind === 'xiangqi' ? chooseMoveXiangqi(pos, color, level, style, recent) : kind.startsWith('dama-') ? chooseMoveDraughts(pos, color, level, style, recent) : chooseMove(pos, color, level, style, recent); } catch (e) { parentPort.postMessage({ id, error: e.message }); return; }
+  try { move = kind === 'chess' ? chooseMoveChess(pos, color, level, style, recent) : kind === 'xiangqi' ? chooseMoveXiangqi(pos, color, level, style, recent) : kind === 'cinese' ? chooseMoveHalma(pos, color, level, style, recent) : kind.startsWith('dama-') ? chooseMoveDraughts(pos, color, level, style, recent) : chooseMove(pos, color, level, style, recent); } catch (e) { parentPort.postMessage({ id, error: e.message }); return; }
   parentPort.postMessage({ id, move: move && { from: move.from, to: move.to, promotion: move.promotion || null } });
 });

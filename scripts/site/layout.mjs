@@ -71,7 +71,7 @@ ${body}
   <div class="wrap foot">
     <div>
       <p class="brand small">Tri-D Chess</p>
-      <p>Free 3D chess, classic chess, Chinese chess and draughts in your browser. Open source under the GPL-3.0 licence.</p>
+      <p>Free 3D chess, classic chess, Chinese chess, Chinese checkers and draughts in your browser. Open source under the GPL-3.0 licence.</p>
       <p class="note">A fan project, not affiliated with any science-fiction franchise. Original piece designs.</p>
     </div>
     <nav aria-label="Footer">
@@ -79,6 +79,7 @@ ${body}
       <a href="/rules/3d-chess/">3D chess rules</a>
       <a href="/rules/chess/">Chess rules</a>
       <a href="/rules/xiangqi/">Xiangqi rules</a>
+      <a href="/rules/chinese-checkers/">Chinese checkers rules</a>
       <a href="/rules/draughts/">Draughts rules</a>
       <a href="/learn/how-to-play-3d-chess/">How to play 3D chess</a>
       <a href="/faq/">FAQ</a>

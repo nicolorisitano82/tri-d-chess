@@ -1,6 +1,6 @@
 {
   "name": "tri-d-chess",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "license": "GPL-3.0-or-later",
   "description": "Three-dimensional chess on seven levels: Meder rules, computer opponent, P2P online play with chat, AI via MCP",
   "type": "module",
@@ -10,7 +10,7 @@
     "app": "electron .",
     "dist": "electron-builder --mac dmg --arm64",
     "pack": "electron-builder --mac dir --arm64",
-    "test": "node test/engine.test.js && node test/rules.test.js && node test/chess.test.js && node test/tutorial.test.js && node test/undo.test.js && node test/attack.test.js && node test/draughts.test.js && node test/xiangqi.test.js",
+    "test": "node test/engine.test.js && node test/rules.test.js && node test/chess.test.js && node test/tutorial.test.js && node test/undo.test.js && node test/attack.test.js && node test/draughts.test.js && node test/xiangqi.test.js && node test/halma.test.js",
     "postinstall": "node scripts/vendor.mjs",
     "predist": "node scripts/vendor.mjs",
     "prepack": "node scripts/vendor.mjs",

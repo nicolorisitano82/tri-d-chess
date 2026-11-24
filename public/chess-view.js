@@ -288,14 +288,75 @@ function pointTile(geo) {
   return new THREE.Mesh(geo, mat);
 }
 
+// --- Chinese checkers: a round walnut board with the star inlaid, glass marbles ----------------
+const STAR_FILES = 'abcdefghijklmnopq';
+const U = 0.78;                                        // distance between neighbouring holes
+const starXZ = (key) => { const x = STAR_FILES.indexOf(key[0]) - 8, z = Number(key.slice(1)) - 9; return [(x + z / 2) * U, -z * (Math.sqrt(3) / 2) * U]; };
+const STAR_R = 8.4;                                    // board radius
+const MARBLE = {
+  white: new THREE.MeshPhysicalMaterial({ color: 0xf4efe6, roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, sheen: 0.4, emissive: 0x15120c }),
+  black: new THREE.MeshPhysicalMaterial({ color: 0x2a1a3a, roughness: 0.1, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.05, emissive: 0x08040c }),
+};
+const marbleGeo = new THREE.SphereGeometry(0.29, 32, 24);
+export function buildMarble(type, color) {
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(marbleGeo, MARBLE[color] || MARBLE.white);
+  m.position.y = 0.2;
+  g.add(m);
+  return g;
+}
+function starBoardTexture(holes, home) {
+  const W = 2048, R = STAR_R;
+  const c = document.createElement('canvas');
+  c.width = c.height = W;
+  const g = c.getContext('2d');
+  g.beginPath(); g.arc(W / 2, W / 2, W / 2 - 4, 0, Math.PI * 2); g.clip();   // round board: transparent outside
+  g.drawImage(woodTexture('#6b4424', '#2e1a0a', 17).image, 0, 0, W, W);
+  const P = (key) => { const [x, z] = starXZ(key); return [(x / (2 * R) + 0.5) * W, (z / (2 * R) + 0.5) * W]; };
+  const px = W / (2 * R);                              // pixels per world unit
+  // the star: a lighter inlay under the six points and the centre, home points tinted
+  const disc = (key, r, fill) => { const [x, y] = P(key); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fillStyle = fill; g.fill(); };
+  for (const k of holes) disc(k, U * 0.62 * px, '#d9b47c');
+  for (const k of home.white) disc(k, U * 0.62 * px, '#efe3c8');
+  for (const k of home.black) disc(k, U * 0.62 * px, '#6a4a7c');
+  // grooves between neighbouring holes
+  g.strokeStyle = 'rgba(60,30,10,.55)';
+  g.lineWidth = 3;
+  const set = new Set(holes);
+  for (const k of holes) {
+    const x = STAR_FILES.indexOf(k[0]) - 8, z = Number(k.slice(1)) - 9;
+    for (const [dx, dz] of [[1, 0], [0, 1], [-1, 1]]) {
+      const n = STAR_FILES[x + dx + 8] + (z + dz + 9);
+      if (!set.has(n)) continue;
+      const [a, b] = P(k), [c2, d] = P(n);
+      g.beginPath(); g.moveTo(a, b); g.lineTo(c2, d); g.stroke();
+    }
+  }
+  // the holes
+  for (const k of holes) {
+    const [x, y] = P(k);
+    const gr = g.createRadialGradient(x, y - 3, 2, x, y, U * 0.3 * px);
+    gr.addColorStop(0, '#1a0e05'); gr.addColorStop(1, '#4a2c14');
+    g.beginPath(); g.arc(x, y, U * 0.3 * px, 0, Math.PI * 2); g.fillStyle = gr; g.fill();
+  }
+  // brass ring at the edge
+  g.strokeStyle = '#b08a3e'; g.lineWidth = 14;
+  g.beginPath(); g.arc(W / 2, W / 2, W / 2 - 30, 0, Math.PI * 2); g.stroke();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
 // --- the room and the board ------------------------------------------------------------
 // size: 8 or 10. darkA1: whether a1 is a dark square (chess, international draughts); the Italian
 // draughts board is turned so that the dark corner is on each player's right (h1).
 // draughts: build discs instead of chess pieces. xiangqi: the 9 x 10 Chinese board (pieces on points).
-export function createChessView({ size = 8, darkA1 = true, draughts = false, xiangqi = false } = {}) {
+// star: { holes, home: { white, black } } for the Chinese checkers board.
+export function createChessView({ size = 8, darkA1 = true, draughts = false, xiangqi = false, star = null } = {}) {
   const cols = xiangqi ? 9 : size, rows = xiangqi ? 10 : size;
   const n = Math.max(cols, rows), k = n / 8;
-  const posOf = (key) => {
+  const posOf = star ? (key) => { const [x, z] = starXZ(key); return new THREE.Vector3(x, TOP, z); } : (key) => {
     const f = FILES.indexOf(key[0]), r = Number(key.slice(1));
     return new THREE.Vector3((f - (cols - 1) / 2) * SQ, TOP, -(r - (rows + 1) / 2) * SQ);
   };
@@ -303,7 +364,24 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false, xia
   root.visible = false;
   const squares = [];
 
-  if (xiangqi) {
+  if (star) {
+    const board = new THREE.Mesh(new THREE.CylinderGeometry(STAR_R, STAR_R + 0.15, 0.35, 96), new THREE.MeshStandardMaterial({ map: woodTexture('#3b2414', '#1c0e05', 3), roughness: 0.45 }));
+    board.position.y = TOP - 0.2;
+    root.add(board);
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(2 * STAR_R, 2 * STAR_R), new THREE.MeshStandardMaterial({ map: starBoardTexture(star.holes, star.home), roughness: 0.55, transparent: true, alphaTest: 0.5 }));
+    top.rotation.x = -Math.PI / 2;
+    top.position.y = TOP - 0.02;
+    root.add(top);
+    const tileGeo = new THREE.CylinderGeometry(U * 0.42, U * 0.42, 0.02, 24);
+    for (const key of star.holes) {
+      const m = pointTile(tileGeo);
+      m.position.copy(posOf(key));
+      m.position.y = TOP + 0.005;
+      m.userData = { key, kind: 'square' };
+      root.add(m);
+      squares.push({ key, mesh: m });
+    }
+  } else if (xiangqi) {
     const top = new THREE.Mesh(new THREE.BoxGeometry(cols + 2 * SQ - 0.02, 0.08, rows + 2 * SQ - 0.02),
       [0, 1, 2, 3, 4, 5].map((i) => new THREE.MeshStandardMaterial(i === 2 ? { map: xiangqiBoardTexture(), roughness: 0.6 } : { color: 0x9a6a35, roughness: 0.6 })));
     top.position.y = TOP - 0.04;
@@ -334,13 +412,14 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false, xia
     }
   }
   // carved frame with brass inlay and coordinates (the Chinese board has one point of margin inside)
+  const frameWood = new THREE.MeshStandardMaterial({ map: woodTexture('#3b2414', '#1c0e05', 3), roughness: 0.45, metalness: 0.05 });
+  const brass = new THREE.MeshStandardMaterial({ color: 0xb08a3e, roughness: 0.35, metalness: 0.8 });
+  if (!star) {
   const pad = xiangqi ? 2 : 0;
   const FW = cols + pad + 1.3, FD = rows + pad + 1.3;
-  const frameWood = new THREE.MeshStandardMaterial({ map: woodTexture('#3b2414', '#1c0e05', 3), roughness: 0.45, metalness: 0.05 });
   const frame = new THREE.Mesh(new THREE.BoxGeometry(FW, 0.3, FD), frameWood);
   frame.position.y = -0.13;
   root.add(frame);
-  const brass = new THREE.MeshStandardMaterial({ color: 0xb08a3e, roughness: 0.35, metalness: 0.8 });
   const ex = (cols + pad) / 2 + 0.07, ez = (rows + pad) / 2 + 0.07;
   for (const [w, d, x, z] of [[2 * ex + 0.06, 0.05, 0, ez], [2 * ex + 0.06, 0.05, 0, -ez], [0.05, 2 * ez + 0.06, ex, 0], [0.05, 2 * ez + 0.06, -ex, 0]]) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), brass);
@@ -350,9 +429,10 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false, xia
   const lx = (cols + pad) / 2 + 0.38, lz = (rows + pad) / 2 + 0.38;
   for (let i = 0; i < cols; i++) for (const z of [lz, -lz]) { const s = labelSprite(FILES[i]); s.position.set(i - (cols - 1) / 2, 0.06, z); root.add(s); }
   for (let i = 0; i < rows; i++) for (const x of [-lx, lx]) { const s = labelSprite(String(i + 1)); s.position.set(x, 0.06, -(i + 1 - (rows + 1) / 2)); root.add(s); }
+  }
   // stone table and floor
   const stone = new THREE.MeshStandardMaterial({ map: stoneTexture(), roughness: 0.9, metalness: 0 });
-  const tk = xiangqi ? 12.5 / 8 : k;
+  const tk = star ? 13 / 8 : xiangqi ? 12.5 / 8 : k;
   const table = new THREE.Mesh(new THREE.CylinderGeometry(7.6 * tk, 7.9 * tk, 0.5, 64), new THREE.MeshStandardMaterial({ map: woodTexture('#4a2f1b', '#24130a', 5), roughness: 0.6 }));
   table.position.y = -0.55;
   root.add(table);
@@ -388,13 +468,13 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false, xia
     torches.push({ pl, flame, phase: Math.random() * 10 });
   }
 
-  const vk = xiangqi ? 11.5 / 8 : k;                       // the 9 x 10 board with its margin is ~12 x 13 units
+  const vk = star ? 11.5 / 8 : xiangqi ? 11.5 / 8 : k;                       // the 9 x 10 board with its margin is ~12 x 13 units
   return {
     root,
     squares,
     views: vk === 1 ? CHESS_VIEWS : Object.fromEntries(Object.entries(CHESS_VIEWS).map(([name, v]) => [name, { pos: v.pos.map((x) => x * vk), target: v.target.map((x) => x * vk), narrow: v.narrow.map((x) => x * vk) }])),
     posOfKey: posOf,
-    buildPiece: xiangqi ? buildXiangqiPiece : draughts ? buildDraughtsPiece : buildChessPiece,
+    buildPiece: star ? buildMarble : xiangqi ? buildXiangqiPiece : draughts ? buildDraughtsPiece : buildChessPiece,
     background: 0x140d08,
     fog: [0x140d08, 22, 70],
     update(t) {

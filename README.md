@@ -79,6 +79,7 @@ MCP tools: `get_rules`, `get_game_state`, `get_legal_moves`, `make_move` (square
 | `src/ai.js` | computer player (alpha-beta with transposition table, levels and styles) |
 | `src/chess2d.js`, `src/ai-chess.js`, `src/games.js` | classic chess on chess.js, its computer player, the game-kind registry |
 | `src/xiangqi.js`, `src/ai-xiangqi.js` | Chinese chess (xiangqi): rules on a 90-point array board (perft-tested), its computer player |
+| `src/halma.js`, `src/ai-halma.js` | Chinese checkers for two players (star board, hop chains) and its computer player |
 | `src/draughts.js`, `src/ai-draughts.js` | draughts in five variants and their computer player |
 | `server.js` | Express: UI, REST + SSE, network endpoints, MCP server |
 | `electron/main.js` | macOS app |
@@ -108,6 +109,7 @@ Not affiliated with any science-fiction franchise. Piece designs are original.
 - **Regole ufficiali** di Meder: tavole d'attacco mobili (avanti, di lato, indietro se vuote), arrocco, en passant anche tra livelli, promozione per colonna a scelta del pezzo, patte per stallo, triplice ripetizione, materiale insufficiente e 50 mosse.
 - **Anche scacchi classici**: dal menu Gioco passi agli scacchi classici (regole FIDE tramite [chess.js](https://github.com/jhlywa/chess.js)) su una scacchiera in noce e acero, in una sala medievale illuminata da torce, con pezzi in avorio ed ebano. Computer, rete, lobby, orologio, replay e MCP valgono per entrambi i giochi.
 - **Scacchi cinesi (Xiangqi)**: scacchiera 9×10 con fiume e palazzi, pezzi a dischi con gli ideogrammi tradizionali, si gioca sui punti. Regole complete (generale volante, cannone che salta lo schermo, cavallo zoppo, occhio dell'elefante, lo stallo fa perdere), computer a 5 livelli, gioco in rete, replay, annulla e suggerimento.
+- **Dama cinese a 2 giocatori**: stella di 121 buche su una tavola rotonda di noce, biglie di vetro, passi e catene di salti (l'app trova il percorso), vittoria riempiendo la punta opposta con la regola anti-blocco. Computer a 5 livelli, gioco in rete, replay, annulla e suggerimento.
 - **Anche la dama, in cinque varianti**: italiana, internazionale (10×10), inglese (checkers), russa e brasiliana, nella stessa sala medievale. Presa obbligatoria con le regole di scelta di ciascuna variante, dama volante dove previsto, computer a 5 livelli, gioco in rete, replay, annulla e suggerimento.
 - **Quattro set di pezzi per il Tri-D**: Federazione, Klingon, Borg e Romulani, scelti separatamente per Bianco e Nero dal menu Pezzi (design originali ispirati alle fazioni, senza simboli ufficiali). La scelta è solo estetica e resta sul tuo dispositivo.
 - **Regole consultabili**: il pulsante Regole apre una pagina con ricerca, in italiano e inglese, con le regole del Tri-D (Meder) e degli scacchi classici (FIDE). Si apre anche con `?rules` nell'indirizzo.

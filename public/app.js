@@ -5,6 +5,7 @@ import { createChessView } from '/chess-view.js';
 import { DraughtsGame, isDraughts, VARIANTS } from '/draughts.js';
 import { ChessGame } from '/chess2d.js';
 import { XiangqiGame } from '/xiangqi.js';
+import { HalmaGame, HOLES, HOME } from '/halma.js';
 import { createRules } from '/rules.js';
 import { createTutorial } from '/tutorial.js';
 import { t, table, getLang, setLang, applyStatic, onLangChange, setRedWhite } from '/i18n.js';
@@ -21,12 +22,12 @@ const tridPos = (key) => { const s = parseSquare(key); return worldPos(s.x, s.y,
 let kind = 'trid';
 const ROOMS = {};
 let room = null; // the medieval room view in use, or null for the Tri-D scene
-const roomKey = (k) => (k === 'chess' ? 'chess' : k === 'xiangqi' ? 'xiangqi' : isDraughts(k) ? (VARIANTS[k].size === 10 ? 'dama10' : VARIANTS[k].dark === 'even' ? 'dama8it' : 'dama8') : null);
+const roomKey = (k) => (k === 'chess' ? 'chess' : k === 'xiangqi' ? 'xiangqi' : k === 'cinese' ? 'cinese' : isDraughts(k) ? (VARIANTS[k].size === 10 ? 'dama10' : VARIANTS[k].dark === 'even' ? 'dama8it' : 'dama8') : null);
 function roomFor(k) {
   const rk = roomKey(k);
   if (!rk) return null;
   if (!ROOMS[rk]) {
-    const v = rk === 'chess' ? createChessView() : rk === 'xiangqi' ? createChessView({ xiangqi: true }) : createChessView({ size: rk === 'dama10' ? 10 : 8, darkA1: rk !== 'dama8it', draughts: true });
+    const v = rk === 'chess' ? createChessView() : rk === 'xiangqi' ? createChessView({ xiangqi: true }) : rk === 'cinese' ? createChessView({ star: { holes: HOLES, home: HOME } }) : createChessView({ size: rk === 'dama10' ? 10 : 8, darkA1: rk !== 'dama8it', draughts: true });
     scene.add(v.root);
     for (const { mesh } of v.squares) pickables.push(mesh);
     ROOMS[rk] = v;
@@ -36,7 +37,7 @@ function roomFor(k) {
 const posOfKey = (key) => (room ? room.posOfKey(key) : tridPos(key));
 const buildPiece = (type, color) => (room ? room.buildPiece(type, color) : buildTriDPiece(type, color));
 // a new, empty game of any kind (replays, local checks)
-const newLocalGame = (k) => (k === 'chess' ? new ChessGame({ white: 'human', black: 'human' }) : k === 'xiangqi' ? new XiangqiGame({ white: 'human', black: 'human' }) : isDraughts(k) ? new DraughtsGame(k, { white: 'human', black: 'human' }) : new Game({ white: 'human', black: 'human' }));
+const newLocalGame = (k) => (k === 'chess' ? new ChessGame({ white: 'human', black: 'human' }) : k === 'xiangqi' ? new XiangqiGame({ white: 'human', black: 'human' }) : k === 'cinese' ? new HalmaGame({ white: 'human', black: 'human' }) : isDraughts(k) ? new DraughtsGame(k, { white: 'human', black: 'human' }) : new Game({ white: 'human', black: 'human' }));
 
 // --- renderer / scene ------------------------------------------------------------
 const container = document.getElementById('scene');
@@ -495,7 +496,7 @@ function renderPanel() {
   let status;
   if (s.replay) status = t('replay.status', { i: s.replay.i, n: s.replay.n });
   else if (s.lesson && s.status === 'playing') status = t(s.turn === 'white' ? 'status.lesson' : 'status.lessonDone');
-  else if (s.status === 'checkmate') status = t(isDraughts(kindOf(s)) ? 'status.blocked' : 'status.mate', { c: IT[s.winner] });
+  else if (s.status === 'checkmate') status = t(kindOf(s) === 'cinese' ? 'status.ccWin' : isDraughts(kindOf(s)) ? 'status.blocked' : 'status.mate', { c: IT[s.winner] });
   else if (s.status === 'stalemate') status = s.winner ? t('status.blocked', { c: IT[s.winner] }) : t('status.stalemate'); // Xiangqi: no move = loss
   else if (s.status === 'draw') status = t('status.draw', { r: DRAW_IT[s.drawReason || 'fifty'] });
   else if (s.status === 'resigned') status = t('status.resigned', { c: IT[s.winner] });
@@ -573,7 +574,7 @@ function onLive(s) {
   if (gameFromUrl === true) {
     const q = new URLSearchParams(location.search), g = q.get('game');
     gameFromUrl = null;
-    if (g && !q.has('replay') && !q.has('room') && !q.has('watch') && (g === 'trid' || g === 'chess' || g === 'xiangqi' || isDraughts(g)) && kindOf(s) !== g)
+    if (g && !q.has('replay') && !q.has('room') && !q.has('watch') && (g === 'trid' || g === 'chess' || g === 'xiangqi' || g === 'cinese' || isDraughts(g)) && kindOf(s) !== g)
       setTimeout(() => { $('gameKind').value = g; $('gameKind').onchange(); }, 0);
   }
   if (!replay && !tutorial?.active()) applyState(s);
@@ -582,6 +583,7 @@ function onLive(s) {
 const PUBLIC_DEMO = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
 const CHESS_MOVE_RE = /^([a-h][1-8])-([a-h][1-8])(?:=([QRBN]))?$/;
 const XQ_MOVE_RE = /^([a-i](?:10|[1-9]))-([a-i](?:10|[1-9]))()$/;
+const CC_MOVE_RE = /^([a-q](?:1[0-7]|[1-9]))-([a-q](?:1[0-7]|[1-9]))(?:=([a-q0-9x]{4,300}))?$/; // (a hop chain may carry its route)
 const DRAUGHTS_MOVE_RE = /^([a-j](?:10|[1-9]))-([a-j](?:10|[1-9]))(?:=([a-j0-9x]{4,120}))?$/;
 const MOVE_RE = /^([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])-([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])(?:=([QRBN]))?$/;
 const b64url = (s) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -592,7 +594,7 @@ function decodeGame(code, k = 'trid') {
     if (!code || code.length > 30000) return null;
     const parts = unb64url(code).split('.').filter(Boolean);
     if (!parts.length || parts.length > 2000) return null;
-    const re = k === 'chess' ? CHESS_MOVE_RE : k === 'xiangqi' ? XQ_MOVE_RE : isDraughts(k) ? DRAUGHTS_MOVE_RE : MOVE_RE;
+    const re = k === 'chess' ? CHESS_MOVE_RE : k === 'xiangqi' ? XQ_MOVE_RE : k === 'cinese' ? CC_MOVE_RE : isDraughts(k) ? DRAUGHTS_MOVE_RE : MOVE_RE;
     const moves = parts.map((p) => { const m = re.exec(p); return m && { from: m[1], to: m[2], promotion: m[3] || null }; });
     return moves.every(Boolean) ? moves : null;
   } catch { return null; }
@@ -660,7 +662,7 @@ window.addEventListener('keydown', (e) => {
 });
 {
   const qs = new URLSearchParams(location.search);
-  const g = qs.get('game'), k = g === 'chess' || g === 'xiangqi' || isDraughts(g) ? g : 'trid';
+  const g = qs.get('game'), k = g === 'chess' || g === 'xiangqi' || g === 'cinese' || isDraughts(g) ? g : 'trid';
   const code = qs.get('replay');
   if (code) { const m = decodeGame(code, k); if (m) replayFromUrl = { moves: m, k }; else setTimeout(() => toast(t('replay.bad')), 500); }
 }
@@ -684,7 +686,7 @@ tutorial = createTutorial({
 $('btnRules').onclick = () => rules.open(isDraughts(kind) ? 'dama' : kind);
 {
   const r = new URLSearchParams(location.search).get('rules');
-  if (r !== null) rules.open(r === 'chess' || r === 'trid' || r === 'dama' || r === 'xiangqi' ? r : isDraughts(r) ? 'dama' : null);
+  if (r !== null) rules.open(r === 'chess' || r === 'trid' || r === 'dama' || r === 'xiangqi' || r === 'cinese' ? r : isDraughts(r) ? 'dama' : null);
   else if (new URLSearchParams(location.search).has('tutorial')) setTimeout(() => openTutorial(0), 600);
 }
 
@@ -718,8 +720,8 @@ function victoryText(s) {
     const w = s.winner, st = statsFor(s, w);
     $('vEyebrow').textContent = t('victory.glory', { c: IT[w] });
     $('vTitle').textContent = t('victory.win');
-    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? (isDraughts(kindOf(s)) ? 'victory.byBlock' : 'victory.byMate') : s.status === 'stalemate' ? 'victory.byBlock' : s.status === 'timeout' ? 'victory.byTime' : 'victory.byResign'), n });
-    $('vMeta').textContent = t('victory.meta', { caps: st.caps.length, checks: st.checks, mat: st.material });
+    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? (kindOf(s) === 'cinese' ? 'victory.byFill' : isDraughts(kindOf(s)) ? 'victory.byBlock' : 'victory.byMate') : s.status === 'stalemate' ? 'victory.byBlock' : s.status === 'timeout' ? 'victory.byTime' : 'victory.byResign'), n });
+    $('vMeta').textContent = kindOf(s) === 'cinese' ? t('victory.plies', { n: s.history.length }) : t('victory.meta', { caps: st.caps.length, checks: st.checks, mat: st.material });
   }
 }
 
@@ -1029,7 +1031,7 @@ renderer.setAnimationLoop(() => {
 
 // --- hooks for optional modules (network play, net.js) ---------------------------------
 window.TriD = Object.assign(window.TriD || {}, { getState: () => live || state, post, toast, t, onLangChange, listeners: window.TriD?.listeners || [],
-  kinds: ['trid', 'chess', 'xiangqi', ...Object.keys(VARIANTS)],
+  kinds: ['trid', 'chess', 'xiangqi', 'cinese', ...Object.keys(VARIANTS)],
   // players' nicknames in a network game (set by net.js); empty outside rooms
   names: { white: '', black: '' },
   setNames(n) { window.TriD.names = { white: n?.white || '', black: n?.black || '' }; if (state) renderPanel(); },
@@ -1038,7 +1040,7 @@ window.TriD = Object.assign(window.TriD || {}, { getState: () => live || state, 
 // --- language (IT / EN) -------------------------------------------------------------------
 // --- accessibility: keyboard moves, spoken updates, text description, high contrast -------
 const say = (text) => { const el = $('srLive'); el.textContent = ''; setTimeout(() => { el.textContent = text; }, 30); };
-const pieceName = (type) => (kind === 'xiangqi' ? t('xq.' + type) : PIECE_IT[type] || type);
+const pieceName = (type) => (kind === 'xiangqi' ? t('xq.' + type) : kind === 'cinese' ? t('cc.marble') : PIECE_IT[type] || type);
 function describeMove(m) {
   const c = IT[m.color];
   let txt = m.board ? t('a11y.boardMoved', { c, f: m.from, t: m.to })
@@ -1086,7 +1088,7 @@ $('btnDescribe').onclick = () => {
 };
 // "b2w" -> "b2W", "ql1" -> "QL1", "E4" -> "e4"
 function normSquare(x) {
-  const m = /^([a-jz])(10|[0-9])(w|n|b|[qk]l[1-6])?$/i.exec(x);
+  const m = /^([a-qz])(1[0-7]|[0-9])(w|n|b|[qk]l[1-6])?$/i.exec(x);
   if (m) return m[1].toLowerCase() + m[2] + (m[3] ? m[3].toUpperCase() : '');
   if (/^[qk]l[1-6]$/i.test(x)) return x.toUpperCase();
   return null;
