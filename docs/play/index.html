@@ -4188,12 +4188,18 @@ $('setW').onchange = $('setB').onchange = () => {
 const VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 0, M: 1, D: 3 };
 const GLYPH = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟', M: '⛂', D: '⛃' };
 const glyph = (t) => GLYPH[t] + '\uFE0E';
+// xiangqi: own values (chariot 9, cannon 5, horse 4, advisor/elephant 2, soldier 1) and the disc characters
+const XQ_VAL = { K: 0, A: 2, E: 2, H: 4, R: 9, C: 5, P: 1 };
+const XQ_GLYPH = { white: { K: '帥', A: '仕', E: '相', H: '傌', R: '俥', C: '炮', P: '兵' }, black: { K: '將', A: '士', E: '象', H: '馬', R: '車', C: '砲', P: '卒' } };
+const valOf = (s) => (kindOf(s) === 'xiangqi' ? XQ_VAL : VAL);
+const glyphFor = (s, t, color) => (kindOf(s) === 'xiangqi' ? XQ_GLYPH[color]?.[t] || '?' : glyph(t));
 const fmtTime = (ms) => { if (ms == null || !isFinite(ms)) return '—'; const s = Math.round(ms / 1000); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 function statsFor(s, c) {
   const mine = s.history.filter((m) => m.color === c);
-  const caps = mine.flatMap((m) => m.capturedAll || (m.captured ? [m.captured] : [])).sort((x, y) => VAL[y] - VAL[x]);
-  const material = Object.values(s.pieces).filter((p) => p.color === c).reduce((t, p) => t + VAL[p.type], 0);
+  const V = valOf(s);
+  const caps = mine.flatMap((m) => m.capturedAll || (m.captured ? [m.captured] : [])).sort((x, y) => (V[y] || 0) - (V[x] || 0));
+  const material = Object.values(s.pieces).filter((p) => p.color === c).reduce((t, p) => t + (V[p.type] || 0), 0);
   const think = [];
   s.history.forEach((m, i) => { if (m.color === c && m.at) { const prev = i ? s.history[i - 1].at : s.startedAt; if (prev) think.push(m.at - prev); } });
   return {
@@ -4229,7 +4235,7 @@ function renderStats() {
     const S = st[c], diff = S.material - st[o].material;
     const card = $(`card-${c}`);
     card.classList.toggle('turn', state.status === 'playing' && state.turn === c);
-    const capsHtml = S.caps.length ? S.caps.map((t) => `<span class="${o[0]}">${glyph(t)}</span>`).join('') : `<span class="none">${t('stats.noCaps')}</span>`;
+    const capsHtml = S.caps.length ? S.caps.map((t) => `<span class="${o[0]}">${glyphFor(state, t, o)}</span>`).join('') : `<span class="none">${t('stats.noCaps')}</span>`;
     const thinking = state.status === 'playing' && state.turn === c;
     card.innerHTML = `
       <div class="head"><span class="name">${IT[c]}</span><span class="who">${escHtml(nickOf(state, c) ? `${nickOf(state, c)} · ` : '')}${IT[state.players[c]]}${state.winner === c ? ` · ${t('stats.winner')}` : ''}</span></div>

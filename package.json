@@ -1,6 +1,6 @@
 {
   "name": "tri-d-chess",
-  "version": "0.20.0",
+  "version": "0.20.1",
   "license": "GPL-3.0-or-later",
   "description": "Three-dimensional chess on seven levels: Meder rules, computer opponent, P2P online play with chat, AI via MCP",
   "type": "module",
