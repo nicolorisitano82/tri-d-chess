@@ -82,7 +82,8 @@ MCP tools: `get_rules`, `get_game_state`, `get_legal_moves`, `make_move` (square
 | `electron/main.js` | macOS app |
 | `public/` | Three.js client: `app.js`, `pieces.js`, `chess-view.js` (medieval board), `i18n.js`, `net.js` (P2P), `chat.js`, `lobby.js` |
 | `scripts/build-web.mjs` | standalone pages: `npm run pages` → `docs/play/`, `npm run web` → `dist-web/` |
-| `scripts/build-site.mjs`, `website/` | static English website + game at `/play/`: `npm run site -- --site=https://tridchess.altervista.org` → `site/` (upload by FTP) |
+| `scripts/build-site.mjs`, `website/` | static English website + game at `/play/`: `npm run site:altervista` → `site/` |
+| `scripts/deploy-site.mjs` | `npm run deploy`: uploads only changed files of `site/` by FTP (lftp) as `*.__new`, verifies each over HTTPS, then renames them live — no half-written files for visitors (`--dry-run`, `--all`) |
 | `docs/` | GitHub Pages site and playable demo |
 | `test/` | engine and rules tests |
 
