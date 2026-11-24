@@ -62,8 +62,8 @@ ${after}
 
 const APP_LD = {
   '@context': 'https://schema.org', '@type': 'WebApplication', name: 'Tri-D Chess', url: `${SITE}/play/`,
-  description: 'Free three-dimensional chess (Meder tournament rules), classic chess and five draughts variants in the browser: play the computer or a friend online.',
-  applicationCategory: 'GameApplication', genre: ['Board game', 'Chess', 'Draughts'], operatingSystem: 'Any (web browser), macOS',
+  description: 'Free three-dimensional chess (Meder tournament rules), classic chess, Chinese chess (xiangqi) and five draughts variants in the browser: play the computer or a friend online.',
+  applicationCategory: 'GameApplication', genre: ['Board game', 'Chess', 'Xiangqi', 'Draughts'], operatingSystem: 'Any (web browser), macOS',
   browserRequirements: 'Requires a browser with WebGL', inLanguage: ['en', 'it'], isAccessibleForFree: true,
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' }, image: `${SITE}/assets/og-image.jpg`,
   softwareVersion: version, license: 'https://www.gnu.org/licenses/gpl-3.0.html',
@@ -78,6 +78,9 @@ const GAMES = [
   { img: 'chess', alt: 'A classic chessboard in a torch-lit medieval hall', title: 'Classic chess',
     text: 'Standard FIDE chess on a walnut-and-maple board in a torch-lit medieval hall, with ivory and ebony pieces.',
     rules: '/rules/chess/', play: '/play/?game=chess', accent: 'var(--sky)' },
+  { img: 'xiangqi', alt: 'A xiangqi board with the river and the palaces, and discs carved with Chinese characters', title: 'Chinese chess (Xiangqi)',
+    text: 'The 9×10 board with the river and the palaces, cannons that jump to capture and generals that may never face each other.',
+    rules: '/rules/xiangqi/', play: '/play/?game=xiangqi', accent: 'var(--red)' },
   { img: 'draughts', alt: 'A draughts board with light and dark discs and a crowned king', title: 'Draughts & checkers',
     text: 'Italian, international (10×10), English checkers, Russian and Brazilian draughts, each with its own capture rules.',
     rules: '/rules/draughts/', play: '/play/?game=dama-it', accent: 'var(--lilac)' },
@@ -85,7 +88,7 @@ const GAMES = [
 const imgOf = (name) => existsSync(join(root, 'website/assets', name + '.webp')) ? name : 'board';
 write('/', P({
   path: '/', title: 'Tri-D Chess — play free 3D chess online in your browser',
-  description: 'Play 3D chess online for free: seven levels, movable attack boards, Meder rules. Plus chess and draughts, a computer opponent and online play. No sign-up.',
+  description: 'Play 3D chess online for free: seven levels, movable attack boards, Meder rules. Plus chess, xiangqi and draughts, a computer and online play. No sign-up.',
   jsonld: [{ '@context': 'https://schema.org', '@type': 'WebSite', name: 'Tri-D Chess', url: SITE + '/', inLanguage: 'en' }, APP_LD],
   body: `<div class="wrap hero">
   <div>
@@ -106,13 +109,13 @@ write('/', P({
 
 <section aria-labelledby="games-h">
   <div class="wrap">
-    <span class="bar" style="background:var(--orange)">Three games</span>
-    <h2 id="games-h">3D chess, classic chess and draughts in one place</h2>
+    <span class="bar" style="background:var(--orange)">Four games</span>
+    <h2 id="games-h">3D chess, classic chess, Chinese chess and draughts in one place</h2>
     <div class="grid">
 ${GAMES.map((g) => `      <div class="card game-card" style="--accent:${g.accent}">
         <img src="/assets/${imgOf(g.img)}.webp" width="1600" height="964" alt="${esc(g.alt)}" loading="lazy">
         <div class="in"><h3>${g.title}</h3><p>${g.text}</p>
-          <div class="links"><a href="${g.play}">Play ${g.title.split(' (')[0].toLowerCase().replace(' & checkers', '')}</a><a href="${g.rules}">Rules</a></div></div>
+          <div class="links"><a href="${g.play}">Play ${g.title.split(' (')[0].toLowerCase().replace(' & checkers', '').replace('chinese', 'Chinese')}</a><a href="${g.rules}">Rules</a></div></div>
       </div>`).join('\n')}
     </div>
   </div>
@@ -185,8 +188,8 @@ ${GAMES.map((g) => `      <div class="card game-card" style="--accent:${g.accent
 // --- rules ----------------------------------------------------------------------------------
 const EN = RULES.en;
 write('/rules/', P({
-  path: '/rules/', title: 'Game rules: 3D chess, chess and draughts',
-  description: 'Complete rules of 3D chess (Meder tournament rules), classic chess and five draughts variants: Italian, international, checkers, Russian, Brazilian.',
+  path: '/rules/', title: 'Game rules: 3D chess, chess, xiangqi and draughts',
+  description: 'Complete rules of 3D chess (Meder rules), classic chess, Chinese chess (xiangqi) and five draughts variants: Italian, international, checkers, Russian, Brazilian.',
   crumbs: [['Rules', '/rules/']],
   body: `<div class="wrap page-head">
   <h1>Game rules</h1>
@@ -195,6 +198,7 @@ write('/rules/', P({
 <section><div class="wrap grid">
   <div class="card" style="--accent:var(--orange)"><h3><a href="/rules/3d-chess/">3D chess (Tri-D)</a></h3><p>The seven-level board, attack boards, square names, how pieces move between levels, castling, promotion by file and draws.</p></div>
   <div class="card" style="--accent:var(--sky)"><h3><a href="/rules/chess/">Classic chess</a></h3><p>The FIDE Laws of Chess in short: how each piece moves, castling, en passant, promotion, check, checkmate and draws.</p></div>
+  <div class="card" style="--accent:var(--red)"><h3><a href="/rules/xiangqi/">Chinese chess (Xiangqi)</a></h3><p>The river, the palaces, the seven pieces and their characters, the cannon’s jump, the flying general and why stalemate loses.</p></div>
   <div class="card" style="--accent:var(--lilac)"><h3><a href="/rules/draughts/">Draughts &amp; checkers</a></h3><p>Men, kings and compulsory captures, then what changes in each of the five variants.</p></div>
 </div></section>
 <section><div class="wrap">
@@ -240,6 +244,26 @@ ${related([['How to play 3D chess', '/learn/how-to-play-3d-chess/'], ['Classic c
       secs,
       after: `${playBox('Play classic chess against the computer (five levels) or a friend online, with legal moves highlighted.', '/play/?game=chess', 'Play chess')}
 ${related([['3D chess rules', '/rules/3d-chess/'], ['Draughts rules', '/rules/draughts/'], ['FAQ', '/faq/']])}`,
+    }),
+  }), 0.8);
+}
+
+// Chinese chess
+{
+  const secs = sections(EN.xiangqi);
+  write('/rules/xiangqi/', P({
+    path: '/rules/xiangqi/', title: 'Xiangqi rules: how to play Chinese chess',
+    description: 'Chinese chess (xiangqi) rules for beginners: the river and palaces, how the general, advisor, elephant, horse, chariot, cannon and soldier move, and how games end.',
+    crumbs: [['Rules', '/rules/'], ['Xiangqi', '/rules/xiangqi/']], type: 'article', image: '/assets/xiangqi.jpg',
+    imageAlt: 'A xiangqi board with the river and the palaces, and discs carved with Chinese characters',
+    jsonld: [{ '@context': 'https://schema.org', '@type': 'Article', headline: 'Xiangqi rules: how to play Chinese chess', inLanguage: 'en', about: 'Xiangqi',
+      mainEntityOfPage: `${SITE}/rules/xiangqi/`, image: `${SITE}/assets/xiangqi.jpg`, dateModified: today, author: { '@type': 'Organization', name: 'Tri-D Chess', url: SITE + '/' } }],
+    body: article({
+      head: `<h1>Xiangqi rules</h1>
+<p class="lede"><b>Xiangqi</b> (象棋), Chinese chess, is one of the most played board games in the world. The pieces stand on the <b>points</b> of the grid, a river splits the board in two and each general is locked in its palace. Here are the rules as the app plays them, then try a game against the computer.</p>`,
+      secs,
+      after: `${playBox('Play xiangqi against the computer (five levels) or a friend online, with legal moves highlighted on the points.', '/play/?game=xiangqi', 'Play xiangqi')}
+${related([['Classic chess rules', '/rules/chess/'], ['3D chess rules', '/rules/3d-chess/'], ['FAQ', '/faq/']])}`,
     }),
   }), 0.8);
 }
@@ -375,7 +399,7 @@ const FAQ = [
   ['watch', 'Can other people watch a game?', 'Yes. Live games listed in the lobby can be watched, and a third person who opens a room link joins as a spectator. Players see how many spectators are watching.'],
   ['rules', 'Which rules does the 3D chess use?', 'Jens Meder’s tournament rules for three-dimensional chess, including movable attack boards, castling, en passant across levels and promotion by file. Other rule sets exist; the complete rules as played here are on the 3D chess rules page.'],
   ['computer', 'How strong is the computer?', 'There are five levels, from Beginner to Master, and three playing styles (balanced, aggressive, cautious) that you can set separately for White and Black. Level 1 makes deliberate mistakes; level 5 searches several moves ahead. It runs entirely in your browser.'],
-  ['games', 'Which games can I play?', '3D chess (Tri-D), classic chess and five draughts variants: Italian, international (10×10), English draughts (checkers), Russian and Brazilian.'],
+  ['games', 'Which games can I play?', '3D chess (Tri-D), classic chess, Chinese chess (xiangqi) and five draughts variants: Italian, international (10×10), English draughts (checkers), Russian and Brazilian.'],
   ['undo', 'Can I take back a move or get a hint?', 'Yes, in games played on one screen — against the computer or two players on the same device. Online games have no undo, to keep them fair.'],
   ['phone', 'Does it work on a phone?', 'Yes. The board can be rotated and zoomed with your fingers, and the panels fold away to leave room for the game.'],
   ['language', 'Is the game available in other languages?', 'The game itself is in English and Italian; switch with the EN/IT button. This website is in English.'],
@@ -402,7 +426,7 @@ write('/about/', P({
   body: article({
     head: `<h1>About Tri-D Chess</h1><p class="lede">A free, open-source fan project to make three-dimensional chess actually playable — in the browser, on a phone or as a desktop app.</p>`,
     secs: [
-      { id: 'project', title: 'The project', html: `<p>Tri-D Chess started from a simple wish: to play the tiered chess of science fiction with real, complete rules. It grew to include classic chess, five draughts variants, a computer opponent, serverless online play and an interactive tutorial.</p>
+      { id: 'project', title: 'The project', html: `<p>Tri-D Chess started from a simple wish: to play the tiered chess of science fiction with real, complete rules. It grew to include classic chess, Chinese chess (xiangqi), five draughts variants, a computer opponent, serverless online play and an interactive tutorial.</p>
 <p>It is a fan project and is not affiliated with any science-fiction franchise; the piece designs are original. The code is free software under the <a href="https://www.gnu.org/licenses/gpl-3.0.html" rel="noopener">GPL-3.0 licence</a> and lives on <a href="https://github.com/nicolorisitano82/tri-d-chess" rel="noopener">GitHub</a>.</p>` },
       { id: 'built-with', title: 'Built with', html: `<ul><li><a href="https://threejs.org" rel="noopener">Three.js</a> for the 3D board.</li><li><a href="https://github.com/dmotz/trystero" rel="noopener">Trystero</a> for peer-to-peer online play over WebRTC.</li><li><a href="https://github.com/jhlywa/chess.js" rel="noopener">chess.js</a> for the classic chess rules.</li><li><a href="https://www.electronjs.org" rel="noopener">Electron</a> for the macOS app, and the <a href="https://modelcontextprotocol.io" rel="noopener">Model Context Protocol</a> for AI players.</li></ul>` },
       { id: 'privacy', title: 'Privacy', html: `<p>The game has no accounts, no ads and no analytics of its own.</p>

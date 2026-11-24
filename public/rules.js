@@ -5,7 +5,7 @@
 export const RULES = {
   it: {
     title: 'Regole', search: 'Cerca nelle regole…', close: 'Chiudi', none: 'Nessun risultato per «{q}»',
-    results: '{n} sezioni trovate', tabs: { trid: 'Scacchi 3D (Tri-D)', chess: 'Scacchi classici', dama: 'Dama' },
+    results: '{n} sezioni trovate', tabs: { trid: 'Scacchi 3D (Tri-D)', chess: 'Scacchi classici', xiangqi: 'Scacchi cinesi', dama: 'Dama' },
     trid: [
       ['Il gioco', `<p>Gli scacchi tridimensionali si giocano su più scacchiere sovrapposte. Qui si seguono le <b>regole da torneo di Jens Meder</b>. Pezzi e scopo sono quelli degli scacchi normali: vince chi dà scacco matto al re avversario.</p>`],
       ['La scacchiera', `<p>Ci sono <b>tre tavole principali</b> fisse, 4×4, con colonne a–d:</p>
@@ -61,6 +61,16 @@ export const RULES = {
       ['Patta', `<ul><li><b>Stallo</b>: chi deve muovere non ha mosse legali ma non è sotto scacco.</li><li><b>Triplice ripetizione</b> della stessa posizione.</li><li><b>Materiale insufficiente</b>: nessuno dei due può dare matto, per esempio re contro re o re e alfiere contro re.</li><li><b>Regola delle 50 mosse</b>: 50 mosse per parte senza catture né mosse di pedone.</li><li>Con l'orologio, se finisce il tempo ma l'avversario non potrebbe mai dare matto.</li></ul>`],
       ["Usare l'app", `<ul><li>Tocca un pezzo, poi la casella di arrivo; le mosse possibili sono evidenziate.</li><li>Il pulsante <b>Vista</b> alterna il lato del Bianco, del Nero e la vista laterale.</li><li>Computer, gioco in rete, orologio, replay e AI via MCP funzionano come nel Tri-D.</li></ul>`],
     ],
+    xiangqi: [
+      ['Il gioco', `<p>Lo <b>Xiangqi</b> (象棋) è lo scacchi cinese. Si gioca sulle <b>intersezioni</b> di una griglia di 9×10 linee, non sulle case. Vince chi dà scacco matto al <b>generale</b> avversario, oppure lo lascia <b>senza mosse</b>: nello Xiangqi lo stallo è una sconfitta.</p><p>Muove per primo il <b>Rosso</b>.</p>`],
+      ['Scacchiera, fiume e palazzi', `<p>A metà scacchiera scorre il <b>fiume</b> (楚河 漢界), tra la riga 5 e la 6. Le intersezioni si chiamano come negli scacchi: colonne <code>a</code>–<code>i</code>, righe <code>1</code>–<code>10</code>; il Rosso è dalla parte della riga 1.</p><p>Ogni giocatore ha un <b>palazzo</b> di 3×3 punti segnato da due diagonali (colonne d–f, righe 1–3 per il Rosso, 8–10 per il Nero).</p>`],
+      ['I pezzi', `<p>I pezzi sono dischi con un carattere cinese; il Rosso e il Nero usano caratteri diversi per alcuni pezzi.</p><ul><li><b>帥 / 將 Generale</b>: un punto in orizzontale o verticale, solo dentro il palazzo.</li><li><b>仕 / 士 Consigliere</b>: un punto in diagonale, solo dentro il palazzo.</li><li><b>相 / 象 Elefante</b>: esattamente due punti in diagonale; non attraversa il fiume ed è bloccato se il punto di mezzo è occupato («occhio dell'elefante»).</li><li><b>傌 / 馬 Cavallo</b>: un punto in orizzontale o verticale e poi uno in diagonale verso l'esterno; è bloccato se il primo punto è occupato («zoppia del cavallo»).</li><li><b>俥 / 車 Carro</b>: quanti punti vuole in orizzontale o verticale, come la torre.</li><li><b>炮 / 砲 Cannone</b>: si muove come il carro, ma <b>cattura solo saltando esattamente un pezzo</b> (lo «schermo»), di qualunque colore.</li><li><b>兵 / 卒 Soldato</b>: un punto in avanti; dopo aver passato il fiume anche di lato. Non torna mai indietro e non viene promosso.</li></ul>`],
+      ['Generali faccia a faccia', `<p>I due generali non possono mai stare sulla stessa colonna senza pezzi in mezzo (regola del «generale volante»). Una mossa che li lascerebbe faccia a faccia è illegale, come mettersi sotto scacco.</p>`],
+      ['Scacco, matto e stallo', `<p>Il generale attaccato è <b>sotto scacco</b> e il giocatore deve pararlo subito. Se non può, è <b>scacco matto</b> e ha perso. Se il giocatore di turno <b>non ha mosse legali</b> anche senza essere sotto scacco, perde ugualmente.</p>`],
+      ['Patta', `<ul><li><b>Triplice ripetizione</b> della stessa posizione.</li><li><b>120 semimosse</b> (60 per parte) senza catture.</li><li>Nessuno dei due ha più pezzi d'attacco (carri, cavalli, cannoni o soldati).</li></ul><p>Le regole ufficiali sullo scacco perpetuo e sugli attacchi ripetuti sono molto complesse: l'app le semplifica con la patta per ripetizione.</p>`],
+      ['Posizione iniziale', `<p>Riga 1 (Rosso): carro, cavallo, elefante, consigliere, generale, consigliere, elefante, cavallo, carro. Cannoni in <code>b3</code> e <code>h3</code>, soldati in <code>a4 c4 e4 g4 i4</code>. Il Nero è disposto a specchio sulle righe 10, 8 e 7.</p>`],
+      ["Usare l'app", `<ul><li>Tocca un pezzo: i punti d'arrivo si illuminano, in rosso quelli con cattura.</li><li>Puoi scrivere le mosse con le coordinate, per esempio <code>h3 e3</code> (cannone al centro).</li><li>Computer, gioco in rete, orologio, replay, annulla e suggerimento funzionano come negli scacchi.</li></ul>`],
+    ],
     dama: [
       ['Il gioco', `<p>La dama si gioca sulle case scure di una scacchiera. Ognuno ha 12 pedine (20 nella dama internazionale). Vince chi cattura tutti i pezzi avversari o lo lascia <b>senza mosse</b>. L'app propone cinque varianti, scelte dal menu Gioco.</p>`],
       ['Scacchiera e posizione iniziale', `<p>Le pedine stanno sulle case scure delle prime tre file di ciascun giocatore (quattro sul 10×10). Le caselle si chiamano come negli scacchi, per esempio <code>c3</code> o <code>j10</code>.</p><p>Nella <b>dama italiana</b> la scacchiera è girata: la casa scura d'angolo è alla destra di ciascun giocatore.</p>`],
@@ -78,7 +88,7 @@ export const RULES = {
   },
   en: {
     title: 'Rules', search: 'Search the rules…', close: 'Close', none: 'No results for “{q}”',
-    results: '{n} sections found', tabs: { trid: '3D chess (Tri-D)', chess: 'Classic chess', dama: 'Draughts' },
+    results: '{n} sections found', tabs: { trid: '3D chess (Tri-D)', chess: 'Classic chess', xiangqi: 'Chinese chess', dama: 'Draughts' },
     trid: [
       ['The game', `<p>Three-dimensional chess is played on several stacked boards. This app follows <b>Jens Meder's tournament rules</b>. The pieces and the goal are those of normal chess: checkmate the opponent's king.</p>`],
       ['The board', `<p>There are <b>three fixed main boards</b>, each 4×4 with files a–d:</p>
@@ -133,6 +143,16 @@ export const RULES = {
       ['Check and checkmate', `<p>A king that is attacked is <b>in check</b>, and the player must deal with it at once: move the king, capture the checking piece, or block the attack. If that is impossible it is <b>checkmate</b>, and the game is lost.</p>`],
       ['Draws', `<ul><li><b>Stalemate</b>: the player to move has no legal move but is not in check.</li><li><b>Threefold repetition</b> of the same position.</li><li><b>Insufficient material</b>: neither side can mate, for example king against king, or king and bishop against king.</li><li><b>50-move rule</b>: 50 moves by each side with no capture or pawn move.</li><li>With a clock, when time runs out but the opponent could never mate.</li></ul>`],
       ['Using the app', `<ul><li>Tap a piece, then the target square; the possible moves are highlighted.</li><li>The <b>View</b> button switches between White's side, Black's side and a side view.</li><li>The computer, online play, clock, replay and AI via MCP all work as in Tri-D.</li></ul>`],
+    ],
+    xiangqi: [
+      ['The game', `<p><b>Xiangqi</b> (象棋) is Chinese chess. It is played on the <b>intersections</b> of a grid of 9×10 lines, not on squares. You win by checkmating the opponent's <b>general</b> or leaving them <b>without a move</b>: in Xiangqi stalemate is a loss.</p><p><b>Red</b> moves first.</p>`],
+      ['Board, river and palaces', `<p>The <b>river</b> (楚河 漢界) runs across the middle, between rows 5 and 6. Points are named as in chess: files <code>a</code>–<code>i</code>, rows <code>1</code>–<code>10</code>; Red sits on the row 1 side.</p><p>Each player has a <b>palace</b> of 3×3 points marked by two diagonals (files d–f, rows 1–3 for Red, 8–10 for Black).</p>`],
+      ['The pieces', `<p>Pieces are discs with a Chinese character; Red and Black use different characters for some pieces.</p><ul><li><b>帥 / 將 General</b>: one point orthogonally, inside the palace only.</li><li><b>仕 / 士 Advisor</b>: one point diagonally, inside the palace only.</li><li><b>相 / 象 Elephant</b>: exactly two points diagonally; it cannot cross the river and is blocked if the midpoint is occupied ("elephant's eye").</li><li><b>傌 / 馬 Horse</b>: one point orthogonally, then one diagonally outwards; blocked if the first point is occupied ("hobbling the horse").</li><li><b>俥 / 車 Chariot</b>: any distance orthogonally, like a rook.</li><li><b>炮 / 砲 Cannon</b>: moves like a chariot, but <b>captures only by jumping exactly one piece</b> (the "screen"), of either colour.</li><li><b>兵 / 卒 Soldier</b>: one point forward; once across the river also sideways. It never moves back and is not promoted.</li></ul>`],
+      ['Generals face to face', `<p>The two generals may never stand on the same file with nothing between them (the "flying general" rule). A move that would leave them facing each other is illegal, like moving into check.</p>`],
+      ['Check, mate and stalemate', `<p>An attacked general is <b>in check</b> and the player must parry at once. If that is impossible it is <b>checkmate</b> and the game is lost. A player with <b>no legal move</b> loses too, even when not in check.</p>`],
+      ['Draws', `<ul><li><b>Threefold repetition</b> of the same position.</li><li><b>120 plies</b> (60 moves each) without a capture.</li><li>Neither side has attacking pieces left (chariots, horses, cannons or soldiers).</li></ul><p>The official rules on perpetual check and repeated attacks are very complex: the app simplifies them as a draw by repetition.</p>`],
+      ['Start position', `<p>Row 1 (Red): chariot, horse, elephant, advisor, general, advisor, elephant, horse, chariot. Cannons on <code>b3</code> and <code>h3</code>, soldiers on <code>a4 c4 e4 g4 i4</code>. Black mirrors this on rows 10, 8 and 7.</p>`],
+      ['Using the app', `<ul><li>Tap a piece: its target points light up, in red those that capture.</li><li>You can type moves as coordinates, e.g. <code>h3 e3</code> (cannon to the centre).</li><li>The computer, online play, clock, replay, undo and hint work as in chess.</li></ul>`],
     ],
     dama: [
       ['The game', `<p>Draughts is played on the dark squares of a board. Each side has 12 men (20 in international draughts). You win by taking all the opponent's pieces or leaving them <b>without a move</b>. The app offers five variants in the Game menu.</p>`],
@@ -224,7 +244,7 @@ export function createRules({ getLang, onLangChange, t = (k) => k, onTutorial = 
   el.innerHTML = `<div class="rcard">
     <div class="rhead">
       <div class="rtop"><h2 id="rulesTitle"></h2><button class="red rclose" type="button"></button></div>
-      <div class="rtabs" role="tablist"><button class="orange" type="button" role="tab" data-g="trid"></button><button class="blue" type="button" role="tab" data-g="chess"></button><button class="lilac" type="button" role="tab" data-g="dama"></button></div>
+      <div class="rtabs" role="tablist"><button class="orange" type="button" role="tab" data-g="trid"></button><button class="blue" type="button" role="tab" data-g="chess"></button><button class="red" type="button" role="tab" data-g="xiangqi"></button><button class="lilac" type="button" role="tab" data-g="dama"></button></div>
       <input type="search" autocomplete="off" spellcheck="false">
       <div class="rcount" aria-live="polite"></div>
     </div>
@@ -247,7 +267,7 @@ export function createRules({ getLang, onLangChange, t = (k) => k, onTutorial = 
     }
     const q = input.value.trim();
     // with a query, search both games (current one first); otherwise show the current game
-    const games = q ? [game, ...['trid', 'chess', 'dama'].filter((g) => g !== game)] : [game];
+    const games = q ? [game, ...['trid', 'chess', 'xiangqi', 'dama'].filter((g) => g !== game)] : [game];
     let html = '', n = 0;
     const tut = onTutorial ? t('rules.tutorial') : '';
     if (tut && !q && game === 'trid') html += `<div class="rtut"><p>${esc(TUT_TEXT[getLang()] || TUT_TEXT.en)}</p><button class="orange mini" type="button" data-lesson="0">${esc(tut)}</button></div>`;
@@ -267,7 +287,7 @@ export function createRules({ getLang, onLangChange, t = (k) => k, onTutorial = 
   }
 
   function open(g) {
-    if (g === 'trid' || g === 'chess' || g === 'dama') game = g;
+    if (g === 'trid' || g === 'chess' || g === 'xiangqi' || g === 'dama') game = g;
     input.value = '';
     lastFocus = document.activeElement;
     el.hidden = false;

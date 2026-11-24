@@ -46,6 +46,8 @@ const aiChessSrc = read('src/ai-chess.js');
 const chess2dSrc = read('src/chess2d.js');
 const draughtsSrc = read('src/draughts.js');
 const aiDraughtsSrc = read('src/ai-draughts.js');
+const xiangqiSrc = read('src/xiangqi.js');
+const aiXiangqiSrc = read('src/ai-xiangqi.js');
 const chessViewSrc = read('public/chess-view.js');
 // chess.js is one ES module ending in a single export list: inline it in the worker as a namespace
 const chessJsSrc = read('node_modules/chess.js/dist/esm/chess.js');
@@ -70,9 +72,12 @@ const CJS = ${chessJsNs};
 const AIC = ${asNamespace(aiChessSrc, { inject: 'const { Chess } = CJS; const { STYLES } = AI;' })};
 const DR = ${asNamespace(draughtsSrc)};
 const AID = ${asNamespace(aiDraughtsSrc, { inject: 'const { VARIANTS, draughtsMoves, applyDraughts } = DR; const { STYLES } = AI;' })};
+const XQ = ${asNamespace(xiangqiSrc)};
+const AIX = ${asNamespace(aiXiangqiSrc, { inject: `const { ${importNames(aiXiangqiSrc, './xiangqi.js')} } = XQ; const { STYLES } = AI;` })};
 onmessage = (e) => {
   const { id, kind, pos, color, level, style, recent } = e.data;
   const m = kind === 'chess' ? AIC.chooseMoveChess(pos, color, level, style, recent)
+    : kind === 'xiangqi' ? AIX.chooseMoveXiangqi(pos, color, level, style, recent)
     : kind.startsWith('dama-') ? AID.chooseMoveDraughts(pos, color, level, style, recent)
     : AI.chooseMove(pos, color, level, style, recent);
   postMessage({ id, hint: !!e.data.hint, m: m && { from: m.from, to: m.to, promotion: m.promotion || null } });
@@ -117,8 +122,8 @@ appSrc = must(appSrc,
 const localGame = `
 // --- local game: replaces the server's REST + SSE ------------------------------------
 const STORE_KEY = 'tridchess.web.game.v4';
-const createGame = (kind, opts) => (kind === 'chess' ? new ChessGame(opts) : isDraughts(kind) ? new DraughtsGame(kind, opts) : new ENG.Game(opts));
-const knownKind = (k) => (k === 'chess' || k === 'trid' || isDraughts(k) ? k : null);
+const createGame = (kind, opts) => (kind === 'chess' ? new ChessGame(opts) : kind === 'xiangqi' ? new XiangqiGame(opts) : isDraughts(kind) ? new DraughtsGame(kind, opts) : new ENG.Game(opts));
+const knownKind = (k) => (k === 'chess' || k === 'trid' || k === 'xiangqi' || isDraughts(k) ? k : null);
 let game = createGame('trid', { white: 'human', black: 'computer', computer: { black: { level: 3, style: 'aggressive' } } });
 const recentMoves = { white: [], black: [] };
 // saved as the move list (replayed on load), so every game kind restores the same way
@@ -250,6 +255,7 @@ const { ${importNames(read('public/app.js'), '/engine.js')} } = ENG;
 import { Chess } from 'chess.js';
 const { buildPiece: buildTriDPiece, setPieceSets, getPieceSets } = ${asNamespace(piecesSrc)};
 const { ChessGame } = ${asNamespace(chess2dSrc)};
+const { XiangqiGame } = ${asNamespace(xiangqiSrc)};
 const { ${importNames(read('public/app.js'), '/draughts.js')} } = ${asNamespace(draughtsSrc)};
 const { createRules } = ${asNamespace(read('public/rules.js'))};
 const { createTutorial } = ${asNamespace(read('public/tutorial.js'))};

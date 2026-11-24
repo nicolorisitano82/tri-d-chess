@@ -190,49 +190,170 @@ export function buildChessPiece(type, color) {
   return g;
 }
 
+// --- Xiangqi pieces: flat wooden discs with the character carved on top -----------------------
+// Red: 帥 仕 相 傌 俥 炮 兵, Black: 將 士 象 馬 車 砲 卒 (traditional forms).
+const XQ_CHARS = {
+  white: { K: '帥', A: '仕', E: '相', H: '傌', R: '俥', C: '炮', P: '兵' },
+  black: { K: '將', A: '士', E: '象', H: '馬', R: '車', C: '砲', P: '卒' },
+};
+const XQ_WOOD = new THREE.MeshStandardMaterial({ color: 0xe9d3a4, roughness: 0.5, metalness: 0.02, emissive: 0x15100a });
+const xqFaces = {};
+function xqFace(type, color) {
+  const id = color + type;
+  if (xqFaces[id]) return xqFaces[id];
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const ink = color === 'white' ? '#b3121b' : '#14100c';
+  const gr = g.createRadialGradient(128, 118, 20, 128, 128, 128);
+  gr.addColorStop(0, '#f6e6c2'); gr.addColorStop(1, '#dcc08a');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = ink;
+  g.lineWidth = 7;
+  g.beginPath(); g.arc(128, 128, 104, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = ink;
+  g.font = 'bold 140px "Kaiti SC","STKaiti","KaiTi","Songti SC","SimSun","Noto Serif CJK TC","PingFang TC",serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(XQ_CHARS[color][type], 128, 136);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return (xqFaces[id] = new THREE.MeshStandardMaterial({ map: t, roughness: 0.45, metalness: 0.02, emissive: 0x15100a }));
+}
+export function buildXiangqiPiece(type, color) {
+  const g = new THREE.Group();
+  // side wood, top face with the character, bottom plain; turned so each player reads its own pieces
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.2, 40), [XQ_WOOD, xqFace(type, color), XQ_WOOD]);
+  m.position.y = 0.1;
+  if (color === 'black') m.rotation.y = Math.PI;
+  g.add(m);
+  return g;
+}
+
+// the board: lines on wood, river with its inscription, palaces with diagonals
+function xiangqiBoardTexture() {
+  const S = 100, W = 11 * S, H = 12 * S;                // one point = 100 px; board 11 x 12 units
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.drawImage(woodTexture('#d8b47a', '#9a6a35', 13).image, 0, 0, W, H);
+  const X = (f) => S * 1.5 + f * S, Y = (r) => H - (S * 1.5 + r * S);                     // f 0..8, r 0..9; 1.5 points of margin
+  g.strokeStyle = '#3a200c';
+  g.lineWidth = 4;
+  g.strokeRect(X(0) - 12, Y(9) - 12, X(8) - X(0) + 24, Y(0) - Y(9) + 24);
+  g.lineWidth = 3;
+  for (let r = 0; r < 10; r++) { g.beginPath(); g.moveTo(X(0), Y(r)); g.lineTo(X(8), Y(r)); g.stroke(); }
+  for (let f = 0; f < 9; f++) {
+    g.beginPath();
+    if (f === 0 || f === 8) { g.moveTo(X(f), Y(0)); g.lineTo(X(f), Y(9)); }
+    else { g.moveTo(X(f), Y(0)); g.lineTo(X(f), Y(4)); g.moveTo(X(f), Y(5)); g.lineTo(X(f), Y(9)); }   // the river cuts the files
+    g.stroke();
+  }
+  for (const [r0, r1] of [[0, 2], [7, 9]]) {
+    g.beginPath(); g.moveTo(X(3), Y(r0)); g.lineTo(X(5), Y(r1)); g.moveTo(X(5), Y(r0)); g.lineTo(X(3), Y(r1)); g.stroke();
+  }
+  // small marks on the cannon and soldier points
+  const mark = (f, r) => {
+    const d = 10, l = 22;
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+      if ((f === 0 && sx < 0) || (f === 8 && sx > 0)) continue;
+      g.beginPath();
+      g.moveTo(X(f) + sx * d, Y(r) + sy * (d + l)); g.lineTo(X(f) + sx * d, Y(r) + sy * d); g.lineTo(X(f) + sx * (d + l), Y(r) + sy * d);
+      g.stroke();
+    }
+  };
+  for (const [f, r] of [[1, 2], [7, 2], [1, 7], [7, 7]]) mark(f, r);
+  for (const f of [0, 2, 4, 6, 8]) { mark(f, 3); mark(f, 6); }
+  g.fillStyle = '#3a200c';
+  g.font = 'bold 62px "Kaiti SC","STKaiti","KaiTi","Songti SC","SimSun",serif';
+  g.textBaseline = 'middle';
+  g.textAlign = 'center';
+  const ry = (Y(4) + Y(5)) / 2;
+  g.fillText('楚 河', (X(1) + X(3)) / 2, ry);
+  g.save(); g.translate((X(5) + X(7)) / 2, ry); g.rotate(Math.PI); g.fillText('漢 界', 0, 0); g.restore();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+// an invisible pick tile on each point that lights up like a square when the app sets its emissive
+function pointTile(geo) {
+  // additive: the glow colour is added to the wood below (black adds nothing), like a lit square
+  const mat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x000000, emissiveIntensity: 3.5, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  const setHex = mat.emissive.setHex.bind(mat.emissive);
+  mat.emissive.setHex = (h) => { setHex(h); mat.opacity = h ? 1 : 0; return mat.emissive; };
+  return new THREE.Mesh(geo, mat);
+}
+
 // --- the room and the board ------------------------------------------------------------
 // size: 8 or 10. darkA1: whether a1 is a dark square (chess, international draughts); the Italian
 // draughts board is turned so that the dark corner is on each player's right (h1).
-// draughts: build discs instead of chess pieces.
-export function createChessView({ size = 8, darkA1 = true, draughts = false } = {}) {
-  const n = size, half = n / 2, posOf = squarePos(n), k = n / 8;
+// draughts: build discs instead of chess pieces. xiangqi: the 9 x 10 Chinese board (pieces on points).
+export function createChessView({ size = 8, darkA1 = true, draughts = false, xiangqi = false } = {}) {
+  const cols = xiangqi ? 9 : size, rows = xiangqi ? 10 : size;
+  const n = Math.max(cols, rows), k = n / 8;
+  const posOf = (key) => {
+    const f = FILES.indexOf(key[0]), r = Number(key.slice(1));
+    return new THREE.Vector3((f - (cols - 1) / 2) * SQ, TOP, -(r - (rows + 1) / 2) * SQ);
+  };
   const root = new THREE.Group();
   root.visible = false;
   const squares = [];
 
-  const light = new THREE.MeshStandardMaterial({ map: woodTexture('#d9b98a', '#8a5a2b', 7), roughness: 0.55, metalness: 0.02, emissive: 0x000000 });
-  const dark = new THREE.MeshStandardMaterial({ map: woodTexture('#5a3a22', '#2a170a', 11), roughness: 0.5, metalness: 0.03, emissive: 0x000000 });
-  const sqGeo = new THREE.BoxGeometry(SQ * 0.995, 0.08, SQ * 0.995);
-  for (let f = 0; f < n; f++) for (let r = 1; r <= n; r++) {
-    const key = FILES[f] + r;
-    const isDark = ((f + r) % 2 === 1) === darkA1;
-    const m = new THREE.Mesh(sqGeo, (isDark ? dark : light).clone());
-    m.position.copy(posOf(key));
-    m.position.y = TOP - 0.04;
-    m.userData = { key, kind: 'square' };
-    root.add(m);
-    squares.push({ key, mesh: m });
+  if (xiangqi) {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(cols + 2 * SQ - 0.02, 0.08, rows + 2 * SQ - 0.02),
+      [0, 1, 2, 3, 4, 5].map((i) => new THREE.MeshStandardMaterial(i === 2 ? { map: xiangqiBoardTexture(), roughness: 0.6 } : { color: 0x9a6a35, roughness: 0.6 })));
+    top.position.y = TOP - 0.04;
+    root.add(top);
+    const tileGeo = new THREE.CylinderGeometry(SQ * 0.46, SQ * 0.46, 0.02, 32);
+    for (let f = 0; f < cols; f++) for (let r = 1; r <= rows; r++) {
+      const key = FILES[f] + r;
+      const m = pointTile(tileGeo);
+      m.position.copy(posOf(key));
+      m.position.y = TOP + 0.005;
+      m.userData = { key, kind: 'square' };
+      root.add(m);
+      squares.push({ key, mesh: m });
+    }
+  } else {
+    const light = new THREE.MeshStandardMaterial({ map: woodTexture('#d9b98a', '#8a5a2b', 7), roughness: 0.55, metalness: 0.02, emissive: 0x000000 });
+    const dark = new THREE.MeshStandardMaterial({ map: woodTexture('#5a3a22', '#2a170a', 11), roughness: 0.5, metalness: 0.03, emissive: 0x000000 });
+    const sqGeo = new THREE.BoxGeometry(SQ * 0.995, 0.08, SQ * 0.995);
+    for (let f = 0; f < n; f++) for (let r = 1; r <= n; r++) {
+      const key = FILES[f] + r;
+      const isDark = ((f + r) % 2 === 1) === darkA1;
+      const m = new THREE.Mesh(sqGeo, (isDark ? dark : light).clone());
+      m.position.copy(posOf(key));
+      m.position.y = TOP - 0.04;
+      m.userData = { key, kind: 'square' };
+      root.add(m);
+      squares.push({ key, mesh: m });
+    }
   }
-  // carved frame with brass inlay and coordinates
+  // carved frame with brass inlay and coordinates (the Chinese board has one point of margin inside)
+  const pad = xiangqi ? 2 : 0;
+  const FW = cols + pad + 1.3, FD = rows + pad + 1.3;
   const frameWood = new THREE.MeshStandardMaterial({ map: woodTexture('#3b2414', '#1c0e05', 3), roughness: 0.45, metalness: 0.05 });
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(n + 1.3, 0.3, n + 1.3), frameWood);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(FW, 0.3, FD), frameWood);
   frame.position.y = -0.13;
   root.add(frame);
   const brass = new THREE.MeshStandardMaterial({ color: 0xb08a3e, roughness: 0.35, metalness: 0.8 });
-  const e = half + 0.07, L = n + 0.2;
-  for (const [w, d, x, z] of [[L, 0.05, 0, e], [L, 0.05, 0, -e], [0.05, L, e, 0], [0.05, L, -e, 0]]) {
+  const ex = (cols + pad) / 2 + 0.07, ez = (rows + pad) / 2 + 0.07;
+  for (const [w, d, x, z] of [[2 * ex + 0.06, 0.05, 0, ez], [2 * ex + 0.06, 0.05, 0, -ez], [0.05, 2 * ez + 0.06, ex, 0], [0.05, 2 * ez + 0.06, -ex, 0]]) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), brass);
     b.position.set(x, 0.03, z);
     root.add(b);
   }
-  const lab = half + 0.38;
-  for (let i = 0; i < n; i++) {
-    for (const z of [lab, -lab]) { const s = labelSprite(FILES[i]); s.position.set(i - (n - 1) / 2, 0.06, z); root.add(s); }
-    for (const x of [-lab, lab]) { const s = labelSprite(String(i + 1)); s.position.set(x, 0.06, -(i + 1 - (n + 1) / 2)); root.add(s); }
-  }
+  const lx = (cols + pad) / 2 + 0.38, lz = (rows + pad) / 2 + 0.38;
+  for (let i = 0; i < cols; i++) for (const z of [lz, -lz]) { const s = labelSprite(FILES[i]); s.position.set(i - (cols - 1) / 2, 0.06, z); root.add(s); }
+  for (let i = 0; i < rows; i++) for (const x of [-lx, lx]) { const s = labelSprite(String(i + 1)); s.position.set(x, 0.06, -(i + 1 - (rows + 1) / 2)); root.add(s); }
   // stone table and floor
   const stone = new THREE.MeshStandardMaterial({ map: stoneTexture(), roughness: 0.9, metalness: 0 });
-  const table = new THREE.Mesh(new THREE.CylinderGeometry(7.6 * k, 7.9 * k, 0.5, 64), new THREE.MeshStandardMaterial({ map: woodTexture('#4a2f1b', '#24130a', 5), roughness: 0.6 }));
+  const tk = xiangqi ? 12.5 / 8 : k;
+  const table = new THREE.Mesh(new THREE.CylinderGeometry(7.6 * tk, 7.9 * tk, 0.5, 64), new THREE.MeshStandardMaterial({ map: woodTexture('#4a2f1b', '#24130a', 5), roughness: 0.6 }));
   table.position.y = -0.55;
   root.add(table);
   const leg = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.8, 4, 24), frameWood);
@@ -250,7 +371,7 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false } = 
   root.add(moon);
   const flameTex = flameTexture();
   const torches = [];
-  for (const [x, z] of [[-8.5, -5], [8.5, 5], [8.5, -6]].map(([x, z]) => [x * k, z * k])) {
+  for (const [x, z] of [[-8.5, -5], [8.5, 5], [8.5, -6]].map(([x, z]) => [x * tk, z * tk])) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 2.2, 10), frameWood);
     pole.position.set(x, 1.2, z);
     root.add(pole);
@@ -267,12 +388,13 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false } = 
     torches.push({ pl, flame, phase: Math.random() * 10 });
   }
 
+  const vk = xiangqi ? 11.5 / 8 : k;                       // the 9 x 10 board with its margin is ~12 x 13 units
   return {
     root,
     squares,
-    views: k === 1 ? CHESS_VIEWS : Object.fromEntries(Object.entries(CHESS_VIEWS).map(([name, v]) => [name, { pos: v.pos.map((x) => x * k), target: v.target.map((x) => x * k), narrow: v.narrow.map((x) => x * k) }])),
+    views: vk === 1 ? CHESS_VIEWS : Object.fromEntries(Object.entries(CHESS_VIEWS).map(([name, v]) => [name, { pos: v.pos.map((x) => x * vk), target: v.target.map((x) => x * vk), narrow: v.narrow.map((x) => x * vk) }])),
     posOfKey: posOf,
-    buildPiece: draughts ? buildDraughtsPiece : buildChessPiece,
+    buildPiece: xiangqi ? buildXiangqiPiece : draughts ? buildDraughtsPiece : buildChessPiece,
     background: 0x140d08,
     fog: [0x140d08, 22, 70],
     update(t) {

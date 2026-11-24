@@ -3,7 +3,7 @@
 
 const STRINGS = {
   it: {
-    'name.white': 'Bianco', 'name.black': 'Nero',
+    'name.white': 'Bianco', 'name.black': 'Nero', 'name.red': 'Rosso',
     'name.human': 'Umano', 'name.ai': 'AI', 'name.computer': 'Computer', 'name.remote': 'In rete', 'a11y.move': 'Mossa da tastiera', 'a11y.placeholder': 'es. b2W b4N · QL1 QL3 · 0-0', 'a11y.go': 'Muovi', 'a11y.describe': 'Descrivi', 'a11y.contrast': 'Alto contrasto',
     'a11y.help': 'Scrivi partenza e arrivo, poi Invio. Solo la partenza elenca le mosse possibili. Tasto M per arrivare qui.',
     'a11y.board': 'Scacchiera 3D. Per giocare da tastiera usa il campo Mossa da tastiera; Descrivi elenca la posizione.',
@@ -16,6 +16,7 @@ const STRINGS = {
     'level.1': 'Principiante', 'level.2': 'Facile', 'level.3': 'Medio', 'level.4': 'Esperto', 'level.5': 'Maestro',
     'style.balanced': 'Equilibrato', 'style.aggressive': 'Aggressivo', 'style.cautious': 'Prudente',
     'draw.fifty': 'regola delle 50 mosse', 'draw.repetition': 'triplice ripetizione', 'draw.material': 'materiale insufficiente', 'draw.time-material': 'tempo scaduto senza materiale per vincere',
+    'xq.K': 'Generale', 'xq.A': 'Consigliere', 'xq.E': 'Elefante', 'xq.H': 'Cavallo', 'xq.R': 'Carro', 'xq.C': 'Cannone', 'xq.P': 'Soldato', 'draw.noCapture': '120 semimosse senza catture',
     'piece.K': 'Re', 'piece.Q': 'Regina', 'piece.R': 'Torre', 'piece.B': 'Alfiere', 'piece.N': 'Cavallo', 'piece.P': 'Pedone',
 
     'status.connecting': 'Connessione…', 'status.lost': 'Connessione persa, riprovo…',
@@ -26,7 +27,7 @@ const STRINGS = {
     'status.ai': "In attesa dell'AI ({c})…", 'status.you': 'Tocca a te ({c}) · {n} mosse', 'status.you1': 'Tocca a te ({c}) · 1 mossa',
 
     'ui.rules': 'Regole', 'ui.undo': 'Annulla', 'ui.undoTip': 'Annulla la tua ultima mossa (e la risposta del computer)', 'ui.hint': 'Suggerisci', 'ui.hintTip': 'Il computer suggerisce una mossa', 'ui.thinking': 'Penso…', 'hint.move': 'Suggerimento: {m}', 'hint.none': 'Nessun suggerimento disponibile', 'ui.pieces': 'Pezzi', 'ui.setW': 'Pezzi del Bianco', 'ui.setB': 'Pezzi del Nero', 'set.federation': 'Federazione', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulani',
-    'ui.game': 'Gioco', 'game.trid': 'Scacchi 3D (Tri-D)', 'game.chess': 'Scacchi classici',
+    'ui.game': 'Gioco', 'game.trid': 'Scacchi 3D (Tri-D)', 'game.chess': 'Scacchi classici', 'game.xiangqi': 'Scacchi cinesi (Xiangqi)',
     'game.dama-it': 'Dama italiana', 'game.dama-int': 'Dama internazionale (10×10)', 'game.dama-en': 'Dama inglese (Checkers)', 'game.dama-ru': 'Dama russa', 'game.dama-br': 'Dama brasiliana',
     'status.blocked': 'Vince il {c}: l\'avversario non può muovere', 'victory.byBlock': 'bloccando l\'avversario', 'piece.M': 'Pedina', 'piece.D': 'Dama', 'a11y.captureN': ', cattura {n} pezzi', 'ui.switchConfirm': 'Cambiare gioco? La partita in corso verrà chiusa.',
     'ui.turn': 'Turno', 'ui.log': 'Registro mosse', 'ui.newGame': 'Nuova partita', 'ui.resign': 'Abbandona', 'ui.pause': 'Pausa', 'ui.resume': 'Riprendi',
@@ -84,8 +85,8 @@ const STRINGS = {
     'replay.close': 'Chiudi il replay', 'replay.bad': 'Link della partita non valido', 'replay.first': 'Inizio', 'replay.prev': 'Mossa precedente', 'replay.next': 'Mossa successiva', 'replay.last': 'Fine',
     'share.title': 'Invita un avversario', 'share.copy': 'Copia link', 'share.copied': 'Link della stanza copiato', 'notify.title': 'Tri-D Chess', 'notify.opp': "L'avversario", 'notify.joined': '{n} è entrato: si gioca!', 'notify.moved': '{n} ha mosso {m}: tocca a te', 'notify.left': '{n} è uscito dalla stanza', 'notify.won': 'Partita finita: hai vinto! 🏆', 'notify.lost': 'Partita finita: hai perso', 'notify.draw': 'Partita finita: patta', 'share.fbCopied': 'Testo copiato: incollalo nel post di Facebook', 'share.native': 'Condividi…',
     'share.text': 'Sfidami a {g}! Io gioco col {c}, tu col {o}. Entra nella mia stanza {code} 👇',
-    'share.g.trid': 'Tri-D Chess ♟️ scacchi tridimensionali su 7 livelli', 'share.g.chess': 'scacchi ♟️', 'share.g.dama': '{v} ⛀',
-    'share.tag.trid': '#TriDChess', 'share.tag.chess': '#scacchi #chess', 'share.tag.dama': '#dama #draughts',
+    'share.g.trid': 'Tri-D Chess ♟️ scacchi tridimensionali su 7 livelli', 'share.g.chess': 'scacchi ♟️', 'share.g.xiangqi': 'scacchi cinesi (Xiangqi) 象棋', 'share.g.dama': '{v} ⛀',
+    'share.tag.trid': '#TriDChess', 'share.tag.chess': '#scacchi #chess', 'share.tag.xiangqi': '#xiangqi #scacchicinesi', 'share.tag.dama': '#dama #draughts',
     'chat.title': 'Chat', 'chat.send': 'Invia', 'chat.placeholder': 'Scrivi un messaggio…', 'chat.emoji': 'Emoticon',
     'chat.reactions': 'Reazioni', 'chat.me': 'Tu', 'chat.them': 'Avversario', 'chat.wait': 'attendi {s}s',
     'chat.tooManyEmoji': 'Massimo {n} emoticon per messaggio', 'chat.joined': "L'avversario è nella stanza",
@@ -93,7 +94,7 @@ const STRINGS = {
     'react.clap': 'Applausi', 'react.fire': 'Fuoco', 'react.wow': 'Wow', 'react.laugh': 'Risata', 'react.gg': 'Bella partita', 'react.boom': 'Boom',
   },
   en: {
-    'name.white': 'White', 'name.black': 'Black',
+    'name.white': 'White', 'name.black': 'Black', 'name.red': 'Red',
     'name.human': 'Human', 'name.ai': 'AI', 'name.computer': 'Computer', 'name.remote': 'Online', 'a11y.move': 'Keyboard move', 'a11y.placeholder': 'e.g. b2W b4N · QL1 QL3 · 0-0', 'a11y.go': 'Move', 'a11y.describe': 'Describe', 'a11y.contrast': 'High contrast',
     'a11y.help': 'Type the start and target square, then Enter. The start alone lists its moves. Press M to come here.',
     'a11y.board': '3D chess board. To play with the keyboard use the Keyboard move field; Describe lists the position.',
@@ -106,6 +107,7 @@ const STRINGS = {
     'level.1': 'Beginner', 'level.2': 'Easy', 'level.3': 'Medium', 'level.4': 'Expert', 'level.5': 'Master',
     'style.balanced': 'Balanced', 'style.aggressive': 'Aggressive', 'style.cautious': 'Cautious',
     'draw.fifty': 'the 50-move rule', 'draw.repetition': 'threefold repetition', 'draw.material': 'insufficient material', 'draw.time-material': 'time out with no mating material',
+    'xq.K': 'General', 'xq.A': 'Advisor', 'xq.E': 'Elephant', 'xq.H': 'Horse', 'xq.R': 'Chariot', 'xq.C': 'Cannon', 'xq.P': 'Soldier', 'draw.noCapture': '120 plies without a capture',
     'piece.K': 'King', 'piece.Q': 'Queen', 'piece.R': 'Rook', 'piece.B': 'Bishop', 'piece.N': 'Knight', 'piece.P': 'Pawn',
 
     'status.connecting': 'Connecting…', 'status.lost': 'Connection lost, retrying…',
@@ -116,7 +118,7 @@ const STRINGS = {
     'status.ai': 'Waiting for the AI ({c})…', 'status.you': 'Your move ({c}) · {n} moves', 'status.you1': 'Your move ({c}) · 1 move',
 
     'ui.rules': 'Rules', 'ui.undo': 'Undo', 'ui.undoTip': 'Take back your last move (and the computer\'s reply)', 'ui.hint': 'Hint', 'ui.hintTip': 'The computer suggests a move', 'ui.thinking': 'Thinking…', 'hint.move': 'Hint: {m}', 'hint.none': 'No hint available', 'ui.pieces': 'Pieces', 'ui.setW': 'White pieces', 'ui.setB': 'Black pieces', 'set.federation': 'Federation', 'set.klingon': 'Klingon', 'set.borg': 'Borg', 'set.romulan': 'Romulan',
-    'ui.game': 'Game', 'game.trid': '3D chess (Tri-D)', 'game.chess': 'Classic chess',
+    'ui.game': 'Game', 'game.trid': '3D chess (Tri-D)', 'game.chess': 'Classic chess', 'game.xiangqi': 'Chinese chess (Xiangqi)',
     'game.dama-it': 'Italian draughts', 'game.dama-int': 'International draughts (10×10)', 'game.dama-en': 'English draughts (checkers)', 'game.dama-ru': 'Russian draughts', 'game.dama-br': 'Brazilian draughts',
     'status.blocked': '{c} wins: the opponent cannot move', 'victory.byBlock': 'by blocking the opponent', 'piece.M': 'Man', 'piece.D': 'King', 'a11y.captureN': ', takes {n} pieces', 'ui.switchConfirm': 'Switch game? The current game will be closed.',
     'ui.turn': 'Turn', 'ui.log': 'Move log', 'ui.newGame': 'New game', 'ui.resign': 'Resign', 'ui.pause': 'Pause', 'ui.resume': 'Resume',
@@ -174,8 +176,8 @@ const STRINGS = {
     'replay.close': 'Close replay', 'replay.bad': 'Invalid game link', 'replay.first': 'Start', 'replay.prev': 'Previous move', 'replay.next': 'Next move', 'replay.last': 'End',
     'share.title': 'Invite an opponent', 'share.copy': 'Copy link', 'share.copied': 'Room link copied', 'notify.title': 'Tri-D Chess', 'notify.opp': 'Your opponent', 'notify.joined': '{n} joined: game on!', 'notify.moved': '{n} played {m}: your move', 'notify.left': '{n} left the room', 'notify.won': 'Game over: you won! 🏆', 'notify.lost': 'Game over: you lost', 'notify.draw': 'Game over: draw', 'share.fbCopied': 'Text copied: paste it into your Facebook post', 'share.native': 'Share…',
     'share.text': 'Challenge me at {g}! I play {c}, you play {o}. Join my room {code} 👇',
-    'share.g.trid': 'Tri-D Chess ♟️ 3D chess on seven levels', 'share.g.chess': 'chess ♟️', 'share.g.dama': '{v} ⛀',
-    'share.tag.trid': '#TriDChess', 'share.tag.chess': '#chess', 'share.tag.dama': '#draughts #checkers',
+    'share.g.trid': 'Tri-D Chess ♟️ 3D chess on seven levels', 'share.g.chess': 'chess ♟️', 'share.g.xiangqi': 'Chinese chess (Xiangqi) 象棋', 'share.g.dama': '{v} ⛀',
+    'share.tag.trid': '#TriDChess', 'share.tag.chess': '#chess', 'share.tag.xiangqi': '#xiangqi #chinesechess', 'share.tag.dama': '#draughts #checkers',
     'chat.title': 'Chat', 'chat.send': 'Send', 'chat.placeholder': 'Write a message…', 'chat.emoji': 'Emoji',
     'chat.reactions': 'Reactions', 'chat.me': 'You', 'chat.them': 'Opponent', 'chat.wait': 'wait {s}s',
     'chat.tooManyEmoji': 'At most {n} emoji per message', 'chat.joined': 'Your opponent is in the room',
@@ -198,7 +200,16 @@ function detect() {
 let lang = detect();
 export const getLang = () => lang;
 
+// Xiangqi calls the first player Red: while it is on screen "white" reads as Red / Rosso.
+let redWhite = false;
+export function setRedWhite(on) {
+  if (redWhite === !!on) return;
+  redWhite = !!on;
+  applyStatic();
+}
+
 export function t(key, vars = {}) {
+  if (redWhite && key === 'name.white') key = 'name.red';
   const s = STRINGS[lang][key] ?? STRINGS.it[key] ?? key;
   return s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? `{${k}}`));
 }
