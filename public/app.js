@@ -566,6 +566,7 @@ let replayFromUrl = null;
 var gameFromUrl = true;
 function onLive(s) {
   live = s;
+  renderResign();
   if (gameFromUrl === true) {
     const q = new URLSearchParams(location.search), g = q.get('game');
     gameFromUrl = null;
@@ -831,7 +832,17 @@ async function post(url, body) {
 }
 
 $('btnNew').onclick = () => { selected = null; post('/api/new', newGameBody()); };
-$('btnResign').onclick = () => { if (isHumanTurn() && confirm(t('ui.resignConfirm'))) post('/api/resign'); };
+// computer vs computer: the resign button pauses / resumes the game instead
+function cpuOnly(s) { return !!s && s.status === 'playing' && s.players?.white === 'computer' && s.players?.black === 'computer'; }
+function renderResign() {
+  const b = $('btnResign');
+  if (b.dataset.armed) return;
+  b.textContent = cpuOnly(live) ? t(live.paused ? 'ui.resume' : 'ui.pause') : t('ui.resign');
+}
+$('btnResign').onclick = () => {
+  if (cpuOnly(live)) { post('/api/pause', { paused: !live.paused }); return; }
+  if (isHumanTurn() && confirm(t('ui.resignConfirm'))) post('/api/resign');
+};
 
 // --- local games only: undo and hint ---------------------------------------------------
 // (hoisted on purpose: the web build starts its local game before this point of the module)
@@ -1182,4 +1193,5 @@ function setPanelMin(on, save = false) {
 $('panelToggle').onclick = () => setPanelMin(!document.body.classList.contains('pmin'), true);
 onLangChange(() => setPanelMin(document.body.classList.contains('pmin')));
 onLangChange(refreshLanguage);
+onLangChange(renderResign);
 refreshLanguage();

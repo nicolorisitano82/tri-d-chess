@@ -2888,7 +2888,7 @@ const STRINGS = {
     'ui.game': 'Gioco', 'game.trid': 'Scacchi 3D (Tri-D)', 'game.chess': 'Scacchi classici',
     'game.dama-it': 'Dama italiana', 'game.dama-int': 'Dama internazionale (10×10)', 'game.dama-en': 'Dama inglese (Checkers)', 'game.dama-ru': 'Dama russa', 'game.dama-br': 'Dama brasiliana',
     'status.blocked': 'Vince il {c}: l\'avversario non può muovere', 'victory.byBlock': 'bloccando l\'avversario', 'piece.M': 'Pedina', 'piece.D': 'Dama', 'a11y.captureN': ', cattura {n} pezzi', 'ui.switchConfirm': 'Cambiare gioco? La partita in corso verrà chiusa.',
-    'ui.turn': 'Turno', 'ui.log': 'Registro mosse', 'ui.newGame': 'Nuova partita', 'ui.resign': 'Abbandona',
+    'ui.turn': 'Turno', 'ui.log': 'Registro mosse', 'ui.newGame': 'Nuova partita', 'ui.resign': 'Abbandona', 'ui.pause': 'Pausa', 'ui.resume': 'Riprendi',
     'ui.confirm': 'Conferma?', 'ui.view': 'Vista', 'ui.stats': 'Statistiche', 'ui.statsHide': 'Nascondi (S)',
     'ui.statsShow': 'Mostra statistiche (S)', 'ui.options': 'Opzioni', 'ui.close': 'Chiudi',
     'ui.levelW': 'Livello Bianco', 'ui.levelB': 'Livello Nero', 'ui.styleW': 'Stile Bianco', 'ui.styleB': 'Stile Nero',
@@ -2978,7 +2978,7 @@ const STRINGS = {
     'ui.game': 'Game', 'game.trid': '3D chess (Tri-D)', 'game.chess': 'Classic chess',
     'game.dama-it': 'Italian draughts', 'game.dama-int': 'International draughts (10×10)', 'game.dama-en': 'English draughts (checkers)', 'game.dama-ru': 'Russian draughts', 'game.dama-br': 'Brazilian draughts',
     'status.blocked': '{c} wins: the opponent cannot move', 'victory.byBlock': 'by blocking the opponent', 'piece.M': 'Man', 'piece.D': 'King', 'a11y.captureN': ', takes {n} pieces', 'ui.switchConfirm': 'Switch game? The current game will be closed.',
-    'ui.turn': 'Turn', 'ui.log': 'Move log', 'ui.newGame': 'New game', 'ui.resign': 'Resign',
+    'ui.turn': 'Turn', 'ui.log': 'Move log', 'ui.newGame': 'New game', 'ui.resign': 'Resign', 'ui.pause': 'Pause', 'ui.resume': 'Resume',
     'ui.confirm': 'Confirm?', 'ui.view': 'View', 'ui.stats': 'Stats', 'ui.statsHide': 'Hide (S)',
     'ui.statsShow': 'Show stats (S)', 'ui.options': 'Options', 'ui.close': 'Close',
     'ui.levelW': 'White level', 'ui.levelB': 'Black level', 'ui.styleW': 'White style', 'ui.styleB': 'Black style',
@@ -3658,6 +3658,7 @@ let replayFromUrl = null;
 var gameFromUrl = true;
 function onLive(s) {
   live = s;
+  renderResign();
   if (gameFromUrl === true) {
     const q = new URLSearchParams(location.search), g = q.get('game');
     gameFromUrl = null;
@@ -3977,7 +3978,7 @@ const hintWaits = new Map(); // hint request id -> resolve(move | null)
 let hintSeq = 1e6;
 worker.onmessage = (e) => {
   if (e.data.hint) { const done = hintWaits.get(e.data.id); hintWaits.delete(e.data.id); done?.(e.data.m || null); return; }
-  if (e.data.id !== thinkingId || !e.data.m) return;
+  if (e.data.id !== thinkingId || !e.data.m || paused) return;
   const { from, to, promotion } = e.data.m, c = game.turn;
   recentMoves[c].push(to + '>' + from); if (recentMoves[c].length > 4) recentMoves[c].shift();
   try { game.move(from, to, promotion); } catch (err) { toast(err.message); return; }
@@ -3985,15 +3986,16 @@ worker.onmessage = (e) => {
 };
 function scheduleComputer() {
   const id = ++thinkingId, ver = game.version;
-  if (game.status !== 'playing' || game.players[game.turn] !== 'computer') return;
+  if (paused || game.status !== 'playing' || game.players[game.turn] !== 'computer') return;
   setTimeout(() => {
     if (id !== thinkingId || ver !== game.version) return;
     const { level, style } = game.computer[game.turn];
     worker.postMessage({ id, kind: game.kind, pos: game.pos, color: game.turn, level, style, recent: recentMoves[game.turn] });
   }, 650);
 }
+var paused = false; // computer-vs-computer pause (var: read by code that may run first)
 function publish() {
-  onLive(game.snapshot());
+  onLive({ ...game.snapshot(), paused });
   try { localStorage.setItem(STORE_KEY, JSON.stringify(serialize())); } catch {}
   scheduleComputer();
 }
@@ -4012,6 +4014,7 @@ async function post(url, body = {}) {
     if ((url === '/api/new' || url === '/api/net-sync') && playersError(body.white, body.black, url === '/api/net-sync' && body.watch === true)) throw new Error(playersError(body.white, body.black, url === '/api/net-sync' && body.watch === true));
     if (url === '/api/new') {
       game = createGame(knownKind(body.kind) || game.kind, { white: body.white, black: body.black, computer: body.computer });
+      paused = false;
       recentMoves.white = []; recentMoves.black = [];
     } else if (url === '/api/undo') {
       game = UNDO.undoGame(game, createGame);
@@ -4029,6 +4032,8 @@ async function post(url, body = {}) {
     } else if (url === '/api/move') {
       if (game.players[game.turn] !== 'human') throw new Error(t('hint.notYourTurn'));
       game.move(body.from, body.to, body.promotion);
+    } else if (url === '/api/pause') {
+      paused = !!body.paused;
     } else if (url === '/api/resign') {
       game.resign(body.color || game.turn);
     } else if (url === '/api/flag') {
@@ -4077,8 +4082,16 @@ setMini(true);
 
 
 $('btnNew').onclick = () => { selected = null; post('/api/new', newGameBody()); };
+// computer vs computer: the resign button pauses / resumes the game instead
+function cpuOnly(s) { return !!s && s.status === 'playing' && s.players?.white === 'computer' && s.players?.black === 'computer'; }
+function renderResign() {
+  const b = $('btnResign');
+  if (b.dataset.armed) return;
+  b.textContent = cpuOnly(live) ? t(live.paused ? 'ui.resume' : 'ui.pause') : t('ui.resign');
+}
 $('btnResign').onclick = () => {
   const b = $('btnResign');
+  if (cpuOnly(live)) { post('/api/pause', { paused: !live.paused }); return; }
   if (!isHumanTurn()) return;
   if (b.dataset.armed) { delete b.dataset.armed; b.textContent = t('ui.resign'); post('/api/resign'); return; }
   b.dataset.armed = '1'; b.textContent = t('ui.confirm');
@@ -4437,6 +4450,7 @@ function setPanelMin(on, save = false) {
 $('panelToggle').onclick = () => setPanelMin(!document.body.classList.contains('pmin'), true);
 onLangChange(() => setPanelMin(document.body.classList.contains('pmin')));
 onLangChange(refreshLanguage);
+onLangChange(renderResign);
 refreshLanguage();
 
 </script>

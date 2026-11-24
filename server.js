@@ -19,7 +19,10 @@ let game = createGame('trid', { white: 'human', black: 'ai' });
 const KIND_NAMES = { trid: 'Tri-D chess (Meder rules)', chess: 'classic chess', 'dama-it': 'Italian draughts', 'dama-int': 'international draughts (10x10)', 'dama-en': 'English draughts (checkers)', 'dama-ru': 'Russian draughts', 'dama-br': 'Brazilian draughts' };
 const bus = new EventEmitter();
 bus.setMaxListeners(100);
-const changed = () => { bus.emit('change', game.snapshot()); scheduleComputer(); };
+// computer-vs-computer games can be paused from the UI (resign makes no sense there)
+let paused = false;
+const snap = () => ({ ...game.snapshot(), paused });
+const changed = () => { bus.emit('change', snap()); scheduleComputer(); };
 
 // --- built-in computer player (search runs in a worker thread) -----------------
 const COMPUTER_DELAY = Number(process.env.COMPUTER_DELAY || 900);
@@ -46,7 +49,7 @@ function onComputerMove({ id, move, error }) {
   if (!p || p.id !== id) return;                                  // superseded request
   pendingTurn = null;
   if (error) { console.error('computer search failed', error); return; }
-  if (!move || game.id !== p.gameId || game.version !== p.version) return; // game changed meanwhile
+  if (paused || !move || game.id !== p.gameId || game.version !== p.version) return; // paused, or game changed meanwhile
   recent[p.turn].push(`${move.to}>${move.from}`);
   if (recent[p.turn].length > 4) recent[p.turn].shift();
   try { game.move(move.from, move.to, move.promotion); } catch (e) { console.error('computer move failed', e.message); return; }
@@ -55,7 +58,7 @@ function onComputerMove({ id, move, error }) {
 function scheduleComputer() {
   clearTimeout(computerTimer);
   pendingTurn = null;
-  if (game.status !== 'playing' || game.players[game.turn] !== 'computer') return;
+  if (paused || game.status !== 'playing' || game.players[game.turn] !== 'computer') return;
   const { id: gameId, version, turn } = game;
   computerTimer = setTimeout(() => {
     if (game.id !== gameId || game.version !== version) return;
@@ -89,13 +92,13 @@ app.get('/draughts.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/dr
 
 // --- REST API for the 3D UI --------------------------------------------------
 
-app.get('/api/state', (_req, res) => res.json(game.snapshot()));
+app.get('/api/state', (_req, res) => res.json(snap()));
 
 app.get('/api/events', (req, res) => {
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   res.flushHeaders();
   const send = (s) => res.write(`data: ${JSON.stringify(s)}\n\n`);
-  send(game.snapshot());
+  send(snap());
   const ping = setInterval(() => res.write(': ping\n\n'), 15000);
   bus.on('change', send);
   req.on('close', () => { clearInterval(ping); bus.off('change', send); });
@@ -128,6 +131,7 @@ app.post('/api/new', (req, res) => {
   }
   recent.white = []; recent.black = [];
   game = createGame(kind, { white, black, computer: cfg });
+  paused = false;
   changed();
   res.json({ ok: true });
 });
@@ -157,6 +161,13 @@ app.post('/api/hint', (req, res) => {
     res.json({ ok: true, move });
   });
   getWorker().postMessage({ id, kind: game.kind, pos: game.pos, color: turn, level: 4, style: 'balanced', recent: [] });
+});
+
+// pause / resume a computer-vs-computer game
+app.post('/api/pause', (req, res) => {
+  paused = !!req.body?.paused;
+  changed();
+  res.json({ ok: true, paused });
 });
 
 // body.color: the side that resigns (a local human, or the network opponent); default the side to move

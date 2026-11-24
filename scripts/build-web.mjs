@@ -85,9 +85,10 @@ appSrc = must(appSrc,
   '/*LOCAL_GAME*/', 'EventSource block');
 appSrc = appSrc.replace(/async function post\(url, body\) \{[\s\S]*?\n\}\n/, '');
 appSrc = must(appSrc,
-  "$('btnResign').onclick = () => { if (isHumanTurn() && confirm(t('ui.resignConfirm'))) post('/api/resign'); };",
+  "$('btnResign').onclick = () => {\n  if (cpuOnly(live)) { post('/api/pause', { paused: !live.paused }); return; }\n  if (isHumanTurn() && confirm(t('ui.resignConfirm'))) post('/api/resign');\n};",
   `$('btnResign').onclick = () => {
   const b = $('btnResign');
+  if (cpuOnly(live)) { post('/api/pause', { paused: !live.paused }); return; }
   if (!isHumanTurn()) return;
   if (b.dataset.armed) { delete b.dataset.armed; b.textContent = t('ui.resign'); post('/api/resign'); return; }
   b.dataset.armed = '1'; b.textContent = t('ui.confirm');
@@ -139,7 +140,7 @@ const hintWaits = new Map(); // hint request id -> resolve(move | null)
 let hintSeq = 1e6;
 worker.onmessage = (e) => {
   if (e.data.hint) { const done = hintWaits.get(e.data.id); hintWaits.delete(e.data.id); done?.(e.data.m || null); return; }
-  if (e.data.id !== thinkingId || !e.data.m) return;
+  if (e.data.id !== thinkingId || !e.data.m || paused) return;
   const { from, to, promotion } = e.data.m, c = game.turn;
   recentMoves[c].push(to + '>' + from); if (recentMoves[c].length > 4) recentMoves[c].shift();
   try { game.move(from, to, promotion); } catch (err) { toast(err.message); return; }
@@ -147,15 +148,16 @@ worker.onmessage = (e) => {
 };
 function scheduleComputer() {
   const id = ++thinkingId, ver = game.version;
-  if (game.status !== 'playing' || game.players[game.turn] !== 'computer') return;
+  if (paused || game.status !== 'playing' || game.players[game.turn] !== 'computer') return;
   setTimeout(() => {
     if (id !== thinkingId || ver !== game.version) return;
     const { level, style } = game.computer[game.turn];
     worker.postMessage({ id, kind: game.kind, pos: game.pos, color: game.turn, level, style, recent: recentMoves[game.turn] });
   }, 650);
 }
+var paused = false; // computer-vs-computer pause (var: read by code that may run first)
 function publish() {
-  onLive(game.snapshot());
+  onLive({ ...game.snapshot(), paused });
   try { localStorage.setItem(STORE_KEY, JSON.stringify(serialize())); } catch {}
   scheduleComputer();
 }
@@ -174,6 +176,7 @@ async function post(url, body = {}) {
     if ((url === '/api/new' || url === '/api/net-sync') && playersError(body.white, body.black, url === '/api/net-sync' && body.watch === true)) throw new Error(playersError(body.white, body.black, url === '/api/net-sync' && body.watch === true));
     if (url === '/api/new') {
       game = createGame(knownKind(body.kind) || game.kind, { white: body.white, black: body.black, computer: body.computer });
+      paused = false;
       recentMoves.white = []; recentMoves.black = [];
     } else if (url === '/api/undo') {
       game = UNDO.undoGame(game, createGame);
@@ -191,6 +194,8 @@ async function post(url, body = {}) {
     } else if (url === '/api/move') {
       if (game.players[game.turn] !== 'human') throw new Error(t('hint.notYourTurn'));
       game.move(body.from, body.to, body.promotion);
+    } else if (url === '/api/pause') {
+      paused = !!body.paused;
     } else if (url === '/api/resign') {
       game.resign(body.color || game.turn);
     } else if (url === '/api/flag') {
