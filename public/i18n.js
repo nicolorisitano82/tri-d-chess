@@ -62,7 +62,7 @@ const STRINGS = {
     'hint.notBlocking': 'Questo pezzo non para lo scacco: usa uno evidenziato in verde',
     'hint.noMoves': 'Nessuna mossa legale per questo pezzo',
 
-    'net.title': 'Gioco in rete (P2P)', 'net.iPlay': 'Io gioco', 'net.random': 'Casuale', 'net.host': 'Crea stanza',
+    'net.title': 'Gioco in rete (P2P)', 'net.iPlay': 'Io gioco', 'net.random': 'Casuale', 'net.host': 'Crea stanza', 'net.hostConfirm': 'Conferma?', 'net.hostWarn': 'La partita in corso verrà chiusa. Premi di nuovo per creare la stanza.',
     'net.watch': 'Guarda', 'net.watchers': 'Spettatori', 'net.spectator': 'Spettatore', 'net.watching': 'Stai guardando la partita', 'net.fullWatching': 'La stanza ha già due giocatori: guardi la partita', 'net.spectatorNew': 'Stai guardando: esci dalla stanza per giocare', 'chat.watcherIn': 'È arrivato uno spettatore', 'lobby.live': 'In corso · guarda', 'lobby.watch': 'Guarda questa partita',
     'net.code': 'Codice stanza', 'net.join': 'Entra', 'net.room': 'Stanza', 'net.state': 'Stato', 'net.you': 'Tu giochi',
     'net.copy': 'Copia', 'net.leave': 'Esci dalla stanza', 'net.waiting': "In attesa dell'avversario…",
@@ -152,7 +152,7 @@ const STRINGS = {
     'hint.notBlocking': "This piece can't stop the check: use one highlighted in green",
     'hint.noMoves': 'No legal moves for this piece',
 
-    'net.title': 'Online play (P2P)', 'net.iPlay': 'I play', 'net.random': 'Random', 'net.host': 'Create room',
+    'net.title': 'Online play (P2P)', 'net.iPlay': 'I play', 'net.random': 'Random', 'net.host': 'Create room', 'net.hostConfirm': 'Confirm?', 'net.hostWarn': 'The game in progress will be closed. Press again to create the room.',
     'net.watch': 'Watch', 'net.watchers': 'Spectators', 'net.spectator': 'Spectator', 'net.watching': 'Watching the game', 'net.fullWatching': 'The room already has two players: you are watching', 'net.spectatorNew': 'You are watching: leave the room to play', 'chat.watcherIn': 'A spectator joined', 'lobby.live': 'Live · watch', 'lobby.watch': 'Watch this game',
     'net.code': 'Room code', 'net.join': 'Join', 'net.room': 'Room', 'net.state': 'Status', 'net.you': 'You play',
     'net.copy': 'Copy', 'net.leave': 'Leave room', 'net.waiting': 'Waiting for your opponent…',

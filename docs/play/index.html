@@ -2921,7 +2921,7 @@ const STRINGS = {
     'hint.notBlocking': 'Questo pezzo non para lo scacco: usa uno evidenziato in verde',
     'hint.noMoves': 'Nessuna mossa legale per questo pezzo',
 
-    'net.title': 'Gioco in rete (P2P)', 'net.iPlay': 'Io gioco', 'net.random': 'Casuale', 'net.host': 'Crea stanza',
+    'net.title': 'Gioco in rete (P2P)', 'net.iPlay': 'Io gioco', 'net.random': 'Casuale', 'net.host': 'Crea stanza', 'net.hostConfirm': 'Conferma?', 'net.hostWarn': 'La partita in corso verrà chiusa. Premi di nuovo per creare la stanza.',
     'net.watch': 'Guarda', 'net.watchers': 'Spettatori', 'net.spectator': 'Spettatore', 'net.watching': 'Stai guardando la partita', 'net.fullWatching': 'La stanza ha già due giocatori: guardi la partita', 'net.spectatorNew': 'Stai guardando: esci dalla stanza per giocare', 'chat.watcherIn': 'È arrivato uno spettatore', 'lobby.live': 'In corso · guarda', 'lobby.watch': 'Guarda questa partita',
     'net.code': 'Codice stanza', 'net.join': 'Entra', 'net.room': 'Stanza', 'net.state': 'Stato', 'net.you': 'Tu giochi',
     'net.copy': 'Copia', 'net.leave': 'Esci dalla stanza', 'net.waiting': "In attesa dell'avversario…",
@@ -3011,7 +3011,7 @@ const STRINGS = {
     'hint.notBlocking': "This piece can't stop the check: use one highlighted in green",
     'hint.noMoves': 'No legal moves for this piece',
 
-    'net.title': 'Online play (P2P)', 'net.iPlay': 'I play', 'net.random': 'Random', 'net.host': 'Create room',
+    'net.title': 'Online play (P2P)', 'net.iPlay': 'I play', 'net.random': 'Random', 'net.host': 'Create room', 'net.hostConfirm': 'Confirm?', 'net.hostWarn': 'The game in progress will be closed. Press again to create the room.',
     'net.watch': 'Watch', 'net.watchers': 'Spectators', 'net.spectator': 'Spectator', 'net.watching': 'Watching the game', 'net.fullWatching': 'The room already has two players: you are watching', 'net.spectatorNew': 'You are watching: leave the room to play', 'chat.watcherIn': 'A spectator joined', 'lobby.live': 'Live · watch', 'lobby.watch': 'Watch this game',
     'net.code': 'Room code', 'net.join': 'Join', 'net.room': 'Room', 'net.state': 'Status', 'net.you': 'You play',
     'net.copy': 'Copy', 'net.leave': 'Leave room', 'net.waiting': 'Waiting for your opponent…',
@@ -5577,7 +5577,26 @@ function setRoomInUrl(c, watch = false) {
   } catch {}
 }
 
-$('netHost').onclick = () => (askNotify(), host()).catch((e) => T.toast(t('net.unavailable', { e: e.message })));
+// a local game in progress (vs or between computers) would be replaced by the room's game:
+// first click arms the button ("Close the game?"), second click within 4 s creates the room
+function localGameInProgress() {
+  const s = T.getState && T.getState();
+  if (!s || s.status !== 'playing' || !(s.history || []).length) return false;
+  const p = Object.values(s.players || {});
+  return !p.includes('remote') && p.includes('computer');
+}
+$('netHost').onclick = () => {
+  const b = $('netHost');
+  if (localGameInProgress() && !b.dataset.armed) {
+    b.dataset.armed = '1';
+    b.textContent = t('net.hostConfirm');
+    T.toast(t('net.hostWarn'));
+    setTimeout(() => { delete b.dataset.armed; b.textContent = t('net.host'); }, 4000);
+    return;
+  }
+  if (b.dataset.armed) { delete b.dataset.armed; b.textContent = t('net.host'); }
+  (askNotify(), host()).catch((e) => T.toast(t('net.unavailable', { e: e.message })));
+};
 $('netJoin').onclick = () => { askNotify(); try { join(); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
 $('netWatch').onclick = () => { askNotify(); try { join(true); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
 $('netCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('netJoin').click(); });

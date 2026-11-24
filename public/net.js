@@ -692,7 +692,26 @@ function setRoomInUrl(c, watch = false) {
   } catch {}
 }
 
-$('netHost').onclick = () => (askNotify(), host()).catch((e) => T.toast(t('net.unavailable', { e: e.message })));
+// a local game in progress (vs or between computers) would be replaced by the room's game:
+// first click arms the button ("Close the game?"), second click within 4 s creates the room
+function localGameInProgress() {
+  const s = T.getState && T.getState();
+  if (!s || s.status !== 'playing' || !(s.history || []).length) return false;
+  const p = Object.values(s.players || {});
+  return !p.includes('remote') && p.includes('computer');
+}
+$('netHost').onclick = () => {
+  const b = $('netHost');
+  if (localGameInProgress() && !b.dataset.armed) {
+    b.dataset.armed = '1';
+    b.textContent = t('net.hostConfirm');
+    T.toast(t('net.hostWarn'));
+    setTimeout(() => { delete b.dataset.armed; b.textContent = t('net.host'); }, 4000);
+    return;
+  }
+  if (b.dataset.armed) { delete b.dataset.armed; b.textContent = t('net.host'); }
+  (askNotify(), host()).catch((e) => T.toast(t('net.unavailable', { e: e.message })));
+};
 $('netJoin').onclick = () => { askNotify(); try { join(); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
 $('netWatch').onclick = () => { askNotify(); try { join(true); } catch (e) { T.toast(t('net.unavailable', { e: e.message })); } };
 $('netCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('netJoin').click(); });
