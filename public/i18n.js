@@ -3,7 +3,7 @@
 
 const STRINGS = {
   it: {
-    'name.white': 'Bianco', 'name.black': 'Nero', 'name.red': 'Rosso',
+    'name.white': 'Bianco', 'name.black': 'Nero', 'name.red': 'Rosso', 'name.sente': 'Sente', 'name.gote': 'Gote',
     'name.human': 'Umano', 'name.ai': 'AI', 'name.computer': 'Computer', 'name.remote': 'In rete', 'a11y.move': 'Mossa da tastiera', 'a11y.placeholder': 'es. b2W b4N · QL1 QL3 · 0-0', 'a11y.go': 'Muovi', 'a11y.describe': 'Descrivi', 'a11y.contrast': 'Alto contrasto',
     'a11y.help': 'Scrivi partenza e arrivo, poi Invio. Solo la partenza elenca le mosse possibili. Tasto M per arrivare qui.',
     'a11y.board': 'Scacchiera 3D. Per giocare da tastiera usa il campo Mossa da tastiera; Descrivi elenca la posizione.',
@@ -18,6 +18,13 @@ const STRINGS = {
     'draw.fifty': 'regola delle 50 mosse', 'draw.repetition': 'triplice ripetizione', 'draw.material': 'materiale insufficiente', 'draw.time-material': 'tempo scaduto senza materiale per vincere',
     'cc.marble': 'Biglia', 'status.ccWin': 'Vince il {c}: ha riempito la punta avversaria', 'victory.byFill': 'riempiendo la punta avversaria', 'draw.plyLimit': '400 semimosse',
     'xq.K': 'Generale', 'xq.A': 'Consigliere', 'xq.E': 'Elefante', 'xq.H': 'Cavallo', 'xq.R': 'Carro', 'xq.C': 'Cannone', 'xq.P': 'Soldato', 'draw.noCapture': '120 semimosse senza catture',
+    'sh.K': 'Re', 'sh.R': 'Torre', 'sh.B': 'Alfiere', 'sh.G': "Generale d'oro", 'sh.S': "Generale d'argento", 'sh.N': 'Cavallo', 'sh.L': 'Lancia', 'sh.P': 'Pedone',
+    'sh.R+': 'Drago', 'sh.B+': 'Cavallo drago', 'sh.S+': 'Argento promosso', 'sh.N+': 'Cavallo promosso', 'sh.L+': 'Lancia promossa', 'sh.P+': 'Tokin', 'sh.hand': '{p} in mano (×{n})',
+    'ui.promoteAsk': 'Promuovere il pezzo? (OK = promuovi, Annulla = no)', 'draw.sennichite': 'sennichite (la stessa posizione 4 volte)', 'draw.plyLimit500': '500 semimosse',
+    'tf.P': 'Guerriero', 'tf.K': 'Re', 'status.taflEscape': 'Vince il {c}: il re è fuggito in un angolo', 'status.taflCapture': 'Vince il {c}: il re è catturato', 'status.taflEncircle': 'Vince il {c}: i difensori sono accerchiati',
+    'victory.byEscape': 'con la fuga del re in un angolo', 'victory.byKing': 'catturando il re', 'victory.byEncircle': 'accerchiando i difensori',
+    'game.shogi': 'Shōgi (scacchi giapponesi)', 'game.tafl': 'Hnefatafl (scacchi vichinghi)',
+    'share.g.shogi': 'shōgi (scacchi giapponesi) 将棋', 'share.g.tafl': 'Hnefatafl ⚔️ scacchi vichinghi', 'share.tag.shogi': '#shogi #将棋', 'share.tag.tafl': '#hnefatafl #tafl',
     'piece.K': 'Re', 'piece.Q': 'Regina', 'piece.R': 'Torre', 'piece.B': 'Alfiere', 'piece.N': 'Cavallo', 'piece.P': 'Pedone',
 
     'status.connecting': 'Connessione…', 'status.lost': 'Connessione persa, riprovo…',
@@ -95,7 +102,7 @@ const STRINGS = {
     'react.clap': 'Applausi', 'react.fire': 'Fuoco', 'react.wow': 'Wow', 'react.laugh': 'Risata', 'react.gg': 'Bella partita', 'react.boom': 'Boom',
   },
   en: {
-    'name.white': 'White', 'name.black': 'Black', 'name.red': 'Red',
+    'name.white': 'White', 'name.black': 'Black', 'name.red': 'Red', 'name.sente': 'Sente', 'name.gote': 'Gote',
     'name.human': 'Human', 'name.ai': 'AI', 'name.computer': 'Computer', 'name.remote': 'Online', 'a11y.move': 'Keyboard move', 'a11y.placeholder': 'e.g. b2W b4N · QL1 QL3 · 0-0', 'a11y.go': 'Move', 'a11y.describe': 'Describe', 'a11y.contrast': 'High contrast',
     'a11y.help': 'Type the start and target square, then Enter. The start alone lists its moves. Press M to come here.',
     'a11y.board': '3D chess board. To play with the keyboard use the Keyboard move field; Describe lists the position.',
@@ -110,6 +117,13 @@ const STRINGS = {
     'draw.fifty': 'the 50-move rule', 'draw.repetition': 'threefold repetition', 'draw.material': 'insufficient material', 'draw.time-material': 'time out with no mating material',
     'cc.marble': 'Marble', 'status.ccWin': '{c} wins: the opposite point is filled', 'victory.byFill': 'by filling the opposite point', 'draw.plyLimit': '400 plies',
     'xq.K': 'General', 'xq.A': 'Advisor', 'xq.E': 'Elephant', 'xq.H': 'Horse', 'xq.R': 'Chariot', 'xq.C': 'Cannon', 'xq.P': 'Soldier', 'draw.noCapture': '120 plies without a capture',
+    'sh.K': 'King', 'sh.R': 'Rook', 'sh.B': 'Bishop', 'sh.G': 'Gold general', 'sh.S': 'Silver general', 'sh.N': 'Knight', 'sh.L': 'Lance', 'sh.P': 'Pawn',
+    'sh.R+': 'Dragon', 'sh.B+': 'Horse', 'sh.S+': 'Promoted silver', 'sh.N+': 'Promoted knight', 'sh.L+': 'Promoted lance', 'sh.P+': 'Tokin', 'sh.hand': '{p} in hand (×{n})',
+    'ui.promoteAsk': 'Promote this piece? (OK = promote, Cancel = no)', 'draw.sennichite': 'sennichite (the same position four times)', 'draw.plyLimit500': '500 plies',
+    'tf.P': 'Warrior', 'tf.K': 'King', 'status.taflEscape': '{c} wins: the king escaped to a corner', 'status.taflCapture': '{c} wins: the king is captured', 'status.taflEncircle': '{c} wins: the defenders are surrounded',
+    'victory.byEscape': 'by the king escaping to a corner', 'victory.byKing': 'by capturing the king', 'victory.byEncircle': 'by surrounding the defenders',
+    'game.shogi': 'Shogi (Japanese chess)', 'game.tafl': 'Hnefatafl (Viking chess)',
+    'share.g.shogi': 'shogi (Japanese chess) 将棋', 'share.g.tafl': 'Hnefatafl ⚔️ Viking chess', 'share.tag.shogi': '#shogi #将棋', 'share.tag.tafl': '#hnefatafl #tafl',
     'piece.K': 'King', 'piece.Q': 'Queen', 'piece.R': 'Rook', 'piece.B': 'Bishop', 'piece.N': 'Knight', 'piece.P': 'Pawn',
 
     'status.connecting': 'Connecting…', 'status.lost': 'Connection lost, retrying…',
@@ -202,16 +216,24 @@ function detect() {
 let lang = detect();
 export const getLang = () => lang;
 
-// Xiangqi calls the first player Red: while it is on screen "white" reads as Red / Rosso.
-let redWhite = false;
-export function setRedWhite(on) {
-  if (redWhite === !!on) return;
-  redWhite = !!on;
+// Some games name the sides differently: xiangqi calls the first player Red, shogi says Sente and
+// Gote, and in hnefatafl the attackers (stored as "white", they move first) are the dark pieces.
+const SIDES = {
+  xiangqi: { 'name.white': 'name.red' },
+  shogi: { 'name.white': 'name.sente', 'name.black': 'name.gote' },
+  tafl: { 'name.white': 'name.black', 'name.black': 'name.white' },
+};
+let sideMap = null;
+export function setSideNames(kind) {
+  const next = SIDES[kind] || null;
+  if (next === sideMap) return;
+  sideMap = next;
   applyStatic();
 }
+export const setRedWhite = (on) => setSideNames(on ? 'xiangqi' : null);
 
 export function t(key, vars = {}) {
-  if (redWhite && key === 'name.white') key = 'name.red';
+  if (sideMap && sideMap[key]) key = sideMap[key];
   const s = STRINGS[lang][key] ?? STRINGS.it[key] ?? key;
   return s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? `{${k}}`));
 }

@@ -16,7 +16,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // The game being played; its kind ('trid' | 'chess' | 'dama-*') is chosen when a new game starts.
 let game = createGame('trid', { white: 'human', black: 'ai' });
-const KIND_NAMES = { trid: 'Tri-D chess (Meder rules)', chess: 'classic chess', xiangqi: 'xiangqi (Chinese chess)', cinese: 'Chinese checkers (two players)', 'dama-it': 'Italian draughts', 'dama-int': 'international draughts (10x10)', 'dama-en': 'English draughts (checkers)', 'dama-ru': 'Russian draughts', 'dama-br': 'Brazilian draughts' };
+const KIND_NAMES = { trid: 'Tri-D chess (Meder rules)', chess: 'classic chess', xiangqi: 'xiangqi (Chinese chess)', cinese: 'Chinese checkers (two players)', shogi: 'shogi (Japanese chess)', tafl: 'hnefatafl (Viking chess, Fetlar rules)', 'dama-it': 'Italian draughts', 'dama-int': 'international draughts (10x10)', 'dama-en': 'English draughts (checkers)', 'dama-ru': 'Russian draughts', 'dama-br': 'Brazilian draughts' };
 const bus = new EventEmitter();
 bus.setMaxListeners(100);
 // computer-vs-computer games can be paused from the UI (resign makes no sense there)
@@ -91,6 +91,8 @@ app.get('/chess2d.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/che
 app.get('/draughts.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/draughts.js')));
 app.get('/xiangqi.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/xiangqi.js')));
 app.get('/halma.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/halma.js')));
+app.get('/shogi.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/shogi.js')));
+app.get('/tafl.js', (_req, res) => res.sendFile(path.join(__dirname, 'src/tafl.js')));
 
 // --- REST API for the 3D UI --------------------------------------------------
 
@@ -299,7 +301,7 @@ function buildMcp(urlColor = null) {
     inputSchema: {
       from: z.string().describe('Origin square (e.g. "b2W"), attack-board pin (e.g. "QL1"), or "0-0" / "0-0-0" to castle'),
       to: z.string().describe('Destination square (e.g. "b4N") or empty pin (e.g. "QL3"); ignored for "0-0"/"0-0-0"'),
-      promotion: z.enum(['Q', 'R', 'B', 'N']).optional().describe('Piece for a promoting pawn (default Q)'),
+      promotion: z.enum(['Q', 'R', 'B', 'N', '+']).optional().describe('Piece for a promoting pawn (default Q); in shogi "+" promotes the piece (omit it to stay unpromoted)'),
       ...colorArg,
     },
   }, async ({ from, to, color, promotion }) => {
@@ -346,7 +348,7 @@ function buildMcp(urlColor = null) {
       white_style: z.enum(['balanced', 'aggressive', 'cautious']).default('balanced').describe('White built-in computer style'),
       black_level: z.number().int().min(1).max(5).default(3).describe('Black built-in computer strength: 1 beginner .. 5 master'),
       black_style: z.enum(['balanced', 'aggressive', 'cautious']).default('balanced').describe('Black built-in computer style'),
-      kind: z.enum(KINDS).optional().describe('Which game: "trid" (3D chess, Meder rules), "chess" (classic chess), "xiangqi" (Chinese chess; Red is white), "cinese" (Chinese checkers, two players), or draughts: "dama-it" (Italian), "dama-int" (international 10x10), "dama-en" (English checkers), "dama-ru" (Russian), "dama-br" (Brazilian). Default: the current one'),
+      kind: z.enum(KINDS).optional().describe('Which game: "trid" (3D chess, Meder rules), "chess" (classic chess), "xiangqi" (Chinese chess; Red is white), "cinese" (Chinese checkers, two players), "shogi" (Japanese chess; Sente is white; drops from "w*P"/"b*P"), "tafl" (hnefatafl, Fetlar 11x11; the attackers are white and move first), or draughts: "dama-it" (Italian), "dama-int" (international 10x10), "dama-en" (English checkers), "dama-ru" (Russian), "dama-br" (Brazilian). Default: the current one'),
     },
   }, async ({ white, black, white_level, white_style, black_level, black_style, kind }) => {
     if (netRoom || Object.values(game.players).includes('remote') && game.status === 'playing')

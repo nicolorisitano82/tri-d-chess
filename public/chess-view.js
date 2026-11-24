@@ -4,7 +4,7 @@
 // posOfKey() for piece positions, buildPiece() for the 3D pieces, camera views.
 import * as THREE from 'three';
 
-const FILES = 'abcdefghij';
+const FILES = 'abcdefghijk';
 const SQ = 1;
 const TOP = 0.06;                                  // y of the playing surface
 
@@ -84,7 +84,7 @@ function labelSprite(text) {
   g.fillStyle = '#e8cf9a';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(text, 32, 34);
+  g.fillText(text, 32, 28);                         // room for the descender of "j"
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
   sp.scale.set(0.36, 0.36, 1);
   return sp;
@@ -348,15 +348,118 @@ function starBoardTexture(holes, home) {
   return t;
 }
 
+// --- Shogi: flat pentagonal wedges of boxwood with the kanji, pointing at the opponent -----------
+const SH_CHARS = { K: '玉', R: '飛', B: '角', G: '金', S: '銀', N: '桂', L: '香', P: '歩', 'R+': '龍', 'B+': '馬', 'S+': '全', 'N+': '圭', 'L+': '杏', 'P+': 'と' };
+const SH_SCALE = { K: 1, R: 0.97, B: 0.97, G: 0.93, S: 0.93, N: 0.88, L: 0.85, P: 0.8 };
+const SH_W = 0.74, SH_H = 0.86;
+const SH_WOOD = new THREE.MeshStandardMaterial({ color: 0xd9b36c, roughness: 0.5, metalness: 0.02, emissive: 0x120c04 });
+const shogiGeo = (() => {
+  const s = new THREE.Shape();
+  const w = SH_W / 2, h = SH_H / 2;
+  s.moveTo(-w, -h); s.lineTo(w, -h); s.lineTo(w * 0.84, h * 0.42); s.lineTo(0, h); s.lineTo(-w * 0.84, h * 0.42); s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.13, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 2 });
+  g.rotateX(-Math.PI / 2);                             // the tip points to -z (away from Sente), the face up
+  return g;
+})();
+const shFaces = {};
+function shFace(type, color) {
+  const id = color + type;
+  if (shFaces[id]) return shFaces[id];
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 296;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 296);
+  gr.addColorStop(0, '#f0d79e'); gr.addColorStop(1, '#ddb874');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 256, 296);
+  const ch = type === 'K' && color === 'black' ? '王' : SH_CHARS[type];
+  g.fillStyle = type.length > 1 ? '#b3121b' : '#17110b';
+  g.font = `bold ${ch === 'と' ? 150 : 132}px "Kaiti SC","STKaiti","KaiTi","Hiragino Mincho ProN","Yu Mincho","Songti SC","SimSun","Noto Serif CJK JP",serif`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(ch, 128, 176);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  t.repeat.set(1 / SH_W, 1 / SH_H);                    // the caps use the shape's own x / y as UVs
+  t.offset.set(0.5, 0.5);
+  return (shFaces[id] = new THREE.MeshStandardMaterial({ map: t, roughness: 0.45, metalness: 0.02, emissive: 0x120c04 }));
+}
+export function buildShogiPiece(type, color) {
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(shogiGeo, [shFace(type, color), SH_WOOD]);
+  m.scale.setScalar(SH_SCALE[type[0]] || 0.9);
+  m.position.y = 0.02;
+  g.add(m);
+  if (color === 'black') g.rotation.y = Math.PI;
+  return g;
+}
+// the kaya board: ink grid and the four star points
+function shogiBoardTexture() {
+  const S = 100, W = 10 * S;                            // 9 squares + half a square of margin each side
+  const c = document.createElement('canvas');
+  c.width = c.height = W;
+  const g = c.getContext('2d');
+  g.drawImage(woodTexture('#e2bd78', '#b88a45', 19).image, 0, 0, W, W);
+  g.strokeStyle = '#2a1a0c';
+  g.lineWidth = 3;
+  for (let i = 0; i <= 9; i++) {
+    const p = S / 2 + i * S;
+    g.beginPath(); g.moveTo(S / 2, p); g.lineTo(W - S / 2, p); g.moveTo(p, S / 2); g.lineTo(p, W - S / 2); g.stroke();
+  }
+  g.lineWidth = 5; g.strokeRect(S / 2, S / 2, 9 * S, 9 * S);
+  g.fillStyle = '#2a1a0c';
+  for (const x of [3, 6]) for (const y of [3, 6]) { g.beginPath(); g.arc(S / 2 + x * S, S / 2 + y * S, 9, 0, Math.PI * 2); g.fill(); }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+const SH_HAND = ['R', 'B', 'G', 'S', 'N', 'L', 'P'];
+// pieces in hand sit on a stand (komadai) at each player's right: "w*P" -> a slot
+const handPos = (key) => {
+  const white = key[0] === 'w', i = SH_HAND.indexOf(key[2]);
+  return new THREE.Vector3(white ? 6.7 : -6.7, TOP + 0.3, white ? 3.3 - i * 0.98 : -3.3 + i * 0.98);
+};
+export function countSprite(n) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(20,12,6,.8)';
+  g.beginPath(); g.roundRect(14, 8, 100, 48, 22); g.fill();
+  g.font = 'bold 38px Georgia, serif';
+  g.fillStyle = '#f2d9a0';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('×' + n, 64, 34);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, depthTest: false }));
+  sp.scale.set(0.6, 0.3, 1);
+  sp.renderOrder = 5;
+  return sp;
+}
+
+// --- Hnefatafl: warriors and the king turned like chess pieces; the attackers are dark ------------
+export function buildTaflPiece(type, color) {
+  const g = new THREE.Group();
+  const m = color === 'white' ? EBONY : IVORY;        // 'white' = the attackers, who move first
+  PIECES[type === 'K' ? 'K' : 'P'](g, m);
+  return g;
+}
+
+const frameWoodOf = () => new THREE.MeshStandardMaterial({ map: woodTexture('#3b2414', '#1c0e05', 3), roughness: 0.45, metalness: 0.05 });
 // --- the room and the board ------------------------------------------------------------
 // size: 8 or 10. darkA1: whether a1 is a dark square (chess, international draughts); the Italian
 // draughts board is turned so that the dark corner is on each player's right (h1).
 // draughts: build discs instead of chess pieces. xiangqi: the 9 x 10 Chinese board (pieces on points).
 // star: { holes, home: { white, black } } for the Chinese checkers board.
-export function createChessView({ size = 8, darkA1 = true, draughts = false, xiangqi = false, star = null } = {}) {
+// shogi: the 9 x 9 board with a stand for the pieces in hand beside it. tafl: the 11 x 11 board with
+// the throne and the four corners marked.
+export function createChessView({ size = 8, darkA1 = true, draughts = false, xiangqi = false, star = null, shogi = false, tafl = false } = {}) {
+  if (shogi) size = 9;
   const cols = xiangqi ? 9 : size, rows = xiangqi ? 10 : size;
   const n = Math.max(cols, rows), k = n / 8;
   const posOf = star ? (key) => { const [x, z] = starXZ(key); return new THREE.Vector3(x, TOP, z); } : (key) => {
+    if (shogi && key[1] === '*') return handPos(key);
     const f = FILES.indexOf(key[0]), r = Number(key.slice(1));
     return new THREE.Vector3((f - (cols - 1) / 2) * SQ, TOP, -(r - (rows + 1) / 2) * SQ);
   };
@@ -381,6 +484,41 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false, xia
       root.add(m);
       squares.push({ key, mesh: m });
     }
+  } else if (shogi) {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(cols + 1 - 0.02, 0.08, rows + 1 - 0.02),
+      [0, 1, 2, 3, 4, 5].map((i) => new THREE.MeshStandardMaterial(i === 2 ? { map: shogiBoardTexture(), roughness: 0.55 } : { color: 0xb88a45, roughness: 0.6 })));
+    top.position.y = TOP - 0.04;
+    root.add(top);
+    const tileGeo = new THREE.BoxGeometry(SQ * 0.94, 0.02, SQ * 0.94);
+    for (let f = 0; f < cols; f++) for (let r = 1; r <= rows; r++) {
+      const key = FILES[f] + r;
+      const m = pointTile(tileGeo);
+      m.position.copy(posOf(key));
+      m.position.y = TOP + 0.005;
+      m.userData = { key, kind: 'square' };
+      root.add(m);
+      squares.push({ key, mesh: m });
+    }
+    // the two stands (komadai) for the pieces in hand
+    const standWood = new THREE.MeshStandardMaterial({ map: woodTexture('#c99a55', '#7a5222', 23), roughness: 0.5 });
+    for (const c of ['w', 'b']) {
+      const x = c === 'w' ? 6.7 : -6.7;
+      const stand = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.24, 7.3), standWood);
+      stand.position.set(x, TOP + 0.06, 0);
+      root.add(stand);
+      const legs = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.3, 6.9), frameWoodOf());
+      legs.position.set(x, TOP - 0.2, 0);
+      root.add(legs);
+      for (const t of SH_HAND) {
+        const key = `${c}*${t}`;
+        const m = pointTile(tileGeo);
+        m.position.copy(handPos(key));
+        m.position.y = TOP + 0.19;
+        m.userData = { key, kind: 'square' };
+        root.add(m);
+        squares.push({ key, mesh: m });
+      }
+    }
   } else if (xiangqi) {
     const top = new THREE.Mesh(new THREE.BoxGeometry(cols + 2 * SQ - 0.02, 0.08, rows + 2 * SQ - 0.02),
       [0, 1, 2, 3, 4, 5].map((i) => new THREE.MeshStandardMaterial(i === 2 ? { map: xiangqiBoardTexture(), roughness: 0.6 } : { color: 0x9a6a35, roughness: 0.6 })));
@@ -402,7 +540,7 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false, xia
     const sqGeo = new THREE.BoxGeometry(SQ * 0.995, 0.08, SQ * 0.995);
     for (let f = 0; f < n; f++) for (let r = 1; r <= n; r++) {
       const key = FILES[f] + r;
-      const isDark = ((f + r) % 2 === 1) === darkA1;
+      const isDark = tafl ? (f === (n - 1) / 2 && r === (n + 1) / 2) || ((f === 0 || f === n - 1) && (r === 1 || r === n)) : ((f + r) % 2 === 1) === darkA1;
       const m = new THREE.Mesh(sqGeo, (isDark ? dark : light).clone());
       m.position.copy(posOf(key));
       m.position.y = TOP - 0.04;
@@ -415,7 +553,7 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false, xia
   const frameWood = new THREE.MeshStandardMaterial({ map: woodTexture('#3b2414', '#1c0e05', 3), roughness: 0.45, metalness: 0.05 });
   const brass = new THREE.MeshStandardMaterial({ color: 0xb08a3e, roughness: 0.35, metalness: 0.8 });
   if (!star) {
-  const pad = xiangqi ? 2 : 0;
+  const pad = xiangqi ? 2 : shogi ? 1 : 0;
   const FW = cols + pad + 1.3, FD = rows + pad + 1.3;
   const frame = new THREE.Mesh(new THREE.BoxGeometry(FW, 0.3, FD), frameWood);
   frame.position.y = -0.13;
@@ -432,7 +570,7 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false, xia
   }
   // stone table and floor
   const stone = new THREE.MeshStandardMaterial({ map: stoneTexture(), roughness: 0.9, metalness: 0 });
-  const tk = star ? 13 / 8 : xiangqi ? 12.5 / 8 : k;
+  const tk = star ? 13 / 8 : xiangqi ? 12.5 / 8 : shogi ? 13 / 8 : k;
   const table = new THREE.Mesh(new THREE.CylinderGeometry(7.6 * tk, 7.9 * tk, 0.5, 64), new THREE.MeshStandardMaterial({ map: woodTexture('#4a2f1b', '#24130a', 5), roughness: 0.6 }));
   table.position.y = -0.55;
   root.add(table);
@@ -468,13 +606,14 @@ export function createChessView({ size = 8, darkA1 = true, draughts = false, xia
     torches.push({ pl, flame, phase: Math.random() * 10 });
   }
 
-  const vk = star ? 11.5 / 8 : xiangqi ? 11.5 / 8 : k;                       // the 9 x 10 board with its margin is ~12 x 13 units
+  const vk = star ? 11.5 / 8 : xiangqi ? 11.5 / 8 : shogi ? 12.5 / 8 : tafl ? 12 / 8 : k;                      // the 9 x 10 board with its margin is ~12 x 13 units
   return {
     root,
     squares,
     views: vk === 1 ? CHESS_VIEWS : Object.fromEntries(Object.entries(CHESS_VIEWS).map(([name, v]) => [name, { pos: v.pos.map((x) => x * vk), target: v.target.map((x) => x * vk), narrow: v.narrow.map((x) => x * vk) }])),
     posOfKey: posOf,
-    buildPiece: star ? buildMarble : xiangqi ? buildXiangqiPiece : draughts ? buildDraughtsPiece : buildChessPiece,
+    buildPiece: star ? buildMarble : xiangqi ? buildXiangqiPiece : shogi ? buildShogiPiece : tafl ? buildTaflPiece : draughts ? buildDraughtsPiece : buildChessPiece,
+    countSprite,
     background: 0x140d08,
     fog: [0x140d08, 22, 70],
     update(t) {

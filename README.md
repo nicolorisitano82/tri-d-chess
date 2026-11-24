@@ -1,6 +1,6 @@
 # Tri-D Chess
 
-**Three-dimensional chess on seven levels** — movable attack boards, Jens Meder's tournament rules, a computer opponent, serverless peer-to-peer online play with chat, and AI players via MCP.
+**Three-dimensional chess on seven levels** — movable attack boards, Jens Meder's tournament rules, a computer opponent, serverless peer-to-peer online play with chat, and AI players via MCP. Plus classic chess, xiangqi, shogi, Chinese checkers, hnefatafl and five draughts variants.
 
 🇮🇹 [Versione italiana più sotto](#italiano)
 
@@ -14,6 +14,11 @@
 - **3D board**: three fixed 4×4 boards (W, N, B) and four 2×2 attack boards on twelve pins, rendered with Three.js.
 - **Official rules** ([Meder](https://meder.spacechess.org/3dschach/chess3d.htm)): movable attack boards (forward, sideways, backwards when empty), castling, en passant across levels, per-file promotion with a choice of piece, draws by stalemate, threefold repetition, insufficient material and the 50-move rule.
 - **Classic chess too**: switch the Game menu to classic chess (FIDE rules via [chess.js](https://github.com/jhlywa/chess.js)) on a walnut-and-maple board in a torch-lit medieval room, with ivory and ebony pieces. Computer, online play, lobby, clock, replay and MCP all work for both games.
+- **Chinese chess (xiangqi)**: the 9×10 board with the river and the palaces, discs carved with the traditional characters, played on the points. Full rules: flying general, the cannon's screen, the hobbled horse, the elephant's eye; stalemate loses.
+- **Japanese chess (shogi)**: wedge-shaped boxwood pieces with their kanji, pointing at the opponent; captured pieces wait on a stand (komadai) beside the board and can be dropped back into play. Optional and forced promotion, nifu and uchifuzume, sennichite. Engine checked with perft to depth 5.
+- **Chinese checkers for two**: the 121-hole star on a round walnut board, glass marbles, steps and chains of hops (the app finds the route), win by filling the opposite point.
+- **Viking chess (hnefatafl)**: Fetlar rules on the 11×11 board: the king and 12 defenders against 24 attackers, capture by sandwiching, hostile throne and corners, the king escapes to a corner or is surrounded on four sides; the attackers also win by enclosing every defender.
+- **Draughts in five variants**: Italian, international (10×10), English (checkers), Russian and Brazilian, each with its own capture rules.
 - **Computer opponent**: 5 levels (Beginner → Master) × 3 styles (balanced, aggressive, cautious), set separately for White and Black.
 - **Online play, no game server**: share a room code; [Trystero](https://github.com/dmotz/trystero) finds the other player through public Nostr relays, then the game flows directly between the two browsers over encrypted WebRTC. Reconnect with the same code. Online games are human vs human only.
 - **Serverless lobby**: public rooms are announced as signed, expiring Nostr events (NIP-78 / NIP-40) with a throwaway key, so anyone can see who is waiting and join with one tap; uncheck the box for a private, code-only room.
@@ -61,7 +66,7 @@ claude mcp add --transport http tri-d-chess-black "http://localhost:47321/mcp?co
 
 Then, in a new Claude Code session: *"Read get_rules and play Black: alternate wait_for_my_turn and make_move until the game ends."*
 
-MCP tools: `get_rules`, `get_game_state`, `get_legal_moves`, `make_move` (squares like `b2W`, pins like `QL1` for attack-board moves, `0-0` / `0-0-0` to castle, `promotion`), `wait_for_my_turn`, `new_game`, `resign`.
+MCP tools: `get_rules`, `get_game_state`, `get_legal_moves`, `make_move` (squares like `b2W`, pins like `QL1` for attack-board moves, `0-0` / `0-0-0` to castle, `promotion`; in shogi drops are written from `w*P` / `b*R` and `promotion: "+"` promotes), `wait_for_my_turn`, `new_game` (with `kind`: `trid`, `chess`, `xiangqi`, `shogi`, `cinese`, `tafl`, `dama-*`), `resign`.
 
 ## Rules at a glance
 
@@ -79,6 +84,8 @@ MCP tools: `get_rules`, `get_game_state`, `get_legal_moves`, `make_move` (square
 | `src/ai.js` | computer player (alpha-beta with transposition table, levels and styles) |
 | `src/chess2d.js`, `src/ai-chess.js`, `src/games.js` | classic chess on chess.js, its computer player, the game-kind registry |
 | `src/xiangqi.js`, `src/ai-xiangqi.js` | Chinese chess (xiangqi): rules on a 90-point array board (perft-tested), its computer player |
+| `src/shogi.js`, `src/ai-shogi.js` | shogi: rules on an 81-square array board with hands and drops (perft-tested), its computer player |
+| `src/tafl.js`, `src/ai-tafl.js` | hnefatafl (Fetlar 11×11): rules and its computer player |
 | `src/halma.js`, `src/ai-halma.js` | Chinese checkers for two players (star board, hop chains) and its computer player |
 | `src/draughts.js`, `src/ai-draughts.js` | draughts in five variants and their computer player |
 | `server.js` | Express: UI, REST + SSE, network endpoints, MCP server |
@@ -109,10 +116,12 @@ Not affiliated with any science-fiction franchise. Piece designs are original.
 - **Regole ufficiali** di Meder: tavole d'attacco mobili (avanti, di lato, indietro se vuote), arrocco, en passant anche tra livelli, promozione per colonna a scelta del pezzo, patte per stallo, triplice ripetizione, materiale insufficiente e 50 mosse.
 - **Anche scacchi classici**: dal menu Gioco passi agli scacchi classici (regole FIDE tramite [chess.js](https://github.com/jhlywa/chess.js)) su una scacchiera in noce e acero, in una sala medievale illuminata da torce, con pezzi in avorio ed ebano. Computer, rete, lobby, orologio, replay e MCP valgono per entrambi i giochi.
 - **Scacchi cinesi (Xiangqi)**: scacchiera 9×10 con fiume e palazzi, pezzi a dischi con gli ideogrammi tradizionali, si gioca sui punti. Regole complete (generale volante, cannone che salta lo schermo, cavallo zoppo, occhio dell'elefante, lo stallo fa perdere), computer a 5 livelli, gioco in rete, replay, annulla e suggerimento.
+- **Shōgi (scacchi giapponesi)**: pezzi a cuneo in legno di bosso con i kanji, rivolti verso l'avversario; i pezzi catturati aspettano su un supporto (komadai) accanto alla scacchiera e si possono paracadutare di nuovo in gioco. Promozione facoltativa e obbligatoria, nifu, uchifuzume, sennichite. Motore verificato con perft fino alla profondità 5. Computer a 5 livelli, gioco in rete, replay.
+- **Hnefatafl (scacchi vichinghi)**: regole Fetlar sulla tavola 11×11: il re e 12 difensori contro 24 attaccanti, cattura a tenaglia, trono e angoli ostili, il re vince raggiungendo un angolo e cade se circondato su quattro lati; gli attaccanti vincono anche accerchiando tutti i difensori. Computer a 5 livelli, gioco in rete, replay.
 - **Dama cinese a 2 giocatori**: stella di 121 buche su una tavola rotonda di noce, biglie di vetro, passi e catene di salti (l'app trova il percorso), vittoria riempiendo la punta opposta con la regola anti-blocco. Computer a 5 livelli, gioco in rete, replay, annulla e suggerimento.
 - **Anche la dama, in cinque varianti**: italiana, internazionale (10×10), inglese (checkers), russa e brasiliana, nella stessa sala medievale. Presa obbligatoria con le regole di scelta di ciascuna variante, dama volante dove previsto, computer a 5 livelli, gioco in rete, replay, annulla e suggerimento.
 - **Quattro set di pezzi per il Tri-D**: Federazione, Klingon, Borg e Romulani, scelti separatamente per Bianco e Nero dal menu Pezzi (design originali ispirati alle fazioni, senza simboli ufficiali). La scelta è solo estetica e resta sul tuo dispositivo.
-- **Regole consultabili**: il pulsante Regole apre una pagina con ricerca, in italiano e inglese, con le regole del Tri-D (Meder) e degli scacchi classici (FIDE). Si apre anche con `?rules` nell'indirizzo.
+- **Regole consultabili**: il pulsante Regole apre una pagina con ricerca, in italiano e inglese, con le regole di tutti i giochi: Tri-D (Meder), scacchi classici (FIDE), xiangqi, shōgi, dama cinese, hnefatafl e dama. Si apre anche con `?rules` nell'indirizzo.
 - **Tutorial interattivo**: sette lezioni brevi sulla scacchiera vera (livelli, proiezione, cavallo, tavole d'attacco, promozione, matto), aperte dalla pagina Regole o con `?tutorial`.
 - **Accessibilità**: mosse da tastiera (`b2W b4N`, `QL1 QL3`, `e2e4`, `0-0`; tasto M), mosse e stato annunciati ai lettori di schermo, descrizione testuale della posizione, tema ad alto contrasto, animazioni ridotte se il sistema lo chiede.
 - **Pannello compatto** (desktop): bottone ◂ o tasto P, restano solo turno e mosse in trasparenza.

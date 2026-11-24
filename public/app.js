@@ -6,9 +6,11 @@ import { DraughtsGame, isDraughts, VARIANTS } from '/draughts.js';
 import { ChessGame } from '/chess2d.js';
 import { XiangqiGame } from '/xiangqi.js';
 import { HalmaGame, HOLES, HOME } from '/halma.js';
+import { ShogiGame } from '/shogi.js';
+import { TaflGame } from '/tafl.js';
 import { createRules } from '/rules.js';
 import { createTutorial } from '/tutorial.js';
-import { t, table, getLang, setLang, applyStatic, onLangChange, setRedWhite } from '/i18n.js';
+import { t, table, getLang, setLang, applyStatic, onLangChange, setSideNames } from '/i18n.js';
 import { LEVELS, LEVEL_NAMES, MAIN_LEVELS, PINS, isPin, squaresOf, sqKey, parseSquare, PIECE_NAMES, Game } from '/engine.js';
 
 // --- world mapping -------------------------------------------------------------
@@ -22,12 +24,13 @@ const tridPos = (key) => { const s = parseSquare(key); return worldPos(s.x, s.y,
 let kind = 'trid';
 const ROOMS = {};
 let room = null; // the medieval room view in use, or null for the Tri-D scene
-const roomKey = (k) => (k === 'chess' ? 'chess' : k === 'xiangqi' ? 'xiangqi' : k === 'cinese' ? 'cinese' : isDraughts(k) ? (VARIANTS[k].size === 10 ? 'dama10' : VARIANTS[k].dark === 'even' ? 'dama8it' : 'dama8') : null);
+const OWN_ROOMS = ['chess', 'xiangqi', 'cinese', 'shogi', 'tafl'];
+const roomKey = (k) => (OWN_ROOMS.includes(k) ? k : isDraughts(k) ? (VARIANTS[k].size === 10 ? 'dama10' : VARIANTS[k].dark === 'even' ? 'dama8it' : 'dama8') : null);
 function roomFor(k) {
   const rk = roomKey(k);
   if (!rk) return null;
   if (!ROOMS[rk]) {
-    const v = rk === 'chess' ? createChessView() : rk === 'xiangqi' ? createChessView({ xiangqi: true }) : rk === 'cinese' ? createChessView({ star: { holes: HOLES, home: HOME } }) : createChessView({ size: rk === 'dama10' ? 10 : 8, darkA1: rk !== 'dama8it', draughts: true });
+    const v = rk === 'chess' ? createChessView() : rk === 'xiangqi' ? createChessView({ xiangqi: true }) : rk === 'cinese' ? createChessView({ star: { holes: HOLES, home: HOME } }) : rk === 'shogi' ? createChessView({ shogi: true }) : rk === 'tafl' ? createChessView({ size: 11, tafl: true }) : createChessView({ size: rk === 'dama10' ? 10 : 8, darkA1: rk !== 'dama8it', draughts: true });
     scene.add(v.root);
     for (const { mesh } of v.squares) pickables.push(mesh);
     ROOMS[rk] = v;
@@ -37,7 +40,7 @@ function roomFor(k) {
 const posOfKey = (key) => (room ? room.posOfKey(key) : tridPos(key));
 const buildPiece = (type, color) => (room ? room.buildPiece(type, color) : buildTriDPiece(type, color));
 // a new, empty game of any kind (replays, local checks)
-const newLocalGame = (k) => (k === 'chess' ? new ChessGame({ white: 'human', black: 'human' }) : k === 'xiangqi' ? new XiangqiGame({ white: 'human', black: 'human' }) : k === 'cinese' ? new HalmaGame({ white: 'human', black: 'human' }) : isDraughts(k) ? new DraughtsGame(k, { white: 'human', black: 'human' }) : new Game({ white: 'human', black: 'human' }));
+const newLocalGame = (k) => (k === 'chess' ? new ChessGame({ white: 'human', black: 'human' }) : k === 'xiangqi' ? new XiangqiGame({ white: 'human', black: 'human' }) : k === 'cinese' ? new HalmaGame({ white: 'human', black: 'human' }) : k === 'shogi' ? new ShogiGame({ white: 'human', black: 'human' }) : k === 'tafl' ? new TaflGame({ white: 'human', black: 'human' }) : isDraughts(k) ? new DraughtsGame(k, { white: 'human', black: 'human' }) : new Game({ white: 'human', black: 'human' }));
 
 // --- renderer / scene ------------------------------------------------------------
 const container = document.getElementById('scene');
@@ -83,7 +86,7 @@ function setKind(k) {
   scene.fog.color.setHex(bg);
   [scene.fog.near, scene.fog.far] = room ? room.fog.slice(1) : [30, 90];
   document.body.dataset.kind = k;
-  setRedWhite(k === 'xiangqi');
+  setSideNames(k);
   pieceGroup.clear();
   pieceMeshes.clear();
   camIdx = 0;
@@ -318,15 +321,19 @@ const glyph = (t) => GLYPH[t] + '\uFE0E';
 // xiangqi: own values (chariot 9, cannon 5, horse 4, advisor/elephant 2, soldier 1) and the disc characters
 const XQ_VAL = { K: 0, A: 2, E: 2, H: 4, R: 9, C: 5, P: 1 };
 const XQ_GLYPH = { white: { K: '帥', A: '仕', E: '相', H: '傌', R: '俥', C: '炮', P: '兵' }, black: { K: '將', A: '士', E: '象', H: '馬', R: '車', C: '砲', P: '卒' } };
-const valOf = (s) => (kindOf(s) === 'xiangqi' ? XQ_VAL : VAL);
-const glyphFor = (s, t, color) => (kindOf(s) === 'xiangqi' ? XQ_GLYPH[color]?.[t] || '?' : glyph(t));
+// shogi: pieces in hand count as material too; tafl: a warrior is 1, the king is not counted
+const SH_VAL = { K: 0, P: 1, L: 3, N: 4, S: 5, G: 6, B: 8, R: 10, 'P+': 6, 'L+': 6, 'N+': 6, 'S+': 6, 'B+': 10, 'R+': 12 };
+const SH_GLYPH = { K: '玉', R: '飛', B: '角', G: '金', S: '銀', N: '桂', L: '香', P: '歩', 'R+': '龍', 'B+': '馬', 'S+': '全', 'N+': '圭', 'L+': '杏', 'P+': 'と' };
+const valOf = (s) => ({ xiangqi: XQ_VAL, shogi: SH_VAL, tafl: { P: 1, K: 0 } }[kindOf(s)] || VAL);
+const glyphFor = (s, t, color) => (kindOf(s) === 'xiangqi' ? XQ_GLYPH[color]?.[t] || '?' : kindOf(s) === 'shogi' ? SH_GLYPH[t] || '?' : glyph(t));
 const fmtTime = (ms) => { if (ms == null || !isFinite(ms)) return '—'; const s = Math.round(ms / 1000); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 function statsFor(s, c) {
   const mine = s.history.filter((m) => m.color === c);
   const V = valOf(s);
   const caps = mine.flatMap((m) => m.capturedAll || (m.captured ? [m.captured] : [])).sort((x, y) => (V[y] || 0) - (V[x] || 0));
-  const material = Object.values(s.pieces).filter((p) => p.color === c).reduce((t, p) => t + (V[p.type] || 0), 0);
+  const material = Object.values(s.pieces).filter((p) => p.color === c).reduce((t, p) => t + (V[p.type] || 0), 0)
+    + (s.hands ? Object.entries(s.hands[c] || {}).reduce((t, [k, n]) => t + (V[k] || 0) * n, 0) : 0);
   const think = [];
   s.history.forEach((m, i) => { if (m.color === c && m.at) { const prev = i ? s.history[i - 1].at : s.startedAt; if (prev) think.push(m.at - prev); } });
   return {
@@ -420,6 +427,14 @@ function toast(msg) {
 }
 
 const kindOf = (s) => s?.kind || 'trid';
+// the piece on a key; for shogi also a piece in hand ("w*P": Sente's pawns)
+function pieceOn(s, k) {
+  if (!s || !k) return null;
+  if (s.pieces[k]) return s.pieces[k];
+  const m = /^([wb])\*([A-Z])$/.exec(k);
+  const color = m && (m[1] === 'w' ? 'white' : 'black');
+  return m && s.hands?.[color]?.[m[2]] ? { type: m[2], color, inHand: s.hands[color][m[2]] } : null;
+}
 const isHumanTurn = () => state && !state.replay && state.status === 'playing' && state.players[state.turn] === 'human';
 
 function setSquareGlow() {
@@ -479,6 +494,17 @@ function renderPieces(prev) {
     pieceGroup.add(g);
     pieceMeshes.set(k, g);
   }
+  // shogi: one piece per kind on each player's stand, with the count
+  if (state.hands && room?.countSprite) for (const c of ['white', 'black']) for (const [type, n] of Object.entries(state.hands[c] || {})) {
+    if (!n) continue;
+    const k = `${c[0]}*${type}`;
+    const g = buildPiece(type, c);
+    g.position.copy(posOfKey(k));
+    if (n > 1) { const sp = room.countSprite(n); sp.position.set(0.42, 0.35, c === 'white' ? 0.3 : -0.3); g.add(sp); }
+    g.traverse((o) => { o.userData.key = k; });
+    pieceGroup.add(g);
+    pieceMeshes.set(k, g);
+  }
   // animate the last move if it is new
   const lm = state.lastMove;
   if (lm && prev && prev.id === state.id && prev.version === state.version - 1) {
@@ -497,12 +523,13 @@ function renderPieces(prev) {
   if (REDUCED_MOTION.matches) anim = null; // pieces are already on their squares
 }
 
+const TAFL_END = { escape: 'status.taflEscape', capture: 'status.taflCapture', encircle: 'status.taflEncircle' };
 function renderPanel() {
   const s = state;
   let status;
   if (s.replay) status = t('replay.status', { i: s.replay.i, n: s.replay.n });
   else if (s.lesson && s.status === 'playing') status = t(s.turn === 'white' ? 'status.lesson' : 'status.lessonDone');
-  else if (s.status === 'checkmate') status = t(kindOf(s) === 'cinese' ? 'status.ccWin' : isDraughts(kindOf(s)) ? 'status.blocked' : 'status.mate', { c: IT[s.winner] });
+  else if (s.status === 'checkmate') status = t(kindOf(s) === 'cinese' ? 'status.ccWin' : kindOf(s) === 'tafl' ? TAFL_END[s.endReason] || 'status.blocked' : isDraughts(kindOf(s)) ? 'status.blocked' : 'status.mate', { c: IT[s.winner] });
   else if (s.status === 'stalemate') status = s.winner ? t('status.blocked', { c: IT[s.winner] }) : t('status.stalemate'); // Xiangqi: no move = loss
   else if (s.status === 'draw') status = t('status.draw', { r: DRAW_IT[s.drawReason || 'fifty'] });
   else if (s.status === 'resigned') status = t('status.resigned', { c: IT[s.winner] });
@@ -542,7 +569,7 @@ function applyState(s) {
     if (!prev || prev.players?.black !== s.players.black || prev.players?.white !== s.players.white || kindOf(prev) !== kindOf(s)) { camIdx = view === 'black' ? 1 : 0; setView(view); }
   }
   if (!s.replay && !s.lesson && (!prev || prev.id !== s.id)) { $('gameKind').value = kindOf(s); $('selW').value = s.players.white; $('selB').value = s.players.black; if (s.computer) for (const [c, k] of [['white', 'W'], ['black', 'B']]) { $('lvl' + k).value = String(s.computer[c].level); $('sty' + k).value = s.computer[c].style; } }
-  if (selected && ((!isPin(selected) && !s.pieces[selected]) || (isPin(selected) && !s.boards[selected]) || !isHumanTurn())) selected = null;
+  if (selected && ((!isPin(selected) && !pieceOn(s, selected)) || (isPin(selected) && !s.boards[selected]) || !isHumanTurn())) selected = null;
   syncBoards();
   renderPieces(prev);
   renderMarkers();
@@ -580,7 +607,7 @@ function onLive(s) {
   if (gameFromUrl === true) {
     const q = new URLSearchParams(location.search), g = q.get('game');
     gameFromUrl = null;
-    if (g && !q.has('replay') && !q.has('room') && !q.has('watch') && (g === 'trid' || g === 'chess' || g === 'xiangqi' || g === 'cinese' || isDraughts(g)) && kindOf(s) !== g)
+    if (g && !q.has('replay') && !q.has('room') && !q.has('watch') && (g === 'trid' || OWN_ROOMS.includes(g) || isDraughts(g)) && kindOf(s) !== g)
       setTimeout(() => { $('gameKind').value = g; $('gameKind').onchange(); }, 0);
   }
   if (!replay && !tutorial?.active()) applyState(s);
@@ -590,6 +617,8 @@ const PUBLIC_DEMO = 'https://nicolorisitano82.github.io/tri-d-chess/play/';
 const CHESS_MOVE_RE = /^([a-h][1-8])-([a-h][1-8])(?:=([QRBN]))?$/;
 const XQ_MOVE_RE = /^([a-i](?:10|[1-9]))-([a-i](?:10|[1-9]))()$/;
 const CC_MOVE_RE = /^([a-q](?:1[0-7]|[1-9]))-([a-q](?:1[0-7]|[1-9]))(?:=([a-q0-9x]{4,300}))?$/; // (a hop chain may carry its route)
+const SHOGI_MOVE_RE = /^([a-i][1-9]|[wb]\*[RBGSNLP])-([a-i][1-9])(?:=(\+))?$/;
+const TAFL_MOVE_RE = /^([a-k](?:1[01]|[1-9]))-([a-k](?:1[01]|[1-9]))()$/;
 const DRAUGHTS_MOVE_RE = /^([a-j](?:10|[1-9]))-([a-j](?:10|[1-9]))(?:=([a-j0-9x]{4,120}))?$/;
 const MOVE_RE = /^([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])-([zabcde]\d(?:W|N|B|[QK]L[1-6])|[QK]L[1-6])(?:=([QRBN]))?$/;
 const b64url = (s) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -600,7 +629,7 @@ function decodeGame(code, k = 'trid') {
     if (!code || code.length > 30000) return null;
     const parts = unb64url(code).split('.').filter(Boolean);
     if (!parts.length || parts.length > 2000) return null;
-    const re = k === 'chess' ? CHESS_MOVE_RE : k === 'xiangqi' ? XQ_MOVE_RE : k === 'cinese' ? CC_MOVE_RE : isDraughts(k) ? DRAUGHTS_MOVE_RE : MOVE_RE;
+    const re = k === 'chess' ? CHESS_MOVE_RE : k === 'xiangqi' ? XQ_MOVE_RE : k === 'cinese' ? CC_MOVE_RE : k === 'shogi' ? SHOGI_MOVE_RE : k === 'tafl' ? TAFL_MOVE_RE : isDraughts(k) ? DRAUGHTS_MOVE_RE : MOVE_RE;
     const moves = parts.map((p) => { const m = re.exec(p); return m && { from: m[1], to: m[2], promotion: m[3] || null }; });
     return moves.every(Boolean) ? moves : null;
   } catch { return null; }
@@ -668,7 +697,7 @@ window.addEventListener('keydown', (e) => {
 });
 {
   const qs = new URLSearchParams(location.search);
-  const g = qs.get('game'), k = g === 'chess' || g === 'xiangqi' || g === 'cinese' || isDraughts(g) ? g : 'trid';
+  const g = qs.get('game'), k = OWN_ROOMS.includes(g) || isDraughts(g) ? g : 'trid';
   const code = qs.get('replay');
   if (code) { const m = decodeGame(code, k); if (m) replayFromUrl = { moves: m, k }; else setTimeout(() => toast(t('replay.bad')), 500); }
 }
@@ -692,7 +721,7 @@ tutorial = createTutorial({
 $('btnRules').onclick = () => rules.open(isDraughts(kind) ? 'dama' : kind);
 {
   const r = new URLSearchParams(location.search).get('rules');
-  if (r !== null) rules.open(r === 'chess' || r === 'trid' || r === 'dama' || r === 'xiangqi' || r === 'cinese' ? r : isDraughts(r) ? 'dama' : null);
+  if (r !== null) rules.open(r === 'trid' || r === 'dama' || OWN_ROOMS.includes(r) ? r : isDraughts(r) ? 'dama' : null);
   else if (new URLSearchParams(location.search).has('tutorial')) setTimeout(() => openTutorial(0), 600);
 }
 
@@ -726,8 +755,8 @@ function victoryText(s) {
     const w = s.winner, st = statsFor(s, w);
     $('vEyebrow').textContent = t('victory.glory', { c: IT[w] });
     $('vTitle').textContent = t('victory.win');
-    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? (kindOf(s) === 'cinese' ? 'victory.byFill' : isDraughts(kindOf(s)) ? 'victory.byBlock' : 'victory.byMate') : s.status === 'stalemate' ? 'victory.byBlock' : s.status === 'timeout' ? 'victory.byTime' : 'victory.byResign'), n });
-    $('vMeta').textContent = kindOf(s) === 'cinese' ? t('victory.plies', { n: s.history.length }) : t('victory.meta', { caps: st.caps.length, checks: st.checks, mat: st.material });
+    $('vSub').textContent = t('victory.sub', { c: IT[w], who: IT[s.players[w]], how: t(s.status === 'checkmate' ? (kindOf(s) === 'cinese' ? 'victory.byFill' : kindOf(s) === 'tafl' ? { escape: 'victory.byEscape', capture: 'victory.byKing', encircle: 'victory.byEncircle' }[s.endReason] || 'victory.byBlock' : isDraughts(kindOf(s)) ? 'victory.byBlock' : 'victory.byMate') : s.status === 'stalemate' ? 'victory.byBlock' : s.status === 'timeout' ? 'victory.byTime' : 'victory.byResign'), n });
+    $('vMeta').textContent = kindOf(s) === 'cinese' || kindOf(s) === 'tafl' ? t('victory.plies', { n: s.history.length }) : t('victory.meta', { caps: st.caps.length, checks: st.checks, mat: st.material });
   }
 }
 
@@ -887,7 +916,7 @@ $('btnHint').onclick = async () => {
   // show it: select the piece (its moves light up) and name the move
   selected = from;
   renderMarkers(); setSquareGlow();
-  const p = state.pieces[from];
+  const p = pieceOn(state, from);
   const txt = t('hint.move', { m: isPin(from) ? `${from} → ${to}` : `${p ? pieceName(p.type) + ' ' : ''}${from} → ${to}` });
   toast(txt); say(txt);
   hintTarget = to;
@@ -925,10 +954,11 @@ function pick(ev) {
 function describeKey(k) {
   if (!k) return '—';
   if (isPin(k)) return t('hint.pin', { p: k });
-  const p = state?.pieces[k];
+  const p = pieceOn(state, k);
+  if (p?.inHand) return t('sh.hand', { p: `${IT[p.color]} ${pieceName(p.type)}`, n: p.inHand });
   const lv = parseSquare(k)?.level;
   const extra = lv && isPin(lv) && targetsOf(lv).length && isHumanTurn() ? t('hint.movable') : '';
-  return (p ? `${k} · ${IT[p.color]} ${PIECE_IT[p.type]}` : k) + extra;
+  return (p ? `${k} · ${IT[p.color]} ${pieceName(p.type)}` : k) + extra;
 }
 const PIECE_IT = table('piece');
 
@@ -947,11 +977,16 @@ renderer.domElement.addEventListener('pointerup', (e) => {
     selected = null;
     renderMarkers(); setSquareGlow();
     const play = (body) => (state.lesson ? tutorial.move(body) : post('/api/move', body));
-    if (promo) askPromotion(state.turn).then((p) => { if (p) play({ from, to: k, promotion: p }); });
+    if (kindOf(state) === 'shogi') {
+      // shogi: '+' promotes; ask only when promoting is optional
+      const c = targetsOf(from).filter((m) => m.to === k);
+      const p = c.every((m) => m.promotion) ? '+' : c.some((m) => m.promotion) && confirm(t('ui.promoteAsk')) ? '+' : null;
+      play(p ? { from, to: k, promotion: p } : { from, to: k });
+    } else if (promo) askPromotion(state.turn).then((p) => { if (p) play({ from, to: k, promotion: p }); });
     else play({ from, to: k });
     return;
   }
-  const p = k && state.pieces[k];
+  const p = k && pieceOn(state, k);
   if (selected && pieceMeshes.get(selected)) pieceMeshes.get(selected).position.copy(posOfKey(selected));
   const lv = k && !isPin(k) ? parseSquare(k)?.level : null;
   if (!p && lv && isPin(lv)) {
@@ -1037,7 +1072,7 @@ renderer.setAnimationLoop(() => {
 
 // --- hooks for optional modules (network play, net.js) ---------------------------------
 window.TriD = Object.assign(window.TriD || {}, { getState: () => live || state, post, toast, t, onLangChange, listeners: window.TriD?.listeners || [],
-  kinds: ['trid', 'chess', 'xiangqi', 'cinese', ...Object.keys(VARIANTS)],
+  kinds: ['trid', 'chess', 'xiangqi', 'cinese', 'shogi', 'tafl', ...Object.keys(VARIANTS)],
   // players' nicknames in a network game (set by net.js); empty outside rooms
   names: { white: '', black: '' },
   setNames(n) { window.TriD.names = { white: n?.white || '', black: n?.black || '' }; if (state) renderPanel(); },
@@ -1046,7 +1081,7 @@ window.TriD = Object.assign(window.TriD || {}, { getState: () => live || state, 
 // --- language (IT / EN) -------------------------------------------------------------------
 // --- accessibility: keyboard moves, spoken updates, text description, high contrast -------
 const say = (text) => { const el = $('srLive'); el.textContent = ''; setTimeout(() => { el.textContent = text; }, 30); };
-const pieceName = (type) => (kind === 'xiangqi' ? t('xq.' + type) : kind === 'cinese' ? t('cc.marble') : PIECE_IT[type] || type);
+const pieceName = (type) => (kind === 'xiangqi' ? t('xq.' + type) : kind === 'cinese' ? t('cc.marble') : kind === 'shogi' ? t('sh.' + type) : kind === 'tafl' ? t('tf.' + type) : PIECE_IT[type] || type);
 function describeMove(m) {
   const c = IT[m.color];
   let txt = m.board ? t('a11y.boardMoved', { c, f: m.from, t: m.to })
@@ -1075,7 +1110,8 @@ function positionText(s) {
     const list = Object.entries(s.pieces).filter(([, p]) => p.color === c)
       .sort(([a, p], [b, q]) => ORDER.indexOf(p.type) - ORDER.indexOf(q.type) || a.localeCompare(b))
       .map(([k, p]) => `${pieceName(p.type)} ${k}`);
-    lines.push(`${IT[c]}: ${list.join(', ') || t('a11y.empty')}`);
+    const hand = s.hands ? Object.entries(s.hands[c] || {}).filter(([, n]) => n).map(([type, n]) => t('sh.hand', { p: pieceName(type), n })) : [];
+    lines.push(`${IT[c]}: ${[...list, ...hand].join(', ') || t('a11y.empty')}`);
   }
   if (kind === 'trid' && s.boards) lines.push(`${t('a11y.boards')}: ${Object.entries(s.boards).map(([pin, c]) => `${pin} (${IT[c]})`).join(', ')}`);
   lines.push($('status').textContent);
@@ -1102,6 +1138,13 @@ function normSquare(x) {
 // "b2W b4N", "b2w-b4n", "e2e4", "e7e8q", "e7 e8 = Q", "QL1 QL3", "0-0"; a single square = its moves
 function parseMoveText(txt) {
   const raw = txt.trim();
+  // shogi: "P*e5" (a drop) and "c7d8+" / "c7-d8=" (promote / not)
+  if (kind === 'shogi') {
+    const d = /^([RBGSNLP])\s*\*\s*([a-i][1-9])$/i.exec(raw);
+    if (d) return { from: `${state?.turn === 'black' ? 'b' : 'w'}*${d[1].toUpperCase()}`, to: d[2].toLowerCase() };
+    const m = /^([RBGSNLPK]\+?)?\s*([a-i][1-9])\s*[-x]?\s*([a-i][1-9])\s*(\+|=)?$/i.exec(raw);
+    if (m) return { from: m[2].toLowerCase(), to: m[3].toLowerCase(), promotion: m[4] === '+' ? '+' : null, noPromo: m[4] === '=' };
+  }
   if (/^[0o]-[0o](-[0o])?$/i.test(raw)) return { castle: /-[0o]-/i.test(raw) ? 'Q' : 'K' };
   const tok = raw.replace(/[-x>→,=:]/gi, (c) => (c.toLowerCase() === 'x' ? ' ' : ' ')).trim().split(/\s+/).filter(Boolean);
   let promotion = null;
@@ -1157,7 +1200,9 @@ $('kbMove').addEventListener('submit', (e) => {
   }
   const cands = targetsOf(mv.from).filter((m) => m.to === mv.to);
   if (!cands.length) { say(t('a11y.bad', { s: txt })); toast(t('a11y.bad', { s: txt })); return; }
-  const promotion = cands.some((m) => m.promotion) ? (mv.promotion || 'Q') : null;
+  const promotion = kindOf(state) === 'shogi'
+    ? (cands.every((m) => m.promotion) || (mv.promotion && cands.some((m) => m.promotion)) ? '+' : null)
+    : cands.some((m) => m.promotion) ? (mv.promotion || 'Q') : null;
   const body = { from: mv.from, to: mv.to, ...(promotion ? { promotion } : {}) };
   selected = null;
   input.value = '';

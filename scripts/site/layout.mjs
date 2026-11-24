@@ -71,7 +71,7 @@ ${body}
   <div class="wrap foot">
     <div>
       <p class="brand small">Tri-D Chess</p>
-      <p>Free 3D chess, classic chess, Chinese chess, Chinese checkers and draughts in your browser. Open source under the GPL-3.0 licence.</p>
+      <p>Free 3D chess, classic chess, Chinese and Japanese chess, Chinese checkers, Viking chess and draughts in your browser. Open source under the GPL-3.0 licence.</p>
       <p class="note">A fan project, not affiliated with any science-fiction franchise. Original piece designs.</p>
     </div>
     <nav aria-label="Footer">
@@ -79,7 +79,9 @@ ${body}
       <a href="/rules/3d-chess/">3D chess rules</a>
       <a href="/rules/chess/">Chess rules</a>
       <a href="/rules/xiangqi/">Xiangqi rules</a>
+      <a href="/rules/shogi/">Shogi rules</a>
       <a href="/rules/chinese-checkers/">Chinese checkers rules</a>
+      <a href="/rules/hnefatafl/">Hnefatafl rules</a>
       <a href="/rules/draughts/">Draughts rules</a>
       <a href="/learn/how-to-play-3d-chess/">How to play 3D chess</a>
       <a href="/faq/">FAQ</a>
@@ -98,7 +100,7 @@ export const CSS = `/* Tri-D Chess website — dark "console" look, orange / lil
   color-scheme: dark;
   --bg: #05040c; --panel: #0f0c1c; --panel2: #151127; --line: #2a2340;
   --text: #efe7dc; --muted: #a59a8f; --soft: #d9cfc4;
-  --orange: #ff9c33; --peach: #ffcc99; --lilac: #cc99cc; --sky: #66ccff; --red: #ff5f6d;
+  --orange: #ff9c33; --peach: #ffcc99; --sand: #e6c47a; --lilac: #cc99cc; --sky: #66ccff; --red: #ff5f6d;
   --font: "Avenir Next", "Helvetica Neue", -apple-system, "Segoe UI", Roboto, sans-serif;
   --display: "Avenir Next Condensed", "Helvetica Neue", "Arial Narrow", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;

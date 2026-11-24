@@ -655,7 +655,7 @@ const ROOM_RE = /^[A-Z2-9]{8}$/;
 const roomLink = () => `${SHARE_BASE}?room=${code}`;
 const enc = encodeURIComponent;
 // the post names the game of the room: Tri-D, classic chess or the draughts variant
-const shareFamily = () => (hostKind.startsWith('dama-') ? 'dama' : hostKind === 'chess' || hostKind === 'xiangqi' || hostKind === 'cinese' ? hostKind : 'trid');
+const shareFamily = () => (hostKind.startsWith('dama-') ? 'dama' : ['chess', 'xiangqi', 'cinese', 'shogi', 'tafl'].includes(hostKind) ? hostKind : 'trid');
 function shareText() {
   const f = shareFamily();
   let v = t('game.' + hostKind).replace(/\s*\(.*\)$/, '');      // "Dama inglese (Checkers)" → "Dama inglese"
